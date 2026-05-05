@@ -20,6 +20,7 @@ interface Competitor {
   slot: number;
   name: string;
   meta_library_url: string | null;
+  google_library_url: string | null;
   website_url: string | null;
 }
 
@@ -38,6 +39,7 @@ interface CompetitorAd {
   ad_type: string | null;
   is_inspiration?: boolean;
   competitor_id: string | null;
+  ad_source?: "meta" | "google" | null;
 }
 
 interface ScrapeRun {
@@ -145,8 +147,8 @@ export function CompetitorAdsPage({ slug, clientName }: Props) {
   });
 
   const openAnalyzeDialog = (competitor: Competitor) => {
-    if (!competitor.meta_library_url) {
-      toast.error(`Konkurent ${competitor.name}: chybí Meta Ad Library URL`);
+    if (!competitor.meta_library_url && !competitor.google_library_url) {
+      toast.error(`Konkurent ${competitor.name}: chybí Meta nebo Google Ad Library URL`);
       return;
     }
     setAnalyzeDialog({ competitor, maxAds: 25 });
@@ -443,6 +445,11 @@ export function CompetitorAdsPage({ slug, clientName }: Props) {
                           <span className="h-1.5 w-1.5 rounded-full bg-[#b0f221]" /> Aktivní
                         </div>
                       )}
+                      {ad.ad_source === "google" && (
+                        <div className="absolute bottom-2 left-2 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-500/90 text-white pointer-events-none">
+                          Google
+                        </div>
+                      )}
                     </div>
                     <div className="p-3 space-y-2 flex-1 flex flex-col">
                       <div className="flex items-center justify-between gap-2">
@@ -492,7 +499,9 @@ export function CompetitorAdsPage({ slug, clientName }: Props) {
           <DialogHeader>
             <DialogTitle>Analyzovat {analyzeDialog.competitor?.name}</DialogTitle>
             <DialogDescription className="text-xs">
-              Nascrapuje aktivní reklamy z Meta Ad Library, načte web konkurence a vygeneruje souhrn.
+              Nascrapuje aktivní reklamy z Meta Ad Library
+              {analyzeDialog.competitor?.google_library_url ? " i Google Ads Transparency Center" : ""}
+              , načte web konkurence a vygeneruje souhrn.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
@@ -767,7 +776,9 @@ function CompetitorBar({
                   <div className="text-[10px] text-muted-foreground flex items-center gap-2">
                     <span className="inline-flex items-center gap-0.5"><FileText className="h-2.5 w-2.5" />{adsByCompetitor[c.id] || 0}</span>
                     {hasSummary && <span className="inline-flex items-center gap-0.5 text-[#b0f221]"><CheckCircle2 className="h-2.5 w-2.5" />souhrn</span>}
-                    {!c.meta_library_url && <span className="text-destructive/80">· Meta URL chybí</span>}
+                    {!c.meta_library_url && !c.google_library_url && <span className="text-destructive/80">· URL chybí</span>}
+                    {c.meta_library_url && <span className="text-muted-foreground/60">Meta</span>}
+                    {c.google_library_url && <span className="text-blue-400/80">Google</span>}
                   </div>
                 )}
               </div>
@@ -776,7 +787,7 @@ function CompetitorBar({
                   size="sm"
                   variant={hasSummary ? "outline" : "default"}
                   className="h-7 gap-1 text-[11px] px-2"
-                  disabled={!c.meta_library_url || isAnalyzing}
+                  disabled={(!c.meta_library_url && !c.google_library_url) || isAnalyzing}
                   onClick={() => onAnalyze(c)}
                   title="Spustit kompletní analýzu konkurenta"
                 >
@@ -802,6 +813,7 @@ function CompetitorEditor({
 }) {
   const [name, setName] = useState(competitor?.name || "");
   const [metaUrl, setMetaUrl] = useState(competitor?.meta_library_url || "");
+  const [googleUrl, setGoogleUrl] = useState(competitor?.google_library_url || "");
   const [webUrl, setWebUrl] = useState(competitor?.website_url || "");
   const [saving, setSaving] = useState(false);
 
@@ -815,6 +827,7 @@ function CompetitorEditor({
         competitor: {
           id: competitor?.id, slot, name: name.trim(),
           meta_library_url: metaUrl.trim() || null,
+          google_library_url: googleUrl.trim() || null,
           website_url: webUrl.trim() || null,
         },
       },
@@ -832,7 +845,8 @@ function CompetitorEditor({
         <span className="text-xs font-semibold">{competitor ? "Upravit" : "Nový konkurent"}</span>
       </div>
       <Input placeholder="Název (např. Symprove)" value={name} onChange={(e) => setName(e.target.value)} className="h-8 text-xs" />
-      <Input placeholder="Meta Ad Library URL" value={metaUrl} onChange={(e) => setMetaUrl(e.target.value)} className="h-8 text-xs" />
+      <Input placeholder="Meta Ad Library URL (https://www.facebook.com/ads/library/…)" value={metaUrl} onChange={(e) => setMetaUrl(e.target.value)} className="h-8 text-xs" />
+      <Input placeholder="Google Ads Transparency URL (https://adstransparency.google.com/…)" value={googleUrl} onChange={(e) => setGoogleUrl(e.target.value)} className="h-8 text-xs" />
       <Input placeholder="Web (https://…)" value={webUrl} onChange={(e) => setWebUrl(e.target.value)} className="h-8 text-xs" />
       <div className="flex gap-2 pt-1">
         <Button size="sm" onClick={save} disabled={saving} className="h-7 gap-1 text-xs flex-1">

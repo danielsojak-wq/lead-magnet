@@ -1,7 +1,8 @@
 import { corsHeaders } from "../_shared/cors.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const APIFY_ACTOR = "apify~facebook-ads-scraper";
+const APIFY_META_ACTOR = "apify~facebook-ads-scraper";
+const APIFY_GOOGLE_ACTOR = Deno.env.get("APIFY_GOOGLE_ADS_ACTOR") || "easyapi~google-ads-transparency-center-scraper";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -18,46 +19,46 @@ Deno.serve(async (req) => {
     );
 
     if (action === "start") {
-      const { client_slug, library_url, created_by_email, max_ads, competitor_id, active_only } = body;
+      const { client_slug, library_url, created_by_email, max_ads, competitor_id, active_only, source } = body;
       if (!client_slug || !library_url) return bad("client_slug a library_url jsou povinné");
       if (!competitor_id) return bad("competitor_id je povinné");
 
-      // Normalize Meta Ad Library URL — accept bare query strings, page IDs, or full URLs
-      const normalizeMetaUrl = (raw: string): string | null => {
-        const s = String(raw || "").trim();
-        if (!s) return null;
-        // Already a valid http(s) URL
-        if (/^https?:\/\//i.test(s)) {
-          try { new URL(s); return s; } catch { return null; }
+      const adSource: "meta" | "google" = source === "google" ? "google" : "meta";
+
+      let normalizedUrl: string | null = null;
+      let apifyActor: string;
+      let apifyInput: Record<string, unknown>;
+
+      if (adSource === "google") {
+        normalizedUrl = normalizeGoogleUrl(library_url);
+        if (!normalizedUrl) {
+          return bad("Neplatná Google Ads Transparency URL — vlož odkaz z https://adstransparency.google.com/", 400);
         }
-        // Bare page ID (digits only)
-        if (/^\d+$/.test(s)) {
-          return `https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=CZ&is_targeted_country=false&media_type=all&search_type=page&view_all_page_id=${s}`;
+        apifyActor = APIFY_GOOGLE_ACTOR;
+        apifyInput = {
+          startUrls: [{ url: normalizedUrl }],
+          maxItems: Math.min(Number(max_ads) || 50, 200),
+        };
+      } else {
+        normalizedUrl = normalizeMetaUrl(library_url);
+        if (!normalizedUrl) {
+          return bad("Neplatná Meta Ad Library URL — vlož celý odkaz z Meta Ad Library (https://www.facebook.com/ads/library/?...)", 400);
         }
-        // Query string fragment — extract view_all_page_id and rebuild
-        const m = s.match(/view_all_page_id=(\d+)/);
-        if (m) {
-          const qs = s.replace(/^[?&=]+/, "");
-          return `https://www.facebook.com/ads/library/?${qs}`;
-        }
-        return null;
-      };
-      const normalizedUrl = normalizeMetaUrl(library_url);
-      if (!normalizedUrl) {
-        return bad("Neplatná Meta Ad Library URL — vlož celý odkaz z Meta Ad Library (https://www.facebook.com/ads/library/?...)", 400);
+        apifyActor = APIFY_META_ACTOR;
+        apifyInput = {
+          startUrls: [{ url: normalizedUrl }],
+          resultsLimit: Math.min(Number(max_ads) || 50, 200),
+          activeStatus: active_only === false ? "" : "active",
+        };
       }
 
       // Spustit Apify actor asynchronně
       const startRes = await fetch(
-        `https://api.apify.com/v2/acts/${APIFY_ACTOR}/runs?token=${APIFY_TOKEN}`,
+        `https://api.apify.com/v2/acts/${apifyActor}/runs?token=${APIFY_TOKEN}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            startUrls: [{ url: normalizedUrl }],
-            resultsLimit: Math.min(Number(max_ads) || 50, 200),
-            activeStatus: active_only === false ? "" : "active",
-          }),
+          body: JSON.stringify(apifyInput),
         },
       );
       const startData = await startRes.json();
@@ -76,6 +77,7 @@ Deno.serve(async (req) => {
           status: "running",
           created_by_email: created_by_email || null,
           competitor_id,
+          ad_source: adSource,
         })
         .select()
         .single();
@@ -125,10 +127,11 @@ Deno.serve(async (req) => {
       );
       const items: any[] = await itemsRes.json();
 
-      const rows = items.map((it) => mapApifyItem(it, runRow.client_slug, run_id));
-      // Inject competitor_id from run
       const compId = (runRow as any).competitor_id;
-      if (compId) for (const r of rows) (r as any).competitor_id = compId;
+      const adSource: "meta" | "google" = (runRow as any).ad_source === "google" ? "google" : "meta";
+      const rows = adSource === "google"
+        ? items.map((it) => mapGoogleItem(it, runRow.client_slug, run_id, compId))
+        : items.map((it) => { const r = mapApifyItem(it, runRow.client_slug, run_id); if (compId) (r as any).competitor_id = compId; return r; });
 
       let inserted = 0;
       if (rows.length) {
@@ -208,6 +211,38 @@ Deno.serve(async (req) => {
   }
 });
 
+// Normalize Meta Ad Library URL — accept bare query strings, page IDs, or full URLs
+function normalizeMetaUrl(raw: string): string | null {
+  const s = String(raw || "").trim();
+  if (!s) return null;
+  if (/^https?:\/\//i.test(s)) {
+    try { new URL(s); return s; } catch { return null; }
+  }
+  if (/^\d+$/.test(s)) {
+    return `https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=CZ&is_targeted_country=false&media_type=all&search_type=page&view_all_page_id=${s}`;
+  }
+  const m = s.match(/view_all_page_id=(\d+)/);
+  if (m) {
+    const qs = s.replace(/^[?&=]+/, "");
+    return `https://www.facebook.com/ads/library/?${qs}`;
+  }
+  return null;
+}
+
+// Normalize Google Ads Transparency Center URL
+function normalizeGoogleUrl(raw: string): string | null {
+  const s = String(raw || "").trim();
+  if (!s) return null;
+  if (/^https?:\/\//i.test(s)) {
+    try { new URL(s); return s; } catch { return null; }
+  }
+  // Bare advertiser ID (e.g. "AR12345678")
+  if (/^AR\d+$/i.test(s)) {
+    return `https://adstransparency.google.com/advertiser/${s.toUpperCase()}`;
+  }
+  return null;
+}
+
 function mapApifyItem(it: any, client_slug: string, run_id: string) {
   const snapshot = it?.snapshot || it;
   const startTs = it?.start_date || it?.startDate || snapshot?.creation_time;
@@ -238,6 +273,58 @@ function mapApifyItem(it: any, client_slug: string, run_id: string) {
     is_active: it?.is_active ?? (endTs ? false : true),
     link_url: snapshot?.link_url || it?.link_url || null,
     cta_text: snapshot?.cta_text || it?.cta_text || null,
+    ad_source: "meta",
+    raw: it,
+  };
+}
+
+function mapGoogleItem(it: any, client_slug: string, run_id: string, competitor_id: string | null) {
+  const toDate = (v: any) => {
+    if (!v) return null;
+    if (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+    const n = typeof v === "number" ? v * (v < 1e12 ? 1000 : 1) : Date.parse(v);
+    if (!n || isNaN(n)) return null;
+    return new Date(n).toISOString().slice(0, 10);
+  };
+
+  // Support multiple field naming conventions across different Apify actors
+  const rawId = it?.creativeId || it?.creative_id || it?.id || it?.adId || it?.ad_id || crypto.randomUUID();
+  // Prefix with g_ to avoid collision with Meta ad_archive_ids
+  const adArchiveId = `g_${rawId}`;
+
+  const advertiserName = it?.advertiserName || it?.advertiser_name || it?.advertiser || it?.pageName || it?.page_name || null;
+  const headline = it?.headline || it?.title || it?.adTitle || it?.ad_title || null;
+  const description = it?.description || it?.body || it?.adBody || it?.ad_body || it?.text || null;
+  const primaryText = [headline, description].filter(Boolean).join("\n") || null;
+
+  const imageUrl = it?.imageUrl || it?.image_url || it?.thumbnailUrl || it?.thumbnail_url ||
+    it?.creativeImage || it?.creative_image || it?.screenshot || null;
+  const videoUrl = it?.videoUrl || it?.video_url || it?.videoPreviewUrl || it?.video_preview_url || null;
+
+  const startDate = toDate(it?.firstShownDate || it?.first_shown_date || it?.startDate || it?.start_date || it?.firstSeen || it?.first_seen);
+  const endDate = toDate(it?.lastShownDate || it?.last_shown_date || it?.endDate || it?.end_date || it?.lastSeen || it?.last_seen);
+
+  const isActive = it?.isActive ?? it?.is_active ?? it?.active ?? (endDate ? false : true);
+
+  const linkUrl = it?.destinationUrl || it?.destination_url || it?.targetUrl || it?.target_url ||
+    it?.landingPage || it?.landing_page || it?.url || null;
+  const ctaText = it?.callToAction || it?.call_to_action || it?.cta || it?.ctaText || it?.cta_text || null;
+
+  return {
+    client_slug,
+    scrape_run_id: run_id,
+    competitor_id: competitor_id || null,
+    ad_archive_id: adArchiveId,
+    page_name: advertiserName,
+    image_url: imageUrl,
+    video_url: videoUrl,
+    primary_text: primaryText,
+    ad_start_date: startDate,
+    ad_end_date: endDate,
+    is_active: isActive,
+    link_url: linkUrl,
+    cta_text: ctaText,
+    ad_source: "google",
     raw: it,
   };
 }

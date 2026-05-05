@@ -402,6 +402,7 @@ Deno.serve(async (req) => {
         slot: Number(c.slot),
         name: String(c.name).trim(),
         meta_library_url: c.meta_library_url ? String(c.meta_library_url).trim() : null,
+        google_library_url: c.google_library_url ? String(c.google_library_url).trim() : null,
         website_url: c.website_url ? String(c.website_url).trim() : null,
       };
       let res;
@@ -741,56 +742,43 @@ async function analyzeOneCompetitor(supa: any, slug: string, competitor: any, ma
       } catch (e) { console.error("analyzeOne web scrape err", e); }
     }
 
-    // 2) Scrape Apify ads (synchronous wait for completion)
-    if (competitor.meta_library_url && APIFY_TOKEN) {
-      try {
-        const startRes = await fetch(
-          `https://api.apify.com/v2/acts/apify~facebook-ads-scraper/runs?token=${APIFY_TOKEN}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              startUrls: [{ url: competitor.meta_library_url }],
-              resultsLimit: maxAds,
-              activeStatus: "active",
-            }),
+    // 2) Scrape Apify ads — Meta + Google in parallel
+    await Promise.allSettled([
+      // Meta
+      (async () => {
+        if (!competitor.meta_library_url || !APIFY_TOKEN) return;
+        await scrapeApifySource({
+          supa, slug, competitor, maxAds, apiKey: apiKey || "",
+          apifyToken: APIFY_TOKEN,
+          actor: "apify~facebook-ads-scraper",
+          libraryUrl: competitor.meta_library_url,
+          adSource: "meta",
+          apifyInput: {
+            startUrls: [{ url: competitor.meta_library_url }],
+            resultsLimit: maxAds,
+            activeStatus: "active",
           },
-        );
-        const startData = await startRes.json();
-        const apifyRunId = startData?.data?.id;
-        if (apifyRunId) {
-          const { data: runRow } = await supa.from("competitor_scrape_runs").insert({
-            client_slug: slug, library_url: competitor.meta_library_url, apify_run_id: apifyRunId,
-            status: "running", competitor_id: competitor.id,
-          }).select().single();
-
-          // Poll up to ~5 min
-          let datasetId: string | null = null;
-          for (let i = 0; i < 60; i++) {
-            await new Promise((r) => setTimeout(r, 5000));
-            const sRes = await fetch(`https://api.apify.com/v2/actor-runs/${apifyRunId}?token=${APIFY_TOKEN}`);
-            const sData = await sRes.json();
-            const st = sData?.data?.status;
-            if (st === "SUCCEEDED") { datasetId = sData?.data?.defaultDatasetId; break; }
-            if (st && st !== "RUNNING" && st !== "READY") break;
-          }
-          if (datasetId && runRow) {
-            const itemsRes = await fetch(`https://api.apify.com/v2/datasets/${datasetId}/items?token=${APIFY_TOKEN}&clean=true&format=json`);
-            const items: any[] = await itemsRes.json();
-            const rows = items.map((it) => mapApifyItemInline(it, slug, runRow.id, competitor.id));
-            if (rows.length) {
-              await supa.from("competitor_ads").upsert(rows, { onConflict: "client_slug,ad_archive_id", ignoreDuplicates: false });
-            }
-            await supa.from("competitor_scrape_runs").update({
-              status: "succeeded", finished_at: new Date().toISOString(), ads_count: rows.length,
-            }).eq("id", runRow.id);
-
-            // Klasifikace s obrázkem (zachováno per-ad pro kvalitu)
-            try { await classifyAdsForRun(supa, slug, runRow.id, apiKey || ""); } catch (e) { console.error(e); }
-          }
-        }
-      } catch (e) { console.error("analyzeOne apify err", e); }
-    }
+          mapItem: (it: any, runId: string) => mapApifyItemInline(it, slug, runId, competitor.id),
+        });
+      })(),
+      // Google
+      (async () => {
+        if (!competitor.google_library_url || !APIFY_TOKEN) return;
+        const googleActor = Deno.env.get("APIFY_GOOGLE_ADS_ACTOR") || "easyapi~google-ads-transparency-center-scraper";
+        await scrapeApifySource({
+          supa, slug, competitor, maxAds, apiKey: apiKey || "",
+          apifyToken: APIFY_TOKEN,
+          actor: googleActor,
+          libraryUrl: competitor.google_library_url,
+          adSource: "google",
+          apifyInput: {
+            startUrls: [{ url: competitor.google_library_url }],
+            maxItems: maxAds,
+          },
+          mapItem: (it: any, runId: string) => mapGoogleItemInline(it, slug, runId, competitor.id),
+        });
+      })(),
+    ]);
 
     // 3) Per-competitor summary
     const { data: webCache } = await supa.from("competitor_website_cache")
@@ -809,6 +797,90 @@ async function analyzeOneCompetitor(supa: any, slug: string, competitor: any, ma
       ...baseKey, status: "failed", error_message: String(e?.message || e).slice(0, 500), generated_at: new Date().toISOString(),
     }, { onConflict });
   }
+}
+
+async function scrapeApifySource({
+  supa, slug, competitor, maxAds, apiKey, apifyToken, actor, libraryUrl, adSource, apifyInput, mapItem,
+}: {
+  supa: any; slug: string; competitor: any; maxAds: number; apiKey: string;
+  apifyToken: string; actor: string; libraryUrl: string; adSource: "meta" | "google";
+  apifyInput: Record<string, unknown>;
+  mapItem: (it: any, runId: string) => Record<string, unknown>;
+}) {
+  try {
+    const startRes = await fetch(
+      `https://api.apify.com/v2/acts/${actor}/runs?token=${apifyToken}`,
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(apifyInput) },
+    );
+    const startData = await startRes.json();
+    const apifyRunId = startData?.data?.id;
+    if (!apifyRunId) { console.error(`${adSource} Apify start failed:`, startData); return; }
+
+    const { data: runRow } = await supa.from("competitor_scrape_runs").insert({
+      client_slug: slug, library_url: libraryUrl, apify_run_id: apifyRunId,
+      status: "running", competitor_id: competitor.id, ad_source: adSource,
+    }).select().single();
+
+    // Poll up to ~5 min
+    let datasetId: string | null = null;
+    for (let i = 0; i < 60; i++) {
+      await new Promise((r) => setTimeout(r, 5000));
+      const sRes = await fetch(`https://api.apify.com/v2/actor-runs/${apifyRunId}?token=${apifyToken}`);
+      const sData = await sRes.json();
+      const st = sData?.data?.status;
+      if (st === "SUCCEEDED") { datasetId = sData?.data?.defaultDatasetId; break; }
+      if (st && st !== "RUNNING" && st !== "READY") break;
+    }
+
+    if (datasetId && runRow) {
+      const itemsRes = await fetch(`https://api.apify.com/v2/datasets/${datasetId}/items?token=${apifyToken}&clean=true&format=json`);
+      const items: any[] = await itemsRes.json();
+      const rows = items.map((it) => mapItem(it, runRow.id));
+      if (rows.length) {
+        await supa.from("competitor_ads").upsert(rows, { onConflict: "client_slug,ad_archive_id", ignoreDuplicates: false });
+      }
+      await supa.from("competitor_scrape_runs").update({
+        status: "succeeded", finished_at: new Date().toISOString(), ads_count: rows.length,
+      }).eq("id", runRow.id);
+
+      try { await classifyAdsForRun(supa, slug, runRow.id, apiKey); } catch (e) { console.error(e); }
+    }
+  } catch (e) { console.error(`scrapeApifySource ${adSource} err:`, e); }
+}
+
+function mapGoogleItemInline(it: any, client_slug: string, run_id: string, competitor_id: string) {
+  const toDate = (v: any) => {
+    if (!v) return null;
+    if (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+    const n = typeof v === "number" ? v * (v < 1e12 ? 1000 : 1) : Date.parse(v);
+    if (!n || isNaN(n)) return null;
+    return new Date(n).toISOString().slice(0, 10);
+  };
+  const rawId = it?.creativeId || it?.creative_id || it?.id || it?.adId || it?.ad_id || crypto.randomUUID();
+  const adArchiveId = `g_${rawId}`;
+  const advertiserName = it?.advertiserName || it?.advertiser_name || it?.advertiser || it?.pageName || it?.page_name || null;
+  const headline = it?.headline || it?.title || it?.adTitle || it?.ad_title || null;
+  const description = it?.description || it?.body || it?.adBody || it?.ad_body || it?.text || null;
+  const primaryText = [headline, description].filter(Boolean).join("\n") || null;
+  const imageUrl = it?.imageUrl || it?.image_url || it?.thumbnailUrl || it?.thumbnail_url || it?.creativeImage || it?.screenshot || null;
+  const videoUrl = it?.videoUrl || it?.video_url || it?.videoPreviewUrl || it?.video_preview_url || null;
+  const startDate = toDate(it?.firstShownDate || it?.first_shown_date || it?.startDate || it?.start_date || it?.firstSeen || it?.first_seen);
+  const endDate = toDate(it?.lastShownDate || it?.last_shown_date || it?.endDate || it?.end_date || it?.lastSeen || it?.last_seen);
+  return {
+    client_slug, scrape_run_id: run_id, competitor_id,
+    ad_archive_id: adArchiveId,
+    page_name: advertiserName,
+    image_url: imageUrl,
+    video_url: videoUrl,
+    primary_text: primaryText,
+    ad_start_date: startDate,
+    ad_end_date: endDate,
+    is_active: it?.isActive ?? it?.is_active ?? it?.active ?? (endDate ? false : true),
+    link_url: it?.destinationUrl || it?.destination_url || it?.targetUrl || it?.target_url || it?.url || null,
+    cta_text: it?.callToAction || it?.call_to_action || it?.cta || it?.ctaText || it?.cta_text || null,
+    ad_source: "google",
+    raw: it,
+  };
 }
 
 function mapApifyItemInline(it: any, client_slug: string, run_id: string, competitor_id: string) {
@@ -838,6 +910,7 @@ function mapApifyItemInline(it: any, client_slug: string, run_id: string, compet
     is_active: it?.is_active ?? (endTs ? false : true),
     link_url: snapshot?.link_url || it?.link_url || null,
     cta_text: snapshot?.cta_text || it?.cta_text || null,
+    ad_source: "meta",
     raw: it,
   };
 }
