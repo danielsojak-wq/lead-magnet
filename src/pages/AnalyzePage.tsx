@@ -1,7 +1,106 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowRight, Globe, Search, ShieldCheck, Info } from "lucide-react";
+import { ArrowRight, Globe, Search, ShieldCheck, Info, X, Play } from "lucide-react";
+import * as Dialog from "@radix-ui/react-dialog";
 import performindLogo from "@/assets/performind-logo-dark.svg";
+
+type VideoType = "meta" | "google" | null;
+
+const VIDEO_CONFIG = {
+  meta: {
+    title: "Jak najít Meta Ads Library URL",
+    src: "/videos/meta-ads-library.mp4",
+    steps: [
+      "Jděte na facebook.com/ads/library",
+      "Vyhledejte název e-shopu nebo jeho doménu",
+      "Zkopírujte URL stránky s výsledky",
+    ],
+  },
+  google: {
+    title: "Jak najít Google Ads Transparency URL",
+    src: "/videos/google-ads-library.mp4",
+    steps: [
+      "Jděte na adstransparency.google.com",
+      "Vyhledejte doménu e-shopu",
+      "Zkopírujte URL stránky s výsledky",
+    ],
+  },
+};
+
+function VideoHelpModal({ type, onClose }: { type: VideoType; onClose: () => void }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  if (!type) return null;
+  const config = VIDEO_CONFIG[type];
+
+  return (
+    <Dialog.Root open onOpenChange={(open) => !open && onClose()}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 animate-in fade-in-0" />
+        <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-2xl z-50 w-full max-w-lg shadow-2xl p-0 overflow-hidden animate-in fade-in-0 zoom-in-95">
+          <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-gray-100">
+            <Dialog.Title className="font-[family-name:var(--font-heading)] font-semibold text-gray-900 text-base">
+              {config.title}
+            </Dialog.Title>
+            <button
+              onClick={onClose}
+              className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center transition-colors"
+            >
+              <X className="h-4 w-4 text-gray-500" />
+            </button>
+          </div>
+
+          {/* Video */}
+          <div className="relative bg-gray-950 aspect-video">
+            <video
+              ref={videoRef}
+              src={config.src}
+              loop
+              autoPlay
+              muted
+              playsInline
+              className="w-full h-full object-cover"
+              onError={() => {
+                // video not yet uploaded — show placeholder
+              }}
+            >
+              {/* placeholder when video missing */}
+            </video>
+            {/* overlay if no video yet */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 pointer-events-none"
+              style={{ display: "none" }}
+              ref={(el) => {
+                const vid = videoRef.current;
+                if (el && vid) {
+                  vid.addEventListener("error", () => { el.style.display = "flex"; });
+                }
+              }}
+            >
+              <div className="w-14 h-14 rounded-full bg-white/10 flex items-center justify-center">
+                <Play className="h-6 w-6 text-white/60 ml-1" />
+              </div>
+              <p className="text-white/40 text-xs">Video brzy k dispozici</p>
+            </div>
+          </div>
+
+          {/* Steps */}
+          <div className="px-6 py-5">
+            <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-3">Postup</p>
+            <ol className="space-y-2">
+              {config.steps.map((step, i) => (
+                <li key={i} className="flex items-start gap-3 text-sm text-gray-600">
+                  <span className="flex-shrink-0 w-5 h-5 rounded-full bg-[#4f11ff]/10 text-[#4f11ff] text-xs font-bold flex items-center justify-center mt-0.5">
+                    {i + 1}
+                  </span>
+                  {step}
+                </li>
+              ))}
+            </ol>
+          </div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+  );
+}
 
 function UrlInput({
   label,
@@ -19,7 +118,7 @@ function UrlInput({
   hint?: string;
 }) {
   return (
-    <div className="space-y-2">
+    <div className="space-y-1.5">
       <div className="flex items-center gap-2">
         <label className="text-sm font-medium text-gray-700">{label}</label>
         {!required && (
@@ -34,10 +133,131 @@ function UrlInput({
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
           required={required}
-          className="w-full bg-white border border-gray-200 rounded-xl pl-11 pr-4 py-3.5 text-gray-900 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#4f11ff]/30 focus:border-[#4f11ff] transition-all"
+          className="w-full bg-white border border-gray-200 rounded-xl pl-11 pr-4 py-3 text-gray-900 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#4f11ff]/30 focus:border-[#4f11ff] transition-all"
         />
       </div>
       {hint && <p className="text-xs text-gray-400">{hint}</p>}
+    </div>
+  );
+}
+
+function LibraryInput({
+  label,
+  placeholder,
+  value,
+  onChange,
+  onHelp,
+  icon,
+}: {
+  label: string;
+  placeholder: string;
+  value: string;
+  onChange: (v: string) => void;
+  onHelp: () => void;
+  icon: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <label className="text-sm font-medium text-gray-700">{label}</label>
+          <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">nepovinne</span>
+        </div>
+        <button
+          type="button"
+          onClick={onHelp}
+          className="flex items-center gap-1.5 text-xs text-[#4f11ff] hover:text-[#3d0dcc] font-medium transition-colors"
+        >
+          <Play className="h-3 w-3" />
+          Jak ziskat URL?
+        </button>
+      </div>
+      <div className="relative">
+        <span className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 flex items-center justify-center">
+          {icon}
+        </span>
+        <input
+          type="url"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-11 pr-4 py-3 text-gray-900 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#4f11ff]/30 focus:border-[#4f11ff] transition-all"
+        />
+      </div>
+    </div>
+  );
+}
+
+const MetaIcon = () => (
+  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none">
+    <path d="M12 2C6.477 2 2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.879V14.89h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.989C18.343 21.129 22 16.99 22 12c0-5.523-4.477-10-10-10z" fill="#1877F2"/>
+  </svg>
+);
+
+const GoogleIcon = () => (
+  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none">
+    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+  </svg>
+);
+
+interface ShopFields {
+  url: string;
+  meta: string;
+  google: string;
+}
+
+function ShopSection({
+  title,
+  badge,
+  fields,
+  onChange,
+  required,
+  onHelp,
+}: {
+  title: string;
+  badge?: string;
+  fields: ShopFields;
+  onChange: (key: keyof ShopFields, v: string) => void;
+  required?: boolean;
+  onHelp: (type: VideoType) => void;
+}) {
+  return (
+    <div className="rounded-2xl border border-gray-100 p-5 space-y-4 bg-gray-50/40">
+      <div className="flex items-center gap-2">
+        <span className="font-[family-name:var(--font-heading)] font-semibold text-gray-900 text-sm">{title}</span>
+        {badge && (
+          <span className="text-xs bg-[#b0f221]/30 text-gray-700 px-2 py-0.5 rounded-full font-medium">{badge}</span>
+        )}
+      </div>
+
+      <UrlInput
+        label="URL e-shopu"
+        placeholder="https://eshop.cz"
+        value={fields.url}
+        onChange={(v) => onChange("url", v)}
+        required={required}
+      />
+
+      <LibraryInput
+        label="Meta Ads Library"
+        placeholder="https://facebook.com/ads/library/?..."
+        value={fields.meta}
+        onChange={(v) => onChange("meta", v)}
+        onHelp={() => onHelp("meta")}
+        icon={<MetaIcon />}
+      />
+
+      <LibraryInput
+        label="Google Ads Transparency"
+        placeholder="https://adstransparency.google.com/advertiser/..."
+        value={fields.google}
+        onChange={(v) => onChange("google", v)}
+        onHelp={() => onHelp("google")}
+        icon={<GoogleIcon />}
+      />
     </div>
   );
 }
@@ -48,17 +268,20 @@ const STEPS = [
   { n: 3, label: "Analyza" },
 ];
 
+const emptyShop = (): ShopFields => ({ url: "", meta: "", google: "" });
+
 export default function AnalyzePage() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
 
-  const [eshop, setEshop] = useState("");
-  const [competitor1, setCompetitor1] = useState("");
-  const [competitor2, setCompetitor2] = useState("");
+  const [eshop, setEshop] = useState<ShopFields>(emptyShop());
+  const [competitor1, setCompetitor1] = useState<ShopFields>(emptyShop());
+  const [competitor2, setCompetitor2] = useState<ShopFields>(emptyShop());
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [videoOpen, setVideoOpen] = useState<VideoType>(null);
 
-  const isValid = eshop.trim() !== "" && competitor1.trim() !== "";
+  const isValid = eshop.url.trim() !== "" && competitor1.url.trim() !== "";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -127,41 +350,42 @@ export default function AnalyzePage() {
               </h1>
             </div>
             <p className="text-gray-500 text-sm mb-8 ml-[52px]">
-              Analyzujeme Google Ads a Meta reklamy - vase i konkurence.
+              Cim vice dat zadáte, tim presnejsi analyza. Ads Library URL jsou nepovinné.
             </p>
 
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <UrlInput
-                label="Vas e-shop"
-                placeholder="https://vas-eshop.cz"
-                value={eshop}
-                onChange={setEshop}
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <ShopSection
+                title="Váš e-shop"
+                badge="vy"
+                fields={eshop}
+                onChange={(key, v) => setEshop((s) => ({ ...s, [key]: v }))}
                 required
-                hint="URL adresa vasi hlavni domeny nebo produktove stranky"
+                onHelp={setVideoOpen}
               />
-              <UrlInput
-                label="Konkurent 1"
-                placeholder="https://konkurent.cz"
-                value={competitor1}
-                onChange={setCompetitor1}
+
+              <ShopSection
+                title="Konkurent 1"
+                fields={competitor1}
+                onChange={(key, v) => setCompetitor1((s) => ({ ...s, [key]: v }))}
                 required
+                onHelp={setVideoOpen}
               />
-              <UrlInput
-                label="Konkurent 2"
-                placeholder="https://druhy-konkurent.cz"
-                value={competitor2}
-                onChange={setCompetitor2}
+
+              <ShopSection
+                title="Konkurent 2"
+                fields={competitor2}
+                onChange={(key, v) => setCompetitor2((s) => ({ ...s, [key]: v }))}
+                onHelp={setVideoOpen}
               />
 
               {error && (
                 <p className="text-red-500 text-sm">{error}</p>
               )}
 
-              {/* What we analyze */}
               <div className="bg-gray-50 border border-gray-100 rounded-2xl p-4 flex gap-3">
                 <Info className="h-4 w-4 text-gray-400 flex-shrink-0 mt-0.5" />
                 <p className="text-gray-500 text-xs leading-relaxed">
-                  System automaticky prohledá Google Ads a Meta Ads Library a porovná vase aktivni reklamy s reklamami konkurence. Analyza trvá priblizne 5-10 minut.
+                  Ads Library URL výrazně zpresní analyzu — umozni primy pohled na aktivni reklamy bez automatického vyhledávání.
                 </p>
               </div>
 
@@ -190,6 +414,8 @@ export default function AnalyzePage() {
           © {new Date().getFullYear()} Performind Studio s.r.o.
         </p>
       </footer>
+
+      <VideoHelpModal type={videoOpen} onClose={() => setVideoOpen(null)} />
     </div>
   );
 }
