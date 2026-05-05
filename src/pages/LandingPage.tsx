@@ -42,8 +42,8 @@ const STEPS = [
   },
   {
     num: "03",
-    title: "Výsledky přijdou na váš email",
-    body: "Naše AI proskenuuje reklamy v Google i na Metě, porovná je a připraví doporučení.",
+    title: "Výsledky uvidíte přímo v prohlížeči",
+    body: "Naše AI proskenuuje reklamy v Google i na Metě, porovná je a zobrazí výsledky okamžitě. Analýzu si pak zašlete na email jako PDF.",
   },
 ];
 

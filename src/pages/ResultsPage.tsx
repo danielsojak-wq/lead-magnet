@@ -1,10 +1,12 @@
+import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell,
 } from "recharts";
-import { ExternalLink, Globe, Layers, Video, Image as ImageIcon, TrendingUp, Megaphone, ShoppingBag, ArrowRight, RefreshCw } from "lucide-react";
+import { ExternalLink, Globe, Layers, Video, Image as ImageIcon, TrendingUp, Megaphone, ShoppingBag, ArrowRight, RefreshCw, Mail, Printer, X, Check } from "lucide-react";
+import * as Dialog from "@radix-ui/react-dialog";
 import performindLogo from "@/assets/performind-logo-dark.svg";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -456,10 +458,89 @@ function CompetitorSection({ competitor, index }: { competitor: CompetitorResult
   );
 }
 
+// ─── Send-report dialog ───────────────────────────────────────────────────────
+
+type SendState = "idle" | "sending" | "done" | "error";
+
+function SendReportDialog({ sessionId, open, onClose }: { sessionId: string; open: boolean; onClose: () => void }) {
+  const [state, setState] = useState<SendState>("idle");
+
+  const handleSend = async () => {
+    setState("sending");
+    const { error } = await supabase.functions.invoke("send-lm-report", {
+      body: { session_id: sessionId },
+    });
+    setState(error ? "error" : "done");
+  };
+
+  return (
+    <Dialog.Root open={open} onOpenChange={(o) => !o && onClose()}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 animate-in fade-in-0" />
+        <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-2xl z-50 w-full max-w-sm shadow-2xl p-6 animate-in fade-in-0 zoom-in-95">
+          <div className="flex items-start justify-between gap-4 mb-4">
+            <div className="w-10 h-10 rounded-xl bg-[#4f11ff]/8 border border-[#4f11ff]/15 flex items-center justify-center flex-shrink-0">
+              <Mail className="h-5 w-5 text-[#4f11ff]" />
+            </div>
+            <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center transition-colors flex-shrink-0">
+              <X className="h-4 w-4 text-gray-400" />
+            </button>
+          </div>
+
+          {state === "done" ? (
+            <div className="text-center py-2">
+              <div className="w-12 h-12 rounded-full bg-[#b0f221]/20 flex items-center justify-center mx-auto mb-3">
+                <Check className="h-6 w-6 text-[#4f11ff]" />
+              </div>
+              <p className="font-semibold text-gray-900 mb-1">Email odeslán!</p>
+              <p className="text-sm text-gray-500">PDF analýza dorazí na váš email do pár minut.</p>
+              <button onClick={onClose} className="mt-4 w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2.5 rounded-xl text-sm transition-colors">
+                Zavřít
+              </button>
+            </div>
+          ) : (
+            <>
+              <Dialog.Title className="font-[family-name:var(--font-heading)] font-bold text-gray-900 text-lg mb-1">
+                Odeslat analýzu na email
+              </Dialog.Title>
+              <p className="text-sm text-gray-500 mb-5">
+                Pošleme vám PDF shrnutí s výsledky na email, který jste zadali při registraci.
+              </p>
+              {state === "error" && (
+                <p className="text-sm text-red-500 mb-3">Odesílání se nezdařilo. Zkuste to znovu.</p>
+              )}
+              <div className="flex gap-2">
+                <button
+                  onClick={onClose}
+                  className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2.5 rounded-xl text-sm transition-colors"
+                >
+                  Zrušit
+                </button>
+                <button
+                  onClick={handleSend}
+                  disabled={state === "sending"}
+                  className="flex-1 flex items-center justify-center gap-2 bg-[#4f11ff] hover:bg-[#3d0dcc] disabled:opacity-60 text-white font-semibold py-2.5 rounded-xl text-sm transition-colors"
+                >
+                  {state === "sending" ? (
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <>Odeslat</>
+                  )}
+                </button>
+              </div>
+            </>
+          )}
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+  );
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function ResultsPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
 
   const { data, isLoading, isError } = useQuery<AnalysisResults>({
     queryKey: ["lm-results", sessionId],
@@ -484,15 +565,35 @@ export default function ResultsPage() {
     <div className="min-h-screen bg-gray-50 text-gray-900 font-[family-name:var(--font-body)]">
 
       {/* Nav */}
-      <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-100">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+      <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-100 print:hidden">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
           <img src={performindLogo} alt="Performind Studio" className="h-6 object-contain" />
-          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#4f11ff] bg-[#4f11ff]/8 px-3 py-1.5 rounded-full">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#b0f221]" />
-            Analýza dokončena
-          </span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => window.print()}
+              className="hidden sm:inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg transition-colors"
+            >
+              <Printer className="h-3.5 w-3.5" />
+              Uložit PDF
+            </button>
+            <button
+              onClick={() => setEmailDialogOpen(true)}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-[#4f11ff] hover:bg-[#3d0dcc] px-3 py-1.5 rounded-lg transition-colors"
+            >
+              <Mail className="h-3.5 w-3.5" />
+              Odeslat na mail
+            </button>
+          </div>
         </div>
       </nav>
+
+      {sessionId && (
+        <SendReportDialog
+          sessionId={sessionId}
+          open={emailDialogOpen}
+          onClose={() => setEmailDialogOpen(false)}
+        />
+      )}
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-10 space-y-8">
 
@@ -566,7 +667,7 @@ export default function ResultsPage() {
         ))}
 
         {/* CTA */}
-        <section className="rounded-3xl bg-gray-900 text-white p-8 sm:p-10 text-center space-y-4">
+        <section className="rounded-3xl bg-gray-900 text-white p-8 sm:p-10 text-center space-y-4 print:hidden">
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-white/10 mb-2">
             <Layers className="h-7 w-7 text-[#b0f221]" />
           </div>
