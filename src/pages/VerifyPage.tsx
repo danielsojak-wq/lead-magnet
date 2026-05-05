@@ -26,6 +26,13 @@ export default function VerifyPage() {
     return () => clearTimeout(timer);
   }, [token]);
 
+  useEffect(() => {
+    if (state === "success" && sessionId) {
+      const timer = setTimeout(() => navigate(`/analyze/${sessionId}`), 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [state, sessionId, navigate]);
+
   return (
     <div className="min-h-screen bg-white text-gray-900 font-[family-name:var(--font-body)] flex flex-col">
 
@@ -66,17 +73,13 @@ export default function VerifyPage() {
               <h1 className="font-[family-name:var(--font-heading)] text-2xl sm:text-3xl font-bold mb-3 text-gray-900">
                 Email overen!
               </h1>
-              <p className="text-gray-500 mb-10 leading-relaxed">
-                Nyni vyplnte URL adresu vaseho e-shopu a dvou konkurentu,<br className="hidden sm:block" /> abychom mohli spustit analyzu.
+              <p className="text-gray-500 mb-8 leading-relaxed">
+                Presmeroujeme vas na analyzu...
               </p>
 
-              <button
-                onClick={() => navigate(`/analyze/${sessionId}`)}
-                className="inline-flex items-center gap-2 bg-[#4f11ff] hover:bg-[#3d0dcc] text-white font-semibold px-8 py-4 rounded-xl transition-colors text-sm shadow-lg shadow-[#4f11ff]/20"
-              >
-                Zadat URL a spustit analyzu
-                <ArrowRight className="h-4 w-4" />
-              </button>
+              <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
+                <div className="bg-[#4f11ff] h-1.5 rounded-full animate-[progress_1.5s_linear_forwards]" />
+              </div>
             </div>
           )}
 
