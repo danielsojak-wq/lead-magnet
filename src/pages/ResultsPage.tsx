@@ -33,6 +33,7 @@ interface CompetitorResult {
 }
 
 interface AnalysisResults {
+  status?: string;
   eshop_name: string;
   competitors: CompetitorResult[];
   cross_summary: string | null;
@@ -460,7 +461,6 @@ function CompetitorSection({ competitor, index }: { competitor: CompetitorResult
 export default function ResultsPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
 
-  // TODO: replace with real edge function once backend is ready
   const { data, isLoading, isError } = useQuery<AnalysisResults>({
     queryKey: ["lm-results", sessionId],
     queryFn: async () => {
@@ -472,7 +472,9 @@ export default function ResultsPage() {
     },
     enabled: !!sessionId,
     retry: 1,
-    // Fall back to mock data if function not yet deployed
+    // Poll every 6s while analysis is still running
+    refetchInterval: (query) =>
+      query.state.data?.status === "processing" ? 6000 : false,
     placeholderData: MOCK,
   });
 
@@ -516,6 +518,13 @@ export default function ResultsPage() {
 
         {isError && !data && (
           <div className="text-center py-16 text-gray-400 text-sm">Nepodařilo se načíst výsledky. Zkuste obnovit stránku.</div>
+        )}
+
+        {data?.status === "processing" && (
+          <div className="flex items-center gap-3 rounded-2xl border border-[#4f11ff]/20 bg-[#4f11ff]/5 px-5 py-4 text-sm text-[#4f11ff]">
+            <RefreshCw className="h-4 w-4 animate-spin flex-shrink-0" />
+            <span>Analýza stále probíhá — výsledky se automaticky aktualizují.</span>
+          </div>
         )}
 
         {/* Hero: cross-synthesis */}
