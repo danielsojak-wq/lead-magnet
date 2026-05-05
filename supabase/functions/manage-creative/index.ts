@@ -462,8 +462,8 @@ function ok(payload: any) {
   });
 }
 
-const TEXT_MODEL = "google/gemini-2.5-pro";
-const VISION_MODEL = "google/gemini-2.5-flash";
+const FLASH_MODEL = "google/gemini-2.5-flash";
+const PRO_MODEL = "google/gemini-2.5-pro";
 
 async function aiCall(payload: any, apiKey: string) {
   const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -489,7 +489,7 @@ function pickTopAds(ads: any[], limit: number) {
 async function describeVideo(videoUrl: string, ad: any, apiKey: string): Promise<string> {
   try {
     const data = await aiCall({
-      model: TEXT_MODEL,
+      model: FLASH_MODEL,
       messages: [
         { role: "system", content: "Jsi analytik reklamních videí. Vrať POUZE 3-4 věty v češtině: (1) o čem video je, (2) hook v prvních 3 sekundách, (3) jak je vystavěné, (4) jakou nabídku/CTA komunikuje. Žádné uvozovky, žádné odrážky." },
         { role: "user", content: [
@@ -535,8 +535,8 @@ async function summarizeCompetitor(
     return null;
   }
 
-  const topAds = pickTopAds(ads, 32);
-  const videos = topAds.filter((a) => !!a.video_url).slice(0, 6);
+  const topAds = pickTopAds(ads, 20);
+  const videos = topAds.filter((a) => !!a.video_url).slice(0, 4);
   const images = topAds.filter((a) => !a.video_url && !!a.image_url);
   const videosCount = videos.length;
   const imagesCount = images.length;
@@ -582,7 +582,7 @@ Vrať odpověď v češtině jako čistý markdown se 3 sekcemi přesně v tomto
 
 Konkrétní postřehy, žádná vata. Pokud máš kontext z webu, propoj sdělení reklam s tím, co skutečně prodávají.`;
 
-  const imageUrls = images.slice(0, 6).map((a) => a.image_url).filter(Boolean);
+  const imageUrls = images.slice(0, 3).map((a) => a.image_url).filter(Boolean);
   const userContent: any[] = [
     { type: "text", text: `Konkurent: ${competitor.name}
 Statistika typů (z ${ads.length} reklam): brand=${typeCounts.brand}, sales=${typeCounts.sales}, retargeting=${typeCounts.retargeting}, neurčeno=${typeCounts.neurceno}
@@ -598,7 +598,7 @@ Níže přiloženy reprezentativní obrázky pro vizuální analýzu.` },
   let summary = "";
   try {
     const data = await aiCall({
-      model: TEXT_MODEL,
+      model: PRO_MODEL,
       messages: [
         { role: "system", content: sys },
         { role: "user", content: userContent },
@@ -696,7 +696,7 @@ Konkrétně, žádná vata. U každého bodu cituj konkrétního konkurenta jmé
   const userText = data.map((d) => `## ${d.name}\n${d.summary}`).join("\n\n");
   try {
     const res = await aiCall({
-      model: TEXT_MODEL,
+      model: PRO_MODEL,
       messages: [
         { role: "system", content: sys },
         { role: "user", content: `Shrnutí jednotlivých konkurentů:\n\n${userText}` },
@@ -918,37 +918,77 @@ function mapApifyItemInline(it: any, client_slug: string, run_id: string, compet
 async function classifyAdsForRun(supa: any, client_slug: string, run_id: string, apiKey: string) {
   if (!apiKey) return;
   const { data: ads } = await supa.from("competitor_ads")
-    .select("id, primary_text, cta_text, image_url, page_name").eq("client_slug", client_slug).eq("scrape_run_id", run_id).is("ad_type", null);
+    .select("id, primary_text, cta_text, image_url, page_name")
+    .eq("client_slug", client_slug)
+    .eq("scrape_run_id", run_id)
+    .is("ad_type", null);
   if (!ads?.length) return;
-  const concurrency = 4;
-  for (let i = 0; i < ads.length; i += concurrency) {
-    const batch = ads.slice(i, i + concurrency);
-    await Promise.all(batch.map(async (ad: any) => {
-      const userContent: any[] = [{ type: "text", text:
-        `Klasifikuj reklamu do: brand / sales / retargeting.\nStránka: ${ad.page_name || "?"}\nCTA: ${ad.cta_text || "—"}\nText: ${ad.primary_text || "—"}` }];
-      if (ad.image_url) userContent.push({ type: "image_url", image_url: { url: ad.image_url } });
-      try {
-        const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-          body: JSON.stringify({
-            model: "google/gemini-2.5-flash",
-            messages: [
-              { role: "system", content: "Klasifikuj reklamu. Vždy zavolej classify_ad." },
-              { role: "user", content: userContent },
-            ],
-            tools: [{ type: "function", function: { name: "classify_ad", parameters: {
-              type: "object", properties: { ad_type: { type: "string", enum: ["brand", "sales", "retargeting"] } },
-              required: ["ad_type"], additionalProperties: false } } }],
-            tool_choice: { type: "function", function: { name: "classify_ad" } },
-          }),
+
+  const BATCH_SIZE = 5;
+  for (let i = 0; i < ads.length; i += BATCH_SIZE) {
+    const batch = ads.slice(i, i + BATCH_SIZE);
+    try {
+      const userContent: any[] = [];
+      batch.forEach((ad: any, idx: number) => {
+        userContent.push({
+          type: "text",
+          text: `--- Reklama ${idx + 1} ---\nStránka: ${ad.page_name || "?"}\nCTA: ${ad.cta_text || "—"}\nText: ${(ad.primary_text || "—").slice(0, 300)}`,
         });
-        if (!res.ok) return;
-        const d = await res.json();
-        const args = d?.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
-        const t = args ? JSON.parse(args)?.ad_type : null;
-        if (t) await supa.from("competitor_ads").update({ ad_type: t }).eq("id", ad.id);
-      } catch (e) { console.error("classify err", e); }
-    }));
+        if (ad.image_url) userContent.push({ type: "image_url", image_url: { url: ad.image_url } });
+      });
+
+      const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: FLASH_MODEL,
+          messages: [
+            {
+              role: "system",
+              content: "Klasifikuj každou reklamu do brand / sales / retargeting. Pravidla: brand = budování značky bez konkrétní nabídky; sales = produkt, cena, akce, CTA koupit; retargeting = připomenutí, opuštěný košík, personalizace. Zavolej classify_batch.",
+            },
+            { role: "user", content: userContent },
+          ],
+          tools: [{
+            type: "function",
+            function: {
+              name: "classify_batch",
+              description: "Vrátí klasifikaci pro všechny reklamy v pořadí",
+              parameters: {
+                type: "object",
+                properties: {
+                  results: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: { ad_type: { type: "string", enum: ["brand", "sales", "retargeting"] } },
+                      required: ["ad_type"],
+                      additionalProperties: false,
+                    },
+                  },
+                },
+                required: ["results"],
+                additionalProperties: false,
+              },
+            },
+          }],
+          tool_choice: { type: "function", function: { name: "classify_batch" } },
+        }),
+      });
+
+      if (!res.ok) continue;
+      const d = await res.json();
+      const args = d?.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
+      if (!args) continue;
+      const results: { ad_type: string }[] = JSON.parse(args)?.results || [];
+      await Promise.all(
+        batch.map(async (ad: any, idx: number) => {
+          const t = results[idx]?.ad_type;
+          if (t === "brand" || t === "sales" || t === "retargeting") {
+            await supa.from("competitor_ads").update({ ad_type: t }).eq("id", ad.id);
+          }
+        })
+      );
+    } catch (e) { console.error("classify batch err", e); }
   }
 }

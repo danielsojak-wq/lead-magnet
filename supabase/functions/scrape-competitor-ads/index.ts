@@ -347,7 +347,6 @@ async function classifyAds(supa: any, client_slug: string, run_id: string) {
     return;
   }
 
-  // Klasifikuj všechny reklamy z tohoto runu, které ještě nemají ad_type
   const { data: ads, error } = await supa
     .from("competitor_ads")
     .select("id, primary_text, cta_text, image_url, page_name")
@@ -356,80 +355,71 @@ async function classifyAds(supa: any, client_slug: string, run_id: string) {
     .is("ad_type", null);
   if (error || !ads?.length) return;
 
-  // Paralelně, ale s limitem aby nepřetížilo gateway
-  const concurrency = 4;
-  for (let i = 0; i < ads.length; i += concurrency) {
-    const batch = ads.slice(i, i + concurrency);
-    await Promise.all(batch.map(async (ad: any) => {
-      const label = await classifyOne(ad, LOVABLE_API_KEY);
-      if (label) {
-        await supa.from("competitor_ads").update({ ad_type: label }).eq("id", ad.id);
-      }
-    }));
-  }
-}
+  const BATCH_SIZE = 5;
+  for (let i = 0; i < ads.length; i += BATCH_SIZE) {
+    const batch = ads.slice(i, i + BATCH_SIZE);
+    try {
+      const userContent: any[] = [];
+      batch.forEach((ad: any, idx: number) => {
+        userContent.push({
+          type: "text",
+          text: `--- Reklama ${idx + 1} ---\nStránka: ${ad.page_name || "?"}\nCTA: ${ad.cta_text || "—"}\nText: ${(ad.primary_text || "—").slice(0, 300)}`,
+        });
+        if (ad.image_url) userContent.push({ type: "image_url", image_url: { url: ad.image_url } });
+      });
 
-async function classifyOne(ad: any, apiKey: string): Promise<string | null> {
-  const userContent: any[] = [
-    {
-      type: "text",
-      text: `Klasifikuj tuto Facebook/Instagram reklamu do jedné z kategorií: "brand", "sales", "retargeting".
-
-Pravidla:
-- "brand" = budování značky, příběh, hodnoty, žádná konkrétní cena/sleva, obecná osvěta.
-- "sales" = konkrétní produkt/nabídka, cena, sleva, akce, "kup teď", silná CTA.
-- "retargeting" = připomenutí (opuštěný košík, "zapomněli jste", "vraťte se"), personalizovaná komunikace návštěvníkům webu.
-
-Stránka: ${ad.page_name || "?"}
-CTA tlačítko: ${ad.cta_text || "—"}
-Text reklamy: ${ad.primary_text || "—"}`,
-    },
-  ];
-  if (ad.image_url) {
-    userContent.push({ type: "image_url", image_url: { url: ad.image_url } });
-  }
-
-  try {
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: "Jsi expert na klasifikaci reklam. Vždy zavoláš funkci classify_ad." },
-          { role: "user", content: userContent },
-        ],
-        tools: [{
-          type: "function",
-          function: {
-            name: "classify_ad",
-            description: "Vrátí kategorii reklamy",
-            parameters: {
-              type: "object",
-              properties: {
-                ad_type: { type: "string", enum: ["brand", "sales", "retargeting"] },
-              },
-              required: ["ad_type"],
-              additionalProperties: false,
+      const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: [
+            {
+              role: "system",
+              content: "Klasifikuj každou reklamu do brand / sales / retargeting. Pravidla: brand = budování značky bez konkrétní nabídky; sales = produkt, cena, akce, CTA koupit; retargeting = připomenutí, opuštěný košík, personalizace. Zavolej classify_batch.",
             },
-          },
-        }],
-        tool_choice: { type: "function", function: { name: "classify_ad" } },
-      }),
-    });
-    if (!res.ok) {
-      console.error("AI gateway error", res.status, await res.text());
-      return null;
-    }
-    const data = await res.json();
-    const args = data?.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
-    if (!args) return null;
-    const parsed = JSON.parse(args);
-    const t = parsed?.ad_type;
-    if (t === "brand" || t === "sales" || t === "retargeting") return t;
-    return null;
-  } catch (e) {
-    console.error("classifyOne error", e);
-    return null;
+            { role: "user", content: userContent },
+          ],
+          tools: [{
+            type: "function",
+            function: {
+              name: "classify_batch",
+              description: "Vrátí klasifikaci pro všechny reklamy v pořadí",
+              parameters: {
+                type: "object",
+                properties: {
+                  results: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: { ad_type: { type: "string", enum: ["brand", "sales", "retargeting"] } },
+                      required: ["ad_type"],
+                      additionalProperties: false,
+                    },
+                  },
+                },
+                required: ["results"],
+                additionalProperties: false,
+              },
+            },
+          }],
+          tool_choice: { type: "function", function: { name: "classify_batch" } },
+        }),
+      });
+
+      if (!res.ok) { console.error("classify batch error", res.status); continue; }
+      const d = await res.json();
+      const args = d?.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
+      if (!args) continue;
+      const results: { ad_type: string }[] = JSON.parse(args)?.results || [];
+      await Promise.all(
+        batch.map(async (ad: any, idx: number) => {
+          const t = results[idx]?.ad_type;
+          if (t === "brand" || t === "sales" || t === "retargeting") {
+            await supa.from("competitor_ads").update({ ad_type: t }).eq("id", ad.id);
+          }
+        })
+      );
+    } catch (e) { console.error("classify batch err", e); }
   }
 }
