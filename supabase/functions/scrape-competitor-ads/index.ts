@@ -376,7 +376,7 @@ async function classifyAds(supa: any, client_slug: string, run_id: string) {
           messages: [
             {
               role: "system",
-              content: "Klasifikuj každou reklamu do brand / sales / retargeting. Pravidla: brand = budování značky bez konkrétní nabídky; sales = produkt, cena, akce, CTA koupit; retargeting = připomenutí, opuštěný košík, personalizace. Zavolej classify_batch.",
+              content: "Jsi seniorní marketingový stratég. Klasifikuj každou reklamu podle jejího primárního záměru: brand = budování značky a povědomí bez konkrétní nabídky; sales = přímá konverze — produkt, cena, sleva, silné CTA; retargeting = připomenutí a personalizace pro lidi, kteří značku znají (opuštěný košík, 'vraťte se'). Zavolej classify_batch.",
             },
             { role: "user", content: userContent },
           ],

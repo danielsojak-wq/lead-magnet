@@ -491,7 +491,7 @@ async function describeVideo(videoUrl: string, ad: any, apiKey: string): Promise
     const data = await aiCall({
       model: FLASH_MODEL,
       messages: [
-        { role: "system", content: "Jsi analytik reklamních videí. Vrať POUZE 3-4 věty v češtině: (1) o čem video je, (2) hook v prvních 3 sekundách, (3) jak je vystavěné, (4) jakou nabídku/CTA komunikuje. Žádné uvozovky, žádné odrážky." },
+        { role: "system", content: "Jsi seniorní marketingový stratég se 15 lety zkušeností v performance marketingu a kreativní strategii pro e-commerce a DTC značky. Analyzuješ reklamní video z pohledu stratéga — co funguje a proč, ne jen co vidíš. Vrať POUZE 3–4 věty v češtině: (1) co je hlavní sdělení a pro koho, (2) hook v prvních 3 sekundách — proč zaujme, (3) jak je vystavěná argumentace/emoce, (4) CTA a obchodní záměr. Žádné uvozovky, žádné odrážky." },
         { role: "user", content: [
           { type: "text", text: `Reklama značky ${ad.page_name || "?"}. Doprovodný text: ${(ad.primary_text || "").slice(0, 400)}. CTA: ${ad.cta_text || "—"}.` },
           { type: "image_url", image_url: { url: videoUrl } },
@@ -565,22 +565,24 @@ async function summarizeCompetitor(
    CTA: ${a.cta_text || "—"}${desc ? `\n   Video: ${desc}` : ""}`;
   }).join("\n");
 
-  const sys = `Jsi senior strategický analytik konkurenčních reklam. Tvým úkolem je shrnout, JAK konkrétní konkurent využívá kreativy a textace v reklamě.
+  const sys = `Jsi seniorní marketingový stratég s 15 lety zkušeností v performance marketingu, kreativní strategii a brand buildingu pro e-commerce a DTC značky. Tvůj přístup je důsledně data-driven: za každou reklamou vidíš obchodní záměr, rozpoznáš co funguje a proč — ne jen co vypadá hezky.
+
+Tvůj úkol: analyzovat, JAK tento konkurent využívá kreativy a textace. Každý postřeh musí být konkrétní a actionable — co se z toho dá převzít nebo čemu se vyhnout.
 
 Vrať odpověď v češtině jako čistý markdown se 3 sekcemi přesně v tomto formátu (žádný úvod, žádný závěr):
 
 ### Kreativy
-- bod (3–5 odrážek o vizuálním stylu, formátech, hooks ve videích, vizuální tonalitě)
+- bod (3–5 odrážek: vizuální styl, formáty, hooks ve videích, jak pracují s produktem vs. emocí, vizuální tonalita)
 
 ### Textace
-- bod (3–5 odrážek o tone of voice, délce textů, opakujících se frázích, struktuře, emoji/urgency)
+- bod (3–5 odrážek: tone of voice, délka a struktura textů, opakující se fráze a USP, urgency, emoji, jak adresují námitky)
 
 ### Strategie a top reklama
-- Mix typů: konkrétní procenta brand/sales/retargeting podle dat
-- Hlavní úhly a USP, které opakují
-- Top reklama: stručně proč právě ta (nejdéle běžící / nejvýkonnější signál) a co se z ní naučit
+- **Mix typů:** konkrétní procenta brand/sales/retargeting s komentářem co to říká o jejich strategii
+- **Hlavní úhly:** 2–3 opakující se argumenty nebo motivy, které evidentně testují
+- **Top reklama:** proč je nejsilnější (nejdéle běží = funguje) a jeden konkrétní insight, který se dá použít
 
-Konkrétní postřehy, žádná vata. Pokud máš kontext z webu, propoj sdělení reklam s tím, co skutečně prodávají.`;
+Žádná vata, žádné obecné pravdy. Pokud máš webový kontext, propoj reklamní sdělení s tím, co skutečně prodávají a jak to odpovídá realitě jejich nabídky.`;
 
   const imageUrls = images.slice(0, 3).map((a) => a.image_url).filter(Boolean);
   const userContent: any[] = [
@@ -676,23 +678,25 @@ async function generateCrossSummary(
     await upsertCross({ status: "empty", summary: null, generated_at: new Date().toISOString() });
     return;
   }
-  const sys = `Jsi senior strateg pro reklamy na sociálních sítích. Dostaneš shrnutí kreativ a textací více konkurentů. Tvým úkolem je najít PRŮNIKY napříč konkurencí — co dělají všichni stejně a co tedy obecně funguje.
+  const sys = `Jsi seniorní marketingový stratég s 15 lety zkušeností v performance marketingu a kreativní strategii. Pracuješ s e-commerce a DTC značkami a tvá specializace je rozpoznat, co za reklamními kampaněmi stojí jako skutečná strategie — ne jen popis toho, co je vidět.
+
+Dostaneš shrnutí kreativní a komunikační strategie více konkurentů ve stejném segmentu. Tvůj úkol: najít PRŮNIKY — co dělají všichni stejně (= co tento segment prokazatelně potřebuje komunikovat), a kde je skutečná příležitost se odlišit.
 
 Vrať čistý markdown v češtině přesně v tomto formátu (bez úvodu/závěru):
 
 ### Společná témata a úhly
-- **Krátký název motivu** — popis (3–5 odrážek: opakující se motivy, hooky, USP, které vidíš u 2+ konkurentů)
+- **Krátký název motivu** — co to říká o segmentu a zákaznících (3–5 odrážek: opakující se motivy, hooky, USP u 2+ konkurentů — a PROČ to dává smysl)
 
 ### Společné formáty a CTA
-- **Krátký název vzorce** — popis (3–5 odrážek: typy formátů, struktura textů, opakující se CTA fráze, urgence, slevy)
+- **Krátký název vzorce** — proč tento formát/CTA funguje v tomto segmentu (3–5 odrážek: typy kreativ, struktura textů, urgency, slevy)
 
 ### Co prokazatelně funguje všem
-- **Krátký název insightu** — popis (3–5 odrážek: nejsilnější vzorce, které se opakují u všech a které stojí za to převzít)
+- **Krátký název insightu** — konkrétní actionable pattern (3–5 odrážek: nejsilnější vzorce opakující se u všech, které stojí za otestování)
 
 ### Mezera / příležitost
-- **Krátký název příležitosti** — popis (1–3 odrážky: čeho si nikdo z konkurence nevšímá a kde je prostor odlišit se)
+- **Krátký název příležitosti** — kde nikdo z konkurence nehraje a proč je to šance (1–3 odrážky: nepokrytý úhel, formát, nebo segment publika)
 
-Konkrétně, žádná vata. U každého bodu cituj konkrétního konkurenta jménem. Tučný text na začátku každé odrážky je povinný — slouží jako záhlaví.`;
+Každý bod musí být konkrétní a actionable. Cituj konkurenty jménem. Vyhni se obecným pravdám. Tučný text na začátku každé odrážky je povinný.`;
   const userText = data.map((d) => `## ${d.name}\n${d.summary}`).join("\n\n");
   try {
     const res = await aiCall({
@@ -945,7 +949,7 @@ async function classifyAdsForRun(supa: any, client_slug: string, run_id: string,
           messages: [
             {
               role: "system",
-              content: "Klasifikuj každou reklamu do brand / sales / retargeting. Pravidla: brand = budování značky bez konkrétní nabídky; sales = produkt, cena, akce, CTA koupit; retargeting = připomenutí, opuštěný košík, personalizace. Zavolej classify_batch.",
+              content: "Jsi seniorní marketingový stratég. Klasifikuj každou reklamu podle jejího primárního záměru: brand = budování značky a povědomí bez konkrétní nabídky; sales = přímá konverze — produkt, cena, sleva, silné CTA; retargeting = připomenutí a personalizace pro lidi, kteří značku znají (opuštěný košík, 'vraťte se'). Zavolej classify_batch.",
             },
             { role: "user", content: userContent },
           ],
