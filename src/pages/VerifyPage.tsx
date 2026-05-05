@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { CheckCircle2, XCircle, Loader2, ArrowRight } from "lucide-react";
-import performindLogo from "@/assets/performind-logo.png";
+import performindLogo from "@/assets/performind-logo-dark.svg";
 
 type State = "verifying" | "success" | "error";
 

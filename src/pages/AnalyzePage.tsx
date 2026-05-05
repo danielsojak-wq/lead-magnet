@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowRight, Globe, Search, ShieldCheck, Info } from "lucide-react";
-import performindLogo from "@/assets/performind-logo.png";
+import performindLogo from "@/assets/performind-logo-dark.svg";
 
 function UrlInput({
   label,

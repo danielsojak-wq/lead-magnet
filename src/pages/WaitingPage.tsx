@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Mail, Search, BarChart2, FileText, CheckCircle2 } from "lucide-react";
-import performindLogo from "@/assets/performind-logo.png";
+import performindLogo from "@/assets/performind-logo-dark.svg";
 
 const STEPS = [
   { icon: Search, label: "Scrapujeme Google Ads data", duration: 3000 },

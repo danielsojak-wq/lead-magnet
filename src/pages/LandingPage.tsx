@@ -2,7 +2,7 @@ import { useRef } from "react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowRight, ChevronDown, Eye, Zap, Target, TrendingUp, Star, Clock, Check } from "lucide-react";
-import performindLogo from "@/assets/performind-logo.png";
+import performindLogo from "@/assets/performind-logo-dark.svg";
 
 /* ─── Data ─────────────────────────────────────────────────────────────────── */
 

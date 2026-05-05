@@ -8,6 +8,7 @@ import VerifyPage from "@/pages/VerifyPage";
 import AnalyzePage from "@/pages/AnalyzePage";
 import WaitingPage from "@/pages/WaitingPage";
 import ResultsPage from "@/pages/ResultsPage";
+import DevPage from "@/pages/DevPage";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -24,6 +25,7 @@ const App = () => (
           <Route path="/analyze/:sessionId" element={<AnalyzePage />} />
           <Route path="/waiting/:sessionId" element={<WaitingPage />} />
           <Route path="/results/:sessionId" element={<ResultsPage />} />
+          <Route path="/dev" element={<DevPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

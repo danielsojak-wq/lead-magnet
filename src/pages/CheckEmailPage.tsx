@@ -1,7 +1,7 @@
 import { useSearchParams } from "react-router-dom";
 import { useState } from "react";
 import { Mail, ArrowRight, RefreshCw, CheckCircle2, Clock } from "lucide-react";
-import performindLogo from "@/assets/performind-logo.png";
+import performindLogo from "@/assets/performind-logo-dark.svg";
 
 export default function CheckEmailPage() {
   const [params] = useSearchParams();
