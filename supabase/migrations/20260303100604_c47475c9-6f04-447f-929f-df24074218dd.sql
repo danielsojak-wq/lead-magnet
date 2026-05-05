@@ -1,0 +1,1 @@
+ALTER TABLE public.client_data_sources DROP CONSTRAINT client_data_sources_client_id_source_type_key;

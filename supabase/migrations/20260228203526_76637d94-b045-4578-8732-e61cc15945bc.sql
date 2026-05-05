@@ -1,0 +1,2 @@
+INSERT INTO client_data_sources (client_id, source_type, source_urls)
+VALUES ('20ac9534-ef20-418e-b4e5-4b82a7133429', 'marketing_costs', ARRAY['https://docs.google.com/spreadsheets/d/1HranJoChOpSOPGNtKxbaXMoVbw7ld9kKdlwGBtqSzk4/gviz/tq?tqx=out:csv']);

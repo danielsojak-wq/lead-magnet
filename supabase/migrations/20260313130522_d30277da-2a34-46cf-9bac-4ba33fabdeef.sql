@@ -1,0 +1,1 @@
+ALTER TABLE public.notification_rules ADD COLUMN frequency text NOT NULL DEFAULT 'once';

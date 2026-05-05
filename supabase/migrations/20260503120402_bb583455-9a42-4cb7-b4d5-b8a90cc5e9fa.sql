@@ -1,0 +1,1 @@
+ALTER TABLE public.competitor_ads ADD CONSTRAINT competitor_ads_client_slug_ad_archive_id_key UNIQUE (client_slug, ad_archive_id);

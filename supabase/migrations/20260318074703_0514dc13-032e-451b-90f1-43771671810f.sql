@@ -1,0 +1,1 @@
+UPDATE public.account_managers SET password_hash = extensions.crypt('8U40IAObJyg4', extensions.gen_salt('bf')) WHERE username = 'alex.ratusnyj@performind.cz';
