@@ -1,10 +1,19 @@
 import { useRef } from "react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, ChevronDown, Eye, Zap, Target, TrendingUp, Star, Clock, Check } from "lucide-react";
+import {
+  ArrowRight, Eye, Zap, Target, TrendingUp, Star, Clock, Check,
+  Gift, Globe, Database, Cpu, Shield, BarChart3, Layers,
+} from "lucide-react";
 import performindLogo from "@/assets/performind-logo-dark.svg";
 
 /* ─── Data ─────────────────────────────────────────────────────────────────── */
+
+const USP_CHIPS = [
+  { icon: Gift,  label: "První analýza zdarma",  className: "bg-[#4f11ff]/8 text-[#4f11ff] border border-[#4f11ff]/20" },
+  { icon: Globe, label: "Nejen pro e-shopy",      className: "bg-gray-50 text-gray-700 border border-gray-200" },
+  { icon: Clock, label: "Výsledky za 5 minut",    className: "bg-[#b0f221]/15 text-gray-800 border border-[#b0f221]/40" },
+];
 
 const BENEFITS = [
   {
@@ -50,16 +59,56 @@ const STEPS = [
 const STATS = [
   { value: "78 %", label: "levnější poptávky pro naše klienty" },
   { value: "30 %", label: "průměrný růst obratu za 6 měsíců" },
-  { value: "15+", label: "e-shopů v naší aktivní správě" },
+  { value: "15+",  label: "e-shopů v naší aktivní správě" },
   { value: "3 min", label: "a víte, co dělá konkurence" },
+];
+
+const AI_FEATURES = [
+  {
+    icon: Database,
+    title: "Data z obou platforem",
+    body: "Napojujeme se na Meta Ad Library a Google Ads Transparency Center. Vidíme každou aktivní reklamu, její délku běhu i formát.",
+  },
+  {
+    icon: Cpu,
+    title: "Pokročilé AI modely",
+    body: "Analýzu zpracovávají jazykové modely nejnovější generace. Nespoléháme na pravidla — AI interpretuje kontext, sdělení a záměr za každou reklamou.",
+  },
+  {
+    icon: BarChart3,
+    title: "Benchmarky z praxe",
+    body: "Výsledky porovnáváme s daty ze 15+ eshopů v naší aktivní správě. Víme, co je průměr a co je skutečná konkurenční výhoda.",
+  },
+  {
+    icon: Layers,
+    title: "Vícevrstvá analýza",
+    body: "Hodnotíme copy, kreativy, délku nasazení, frekvenci změn i konzistenci sdělení. Každá vrstva vypovídá o strategii jinak.",
+  },
+  {
+    icon: Target,
+    title: "Identifikace příležitostí",
+    body: "AI hledá témata a segmenty, které konkurence přehlíží. Tyto mezery jsou vaší největší příležitostí.",
+  },
+  {
+    icon: Shield,
+    title: "Ověřená metodika",
+    body: "Každý výstup vychází z frameworku, který používáme při onboardingu klientů. Žádné dohady — jen praxí ověřené otázky.",
+  },
+];
+
+const PIPELINE = [
+  { icon: Globe,     label: "Sběr dat",    sub: "Ad Library API" },
+  { icon: Cpu,       label: "AI analýza",  sub: "Jazykové modely" },
+  { icon: BarChart3, label: "Benchmarking", sub: "Data z klientů" },
+  { icon: Zap,       label: "Výsledky",    sub: "Do 5 minut" },
 ];
 
 /* ─── Email form ────────────────────────────────────────────────────────────── */
 
 function EmailForm({ size = "lg" }: { size?: "lg" | "sm" }) {
-  const [email, setEmail] = useState("");
+  const [email, setEmail]     = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError]     = useState("");
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -80,7 +129,7 @@ function EmailForm({ size = "lg" }: { size?: "lg" | "sm" }) {
 
   return (
     <form onSubmit={handleSubmit} className="w-full">
-      <div className={`flex flex-col sm:flex-row gap-3 ${isLg ? "max-w-md" : "max-w-sm"}`}>
+      <div className={`flex flex-col sm:flex-row gap-3 mx-auto ${isLg ? "max-w-md" : "max-w-sm"}`}>
         <div className="flex-1">
           <input
             type="email"
@@ -103,7 +152,7 @@ function EmailForm({ size = "lg" }: { size?: "lg" | "sm" }) {
           )}
         </button>
       </div>
-      <p className="mt-2.5 text-xs text-gray-400">Bez platební karty. Bez spamu. 1× na e-mailovou adresu.</p>
+      <p className="mt-2.5 text-xs text-gray-400 text-center">Bez platební karty. Bez spamu. 1× na e-mailovou adresu.</p>
     </form>
   );
 }
@@ -111,7 +160,7 @@ function EmailForm({ size = "lg" }: { size?: "lg" | "sm" }) {
 /* ─── Page ──────────────────────────────────────────────────────────────────── */
 
 export default function LandingPage() {
-  const ctaRef = useRef<HTMLDivElement>(null);
+  const ctaRef  = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const scrollToCta = () => ctaRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -136,9 +185,14 @@ export default function LandingPage() {
       <section className="pt-14 pb-0 bg-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center">
 
-          <div className="inline-flex items-center gap-2 bg-[#4f11ff]/8 text-[#4f11ff] text-xs font-semibold px-4 py-1.5 rounded-full mb-6 tracking-wide">
-            <Star className="h-3 w-3 fill-[#4f11ff]" />
-            Zdarma · Jen pro e-shopy · Omezený počet analýz
+          {/* USP chips */}
+          <div className="flex flex-wrap justify-center gap-3 mb-8">
+            {USP_CHIPS.map(({ icon: Icon, label, className }) => (
+              <div key={label} className={`inline-flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-full ${className}`}>
+                <Icon className="h-4 w-4 flex-shrink-0" />
+                {label}
+              </div>
+            ))}
           </div>
 
           <h1 className="font-[family-name:var(--font-heading)] text-4xl sm:text-5xl lg:text-[3.5rem] font-bold leading-[1.1] tracking-tight mb-5 text-gray-900">
@@ -148,14 +202,14 @@ export default function LandingPage() {
             v Google a na Metě?
           </h1>
 
-          <p className="text-gray-500 text-lg sm:text-xl max-w-2xl mx-auto mb-8 leading-relaxed">
+          <p className="text-gray-500 text-lg sm:text-xl max-w-2xl mx-auto mb-10 leading-relaxed">
             Náš AI nástroj proskenuuje jejich reklamy, porovná je s vašimi
             a připraví konkrétní doporučení, kde máte prostor je předběhnout.
             <strong className="text-gray-800"> Zdarma, za 5 minut.</strong>
           </p>
 
-          {/* CTA form — above video */}
-          <div ref={ctaRef} className="flex justify-center mb-10">
+          {/* CTA form — centered */}
+          <div ref={ctaRef} className="flex justify-center mb-12">
             <EmailForm size="lg" />
           </div>
         </div>
@@ -163,7 +217,6 @@ export default function LandingPage() {
         {/* ── Video — full width, autoplay, muted ── */}
         <div className="max-w-4xl mx-auto px-4 sm:px-6 pb-0">
           <div className="relative rounded-2xl overflow-hidden shadow-2xl shadow-gray-200 border border-gray-100 bg-gray-900 aspect-video">
-            {/* Placeholder — nahradit src za skutečné video */}
             <video
               ref={videoRef}
               autoPlay
@@ -176,7 +229,6 @@ export default function LandingPage() {
               {/* <source src="/video/daniel-pitch.mp4" type="video/mp4" /> */}
             </video>
 
-            {/* Overlay pro případ, že video není nahrané */}
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900 gap-4">
               <div className="w-16 h-16 rounded-full bg-[#4f11ff] flex items-center justify-center shadow-lg shadow-[#4f11ff]/40">
                 <svg className="h-6 w-6 text-white ml-1" fill="currentColor" viewBox="0 0 24 24">
@@ -189,7 +241,6 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {/* Lime accent bar on bottom */}
             <div className="absolute bottom-0 left-0 right-0 h-1 bg-[#b0f221]" />
           </div>
         </div>
@@ -291,6 +342,63 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ── AI Methodology ─────────────────────────────────────────────────── */}
+      <section className="py-20 sm:py-28 bg-[#0c0a1e]">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6">
+
+          <div className="text-center mb-14">
+            <p className="text-[#b0f221] text-sm font-semibold tracking-wide uppercase mb-3">Metodologie</p>
+            <h2 className="font-[family-name:var(--font-heading)] text-3xl sm:text-4xl font-bold text-white mb-5">
+              Víc než scraping reklam.
+              <br />
+              <span className="text-[#b0f221]">Inteligentní analýza s daty z praxe.</span>
+            </h2>
+            <p className="text-white/55 max-w-2xl mx-auto text-lg leading-relaxed">
+              Za každou analýzou stojí AI modely trénované na reálných kampaních,
+              benchmarky z eshopů v naší správě a strukturovaná data
+              z obou největších reklamních platforem.
+            </p>
+          </div>
+
+          {/* Feature grid */}
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-10">
+            {AI_FEATURES.map((f) => (
+              <div key={f.title} className="bg-white/5 border border-white/10 rounded-2xl p-6 hover:bg-white/8 hover:border-white/20 transition-all">
+                <div className="w-10 h-10 rounded-xl bg-[#4f11ff]/40 flex items-center justify-center mb-4">
+                  <f.icon className="h-5 w-5 text-[#b0f221]" />
+                </div>
+                <h3 className="font-[family-name:var(--font-heading)] font-bold text-white mb-2">{f.title}</h3>
+                <p className="text-white/50 text-sm leading-relaxed">{f.body}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Pipeline */}
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-6 sm:p-8">
+            <p className="text-white/35 text-xs font-semibold tracking-widest uppercase mb-6">Jak analýza probíhá</p>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5 sm:gap-3">
+              {PIPELINE.map((step, i) => (
+                <div key={step.label} className="flex sm:flex-1 items-center gap-3 sm:gap-3">
+                  <div className="flex items-center gap-3 flex-1">
+                    <div className="w-9 h-9 rounded-xl bg-[#4f11ff] flex items-center justify-center flex-shrink-0 shadow-lg shadow-[#4f11ff]/30">
+                      <step.icon className="h-4 w-4 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-white text-sm font-semibold leading-tight">{step.label}</p>
+                      <p className="text-white/40 text-xs mt-0.5">{step.sub}</p>
+                    </div>
+                  </div>
+                  {i < PIPELINE.length - 1 && (
+                    <ArrowRight className="h-4 w-4 text-white/20 flex-shrink-0 hidden sm:block" />
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+        </div>
+      </section>
+
       {/* ── Final CTA ──────────────────────────────────────────────────────── */}
       <section className="py-20 sm:py-28 bg-[#4f11ff]">
         <div className="max-w-2xl mx-auto px-4 sm:px-6 text-center">
@@ -305,7 +413,6 @@ export default function LandingPage() {
             jen pro naše klienty.
           </p>
 
-          {/* White form on purple bg */}
           <div className="bg-white rounded-2xl p-6 sm:p-8 text-left shadow-2xl shadow-[#3d0dcc]/30">
             <p className="font-[family-name:var(--font-heading)] font-bold text-gray-900 mb-1">Váš pracovní email</p>
             <p className="text-gray-500 text-sm mb-5">Zašleme vám ověřovací odkaz a po potvrzení odemknete analýzu.</p>
