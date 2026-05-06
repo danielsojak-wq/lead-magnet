@@ -127,7 +127,7 @@ Deno.serve(async (req) => {
       method: "POST",
       headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        from: "Performind Studio <analyza@performind.cz>",
+        from: "Performind Studio <vysledek@analyza.performind.cz>",
         to: [email],
         subject: "Ověřte email a získejte analýzu zdarma",
         html: buildEmailHtml(verifyUrl),

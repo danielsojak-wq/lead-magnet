@@ -182,7 +182,7 @@ Deno.serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "Performind Studio <analyza@performind.cz>",
+        from: "Performind Studio <vysledek@analyza.performind.cz>",
         to: [session.email],
         subject: `Vaše konkurenční analýza — ${session.eshop_name ?? "výsledky"}`,
         html,
