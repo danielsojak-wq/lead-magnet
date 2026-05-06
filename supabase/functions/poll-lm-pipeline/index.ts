@@ -1,0 +1,226 @@
+import { corsHeaders } from "../_shared/cors.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+function admin() {
+  return createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  );
+}
+function ok(d: unknown) {
+  return new Response(JSON.stringify(d), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+}
+function err(msg: string, status = 400) {
+  return new Response(JSON.stringify({ error: msg }), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+}
+
+function mapMetaItem(it: any, sessionId: string, competitorId: string) {
+  const snapshot = it?.snapshot || it;
+  const toDate = (v: any): string | null => {
+    if (!v) return null;
+    const n = typeof v === "number" ? v * (v < 1e12 ? 1000 : 1) : Date.parse(v);
+    if (!n || isNaN(n)) return null;
+    return new Date(n).toISOString().slice(0, 10);
+  };
+  const images = snapshot?.images || it?.images || [];
+  const cards = snapshot?.cards || it?.cards || [];
+  const videos = snapshot?.videos || it?.videos || [];
+  const firstImg =
+    images[0]?.originalImageUrl || images[0]?.resizedImageUrl ||
+    cards.find((c: any) => c.originalImageUrl || c.resizedImageUrl)?.originalImageUrl || null;
+  const firstVid = videos[0]?.videoHdUrl || videos[0]?.videoSdUrl || null;
+  return {
+    session_id: sessionId,
+    competitor_id: competitorId,
+    ad_source: "meta",
+    ad_archive_id: String(it?.ad_archive_id || it?.adArchiveID || it?.id || crypto.randomUUID()),
+    image_url: firstImg,
+    video_url: firstVid,
+    primary_text: snapshot?.body?.text || snapshot?.title || it?.primary_text || null,
+    is_active: it?.is_active ?? true,
+    ad_start_date: toDate(it?.start_date || it?.startDate || snapshot?.creation_time),
+    ad_type: null,
+  };
+}
+
+async function classifyAds(apiKey: string, supa: ReturnType<typeof admin>, sessionId: string, competitorId: string) {
+  const { data: ads } = await supa
+    .from("lm_session_ads")
+    .select("id, primary_text")
+    .eq("session_id", sessionId)
+    .eq("competitor_id", competitorId)
+    .is("ad_type", null);
+  if (!ads?.length) return;
+
+  const BATCH = 5;
+  for (let i = 0; i < ads.length; i += BATCH) {
+    const batch = ads.slice(i, i + BATCH);
+    try {
+      const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          max_tokens: 200,
+          messages: [
+            { role: "system", content: "Klasifikuj každou reklamu: brand = budování značky; sales = přímá konverze; retargeting = připomenutí. Zavolej classify_batch." },
+            { role: "user", content: batch.map((ad: any, idx: number) => ({ type: "text", text: `--- Reklama ${idx + 1} ---\nText: ${(ad.primary_text || "—").slice(0, 300)}` })) },
+          ],
+          tools: [{
+            type: "function",
+            function: {
+              name: "classify_batch",
+              parameters: {
+                type: "object",
+                properties: { results: { type: "array", items: { type: "object", properties: { ad_type: { type: "string", enum: ["brand", "sales", "retargeting"] } }, required: ["ad_type"] } } },
+                required: ["results"],
+              },
+            },
+          }],
+          tool_choice: { type: "function", function: { name: "classify_batch" } },
+        }),
+      });
+      if (!res.ok) continue;
+      const d = await res.json();
+      const args = d?.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
+      if (!args) continue;
+      const results: { ad_type: string }[] = JSON.parse(args)?.results ?? [];
+      await Promise.all(batch.map(async (ad: any, idx: number) => {
+        const t = results[idx]?.ad_type;
+        if (t === "brand" || t === "sales" || t === "retargeting") {
+          await supa.from("lm_session_ads").update({ ad_type: t }).eq("id", ad.id);
+        }
+      }));
+    } catch (e) {
+      console.error("classify batch error:", e);
+    }
+  }
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  try {
+    const body = await req.json();
+    const session_id = body.session_id as string | undefined;
+    if (!session_id) return err("session_id required");
+
+    const APIFY_TOKEN = Deno.env.get("APIFY_API_TOKEN");
+    const LOVABLE_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!APIFY_TOKEN) return err("APIFY_API_TOKEN not configured", 500);
+
+    const supa = admin();
+
+    // Check session status first
+    const { data: session } = await supa
+      .from("lm_sessions")
+      .select("status")
+      .eq("id", session_id)
+      .single();
+
+    if (session?.status === "ready" || session?.status === "completed") {
+      return ok({ status: "ready" });
+    }
+    if (session?.status === "analyzing") {
+      return ok({ status: "analyzing" });
+    }
+    if (session?.status === "failed") {
+      return ok({ status: "failed" });
+    }
+
+    // Load competitors that are still scraping
+    const { data: competitors } = await supa
+      .from("lm_session_competitors")
+      .select("id, url, apify_run_id, status")
+      .eq("session_id", session_id);
+
+    const comps = competitors ?? [];
+    const scraping = comps.filter(c => c.status === "scraping" && c.apify_run_id);
+
+    // Check each in-flight Apify run
+    for (const comp of scraping) {
+      const statusRes = await fetch(
+        `https://api.apify.com/v2/actor-runs/${comp.apify_run_id}?token=${APIFY_TOKEN}`,
+      );
+      const statusData = await statusRes.json();
+      const apifyStatus: string = statusData?.data?.status ?? "";
+      const datasetId: string = statusData?.data?.defaultDatasetId ?? "";
+
+      console.log(`Competitor ${comp.id} Apify status: ${apifyStatus}`);
+
+      if (apifyStatus === "RUNNING" || apifyStatus === "READY" || apifyStatus === "STARTING") {
+        continue; // still running
+      }
+
+      if (apifyStatus !== "SUCCEEDED") {
+        console.error(`Apify run ${comp.apify_run_id} failed with status ${apifyStatus}`);
+        await supa.from("lm_session_competitors").update({ status: "failed" }).eq("id", comp.id);
+        continue;
+      }
+
+      // Download results
+      const itemsRes = await fetch(
+        `https://api.apify.com/v2/datasets/${datasetId}/items?token=${APIFY_TOKEN}&clean=true&format=json`,
+      );
+      const items: any[] = await itemsRes.json();
+      console.log(`Competitor ${comp.id}: downloaded ${items?.length ?? 0} ads`);
+
+      if (items?.length) {
+        const rows = items.map(it => mapMetaItem(it, session_id, comp.id));
+        const { error: upErr } = await supa
+          .from("lm_session_ads")
+          .upsert(rows, { onConflict: "session_id,ad_archive_id", ignoreDuplicates: false });
+        if (upErr) {
+          console.error("upsert error:", upErr);
+        } else if (LOVABLE_KEY) {
+          await classifyAds(LOVABLE_KEY, supa, session_id, comp.id).catch(e =>
+            console.error("classifyAds failed:", e)
+          );
+        }
+      }
+
+      await supa
+        .from("lm_session_competitors")
+        .update({ status: "scraped", ads_count: items?.length || 0 })
+        .eq("id", comp.id);
+    }
+
+    // Re-check: any still scraping?
+    const { data: freshComps } = await supa
+      .from("lm_session_competitors")
+      .select("status")
+      .eq("session_id", session_id);
+
+    const stillScraping = (freshComps ?? []).some(c => c.status === "scraping");
+    if (stillScraping) {
+      return ok({ status: "scraping" });
+    }
+
+    // All scraped — trigger AI analysis (only if session is still "processing")
+    const { data: freshSession } = await supa
+      .from("lm_sessions")
+      .select("status")
+      .eq("id", session_id)
+      .single();
+
+    if (freshSession?.status === "processing") {
+      await supa.from("lm_sessions").update({ status: "analyzing" }).eq("id", session_id);
+
+      // Call analyze-lm-session — it uses waitUntil internally and returns quickly
+      const analyzeUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/analyze-lm-session`;
+      await fetch(analyzeUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+        },
+        body: JSON.stringify({ session_id }),
+      }).catch(e => console.error("analyze-lm-session trigger failed:", e));
+    }
+
+    return ok({ status: "analyzing" });
+  } catch (e) {
+    console.error("poll-lm-pipeline error:", e);
+    return err((e as Error).message, 500);
+  }
+});

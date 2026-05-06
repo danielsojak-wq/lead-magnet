@@ -298,7 +298,16 @@ Deno.serve(async (req) => {
     const apiKey = Deno.env.get("LOVABLE_API_KEY");
     if (!apiKey) return err("LOVABLE_API_KEY not configured", 500);
 
-    await runAnalysis(sessionId, apiKey);
+    // Run analysis in background — return 202 immediately so poll-lm-pipeline isn't blocked
+    const task = runAnalysis(sessionId, apiKey).catch(async (e) => {
+      console.error("analyze-lm-session background error:", e);
+      const supa = admin();
+      await supa.from("lm_sessions").update({
+        status: "failed",
+        error_message: String(e),
+      }).eq("id", sessionId);
+    });
+    (globalThis as any).EdgeRuntime?.waitUntil?.(task);
 
     return ok({ ok: true });
   } catch (e) {
