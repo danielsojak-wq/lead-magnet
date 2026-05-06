@@ -14,6 +14,8 @@ function err(msg: string, status = 400) {
   return new Response(JSON.stringify({ error: msg }), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 }
 
+// ─── Ad mappers ───────────────────────────────────────────────────────────────
+
 function mapMetaItem(it: any, sessionId: string, competitorId: string) {
   const snapshot = it?.snapshot || it;
   const toDate = (v: any): string | null => {
@@ -23,25 +25,53 @@ function mapMetaItem(it: any, sessionId: string, competitorId: string) {
     return new Date(n).toISOString().slice(0, 10);
   };
   const images = snapshot?.images || it?.images || [];
-  const cards = snapshot?.cards || it?.cards || [];
+  const cards  = snapshot?.cards  || it?.cards  || [];
   const videos = snapshot?.videos || it?.videos || [];
   const firstImg =
     images[0]?.originalImageUrl || images[0]?.resizedImageUrl ||
     cards.find((c: any) => c.originalImageUrl || c.resizedImageUrl)?.originalImageUrl || null;
   const firstVid = videos[0]?.videoHdUrl || videos[0]?.videoSdUrl || null;
   return {
-    session_id: sessionId,
+    session_id:    sessionId,
     competitor_id: competitorId,
-    ad_source: "meta",
+    ad_source:     "meta",
     ad_archive_id: String(it?.ad_archive_id || it?.adArchiveID || it?.id || crypto.randomUUID()),
-    image_url: firstImg,
-    video_url: firstVid,
-    primary_text: snapshot?.body?.text || snapshot?.title || it?.primary_text || null,
-    is_active: it?.is_active ?? true,
+    image_url:     firstImg,
+    video_url:     firstVid,
+    primary_text:  snapshot?.body?.text || snapshot?.title || it?.primary_text || null,
+    is_active:     it?.is_active ?? true,
     ad_start_date: toDate(it?.start_date || it?.startDate || snapshot?.creation_time),
-    ad_type: null,
+    ad_type:       null,
   };
 }
+
+function mapGoogleItem(it: any, sessionId: string, competitorId: string) {
+  const toDate = (v: any): string | null => {
+    if (!v) return null;
+    if (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+    const n = typeof v === "number" ? v * (v < 1e12 ? 1000 : 1) : Date.parse(v);
+    if (!n || isNaN(n)) return null;
+    return new Date(n).toISOString().slice(0, 10);
+  };
+  const rawId = it?.creativeId || it?.creative_id || it?.id || it?.adId || crypto.randomUUID();
+  const headline    = it?.headline || it?.title || it?.adTitle || null;
+  const description = it?.description || it?.body || it?.text || null;
+  const primaryText = [headline, description].filter(Boolean).join("\n") || null;
+  return {
+    session_id:    sessionId,
+    competitor_id: competitorId,
+    ad_source:     "google",
+    ad_archive_id: `g_${rawId}`,
+    image_url:     it?.imageUrl || it?.image_url || it?.thumbnailUrl || null,
+    video_url:     it?.videoUrl || it?.video_url || null,
+    primary_text:  primaryText,
+    is_active:     it?.isActive ?? it?.is_active ?? true,
+    ad_start_date: toDate(it?.firstShownDate || it?.first_shown_date || it?.startDate),
+    ad_type:       null,
+  };
+}
+
+// ─── Classify ads ─────────────────────────────────────────────────────────────
 
 async function classifyAds(apiKey: string, supa: ReturnType<typeof admin>, sessionId: string, competitorId: string) {
   const { data: ads } = await supa
@@ -97,6 +127,39 @@ async function classifyAds(apiKey: string, supa: ReturnType<typeof admin>, sessi
   }
 }
 
+// ─── Download one Apify dataset ───────────────────────────────────────────────
+
+async function downloadApifyDataset(token: string, datasetId: string): Promise<any[]> {
+  const res = await fetch(
+    `https://api.apify.com/v2/datasets/${datasetId}/items?token=${token}&clean=true&format=json`,
+  );
+  if (!res.ok) return [];
+  return await res.json() as any[];
+}
+
+async function checkAndProcessRun(
+  token: string,
+  runId: string,
+): Promise<{ done: boolean; succeeded: boolean; datasetId: string; items: any[] }> {
+  const statusRes = await fetch(`https://api.apify.com/v2/actor-runs/${runId}?token=${token}`);
+  const statusData = await statusRes.json();
+  const apifyStatus: string = statusData?.data?.status ?? "";
+  const datasetId: string   = statusData?.data?.defaultDatasetId ?? "";
+
+  console.log(`Apify run ${runId}: ${apifyStatus}`);
+
+  if (apifyStatus === "RUNNING" || apifyStatus === "READY" || apifyStatus === "STARTING") {
+    return { done: false, succeeded: false, datasetId, items: [] };
+  }
+  if (apifyStatus !== "SUCCEEDED") {
+    return { done: true, succeeded: false, datasetId, items: [] };
+  }
+  const items = await downloadApifyDataset(token, datasetId);
+  return { done: true, succeeded: true, datasetId, items };
+}
+
+// ─── Handler ──────────────────────────────────────────────────────────────────
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -111,109 +174,83 @@ Deno.serve(async (req) => {
 
     const supa = admin();
 
-    // Check session status first
+    // Fast-path: check session status
     const { data: session } = await supa
-      .from("lm_sessions")
-      .select("status")
-      .eq("id", session_id)
-      .single();
+      .from("lm_sessions").select("status").eq("id", session_id).single();
 
-    if (session?.status === "ready" || session?.status === "completed") {
-      return ok({ status: "ready" });
-    }
-    if (session?.status === "analyzing") {
-      return ok({ status: "analyzing" });
-    }
-    if (session?.status === "failed") {
-      return ok({ status: "failed" });
-    }
+    if (session?.status === "ready" || session?.status === "completed") return ok({ status: "ready" });
+    if (session?.status === "analyzing") return ok({ status: "analyzing" });
+    if (session?.status === "failed")    return ok({ status: "failed" });
 
-    // Load competitors that are still scraping
+    // Load all competitors
     const { data: competitors } = await supa
       .from("lm_session_competitors")
-      .select("id, url, apify_run_id, status")
+      .select("id, url, apify_run_id, apify_google_run_id, status")
       .eq("session_id", session_id);
 
     const comps = competitors ?? [];
-    const scraping = comps.filter(c => c.status === "scraping" && c.apify_run_id);
+    const scraping = comps.filter(c => c.status === "scraping");
 
-    // Check each in-flight Apify run
     for (const comp of scraping) {
-      const statusRes = await fetch(
-        `https://api.apify.com/v2/actor-runs/${comp.apify_run_id}?token=${APIFY_TOKEN}`,
-      );
-      const statusData = await statusRes.json();
-      const apifyStatus: string = statusData?.data?.status ?? "";
-      const datasetId: string = statusData?.data?.defaultDatasetId ?? "";
+      let metaDone    = !comp.apify_run_id;        // no run = already done (skipped)
+      let googleDone  = !comp.apify_google_run_id;
+      let totalAds    = 0;
 
-      console.log(`Competitor ${comp.id} Apify status: ${apifyStatus}`);
-
-      if (apifyStatus === "RUNNING" || apifyStatus === "READY" || apifyStatus === "STARTING") {
-        continue; // still running
-      }
-
-      if (apifyStatus !== "SUCCEEDED") {
-        console.error(`Apify run ${comp.apify_run_id} failed with status ${apifyStatus}`);
-        await supa.from("lm_session_competitors").update({ status: "failed" }).eq("id", comp.id);
-        continue;
-      }
-
-      // Download results
-      const itemsRes = await fetch(
-        `https://api.apify.com/v2/datasets/${datasetId}/items?token=${APIFY_TOKEN}&clean=true&format=json`,
-      );
-      const items: any[] = await itemsRes.json();
-      console.log(`Competitor ${comp.id}: downloaded ${items?.length ?? 0} ads`);
-
-      if (items?.length) {
-        const rows = items.map(it => mapMetaItem(it, session_id, comp.id));
-        const { error: upErr } = await supa
-          .from("lm_session_ads")
-          .upsert(rows, { onConflict: "session_id,ad_archive_id", ignoreDuplicates: false });
-        if (upErr) {
-          console.error("upsert error:", upErr);
-        } else if (LOVABLE_KEY) {
-          await classifyAds(LOVABLE_KEY, supa, session_id, comp.id).catch(e =>
-            console.error("classifyAds failed:", e)
-          );
+      // Check Meta run
+      if (comp.apify_run_id) {
+        const { done, succeeded, items } = await checkAndProcessRun(APIFY_TOKEN, comp.apify_run_id);
+        if (done) {
+          metaDone = true;
+          if (succeeded && items.length) {
+            const rows = items.map(it => mapMetaItem(it, session_id, comp.id));
+            await supa.from("lm_session_ads").upsert(rows, { onConflict: "session_id,ad_archive_id", ignoreDuplicates: false });
+            totalAds += items.length;
+            if (LOVABLE_KEY) await classifyAds(LOVABLE_KEY, supa, session_id, comp.id).catch(console.error);
+            console.log(`Competitor ${comp.id}: saved ${items.length} Meta ads`);
+          }
         }
       }
 
-      await supa
-        .from("lm_session_competitors")
-        .update({ status: "scraped", ads_count: items?.length || 0 })
-        .eq("id", comp.id);
+      // Check Google run
+      if (comp.apify_google_run_id) {
+        const { done, succeeded, items } = await checkAndProcessRun(APIFY_TOKEN, comp.apify_google_run_id);
+        if (done) {
+          googleDone = true;
+          if (succeeded && items.length) {
+            const rows = items.map(it => mapGoogleItem(it, session_id, comp.id));
+            await supa.from("lm_session_ads").upsert(rows, { onConflict: "session_id,ad_archive_id", ignoreDuplicates: false });
+            totalAds += items.length;
+            console.log(`Competitor ${comp.id}: saved ${items.length} Google ads`);
+          }
+        }
+      }
+
+      // Mark competitor done when both sources finished
+      if (metaDone && googleDone) {
+        await supa.from("lm_session_competitors")
+          .update({ status: "scraped", ads_count: totalAds })
+          .eq("id", comp.id);
+      }
     }
 
-    // Re-check: any still scraping?
+    // Re-check for any still scraping
     const { data: freshComps } = await supa
-      .from("lm_session_competitors")
-      .select("status")
-      .eq("session_id", session_id);
+      .from("lm_session_competitors").select("status").eq("session_id", session_id);
 
-    const stillScraping = (freshComps ?? []).some(c => c.status === "scraping");
-    if (stillScraping) {
+    if ((freshComps ?? []).some(c => c.status === "scraping")) {
       return ok({ status: "scraping" });
     }
 
-    // All scraped — trigger AI analysis (only if session is still "processing")
+    // All scraped → trigger AI (only once)
     const { data: freshSession } = await supa
-      .from("lm_sessions")
-      .select("status")
-      .eq("id", session_id)
-      .single();
+      .from("lm_sessions").select("status").eq("id", session_id).single();
 
     if (freshSession?.status === "processing") {
       await supa.from("lm_sessions").update({ status: "analyzing" }).eq("id", session_id);
-
-      // Call analyze-lm-session — it uses waitUntil internally and returns quickly
       const analyzeUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/analyze-lm-session`;
       await fetch(analyzeUrl, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-        },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` },
         body: JSON.stringify({ session_id }),
       }).catch(e => console.error("analyze-lm-session trigger failed:", e));
     }

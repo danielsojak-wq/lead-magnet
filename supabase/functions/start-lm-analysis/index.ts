@@ -1,7 +1,8 @@
 import { corsHeaders } from "../_shared/cors.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const APIFY_META_ACTOR = "apify~facebook-ads-scraper";
+const APIFY_META_ACTOR   = "apify~facebook-ads-scraper";
+const APIFY_GOOGLE_ACTOR = "easyapi~google-ads-transparency-center-scraper";
 
 function admin() {
   return createClient(
@@ -16,26 +17,31 @@ function err(msg: string, status = 400) {
   return new Response(JSON.stringify({ error: msg }), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 }
 
-async function startApifyRun(token: string, metaUrl: string): Promise<string | null> {
+function extractDomain(url: string): string | null {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return null;
+  }
+}
+
+async function startApifyRun(token: string, actor: string, input: unknown): Promise<string | null> {
   const res = await fetch(
-    `https://api.apify.com/v2/acts/${APIFY_META_ACTOR}/runs?token=${token}`,
+    `https://api.apify.com/v2/acts/${actor}/runs?token=${token}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        startUrls: [{ url: metaUrl }],
-        resultsLimit: 50,
-        activeStatus: "active",
-      }),
+      body: JSON.stringify(input),
     },
   );
   if (!res.ok) {
-    console.error("Apify start failed:", res.status, await res.text());
+    console.error(`Apify start failed (${actor}):`, res.status, await res.text());
     return null;
   }
   const d = await res.json();
-  console.log("Apify run started:", d?.data?.id);
-  return d?.data?.id ?? null;
+  const runId = d?.data?.id ?? null;
+  console.log(`Apify run started (${actor}): ${runId}`);
+  return runId;
 }
 
 Deno.serve(async (req) => {
@@ -59,20 +65,15 @@ Deno.serve(async (req) => {
 
     const supa = admin();
 
-    // Update session
-    const { error: sessErr } = await supa
-      .from("lm_sessions")
-      .update({
-        eshop_url,
-        eshop_meta_library_url: eshop_meta_url || null,
-        status: "processing",
-      })
-      .eq("id", session_id);
-    if (sessErr) return err(sessErr.message, 500);
+    await supa.from("lm_sessions").update({
+      eshop_url,
+      eshop_meta_library_url: eshop_meta_url || null,
+      status: "processing",
+    }).eq("id", session_id);
 
-    // Upsert each competitor and immediately start its Apify run
     for (const c of competitors) {
       const metaUrl = c.meta_url?.trim() || null;
+      const domain  = extractDomain(c.url);
 
       const { data: inserted, error: compErr } = await supa
         .from("lm_session_competitors")
@@ -91,23 +92,34 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      if (!metaUrl) {
-        console.log(`No Meta URL for competitor ${inserted.id}, skipping Apify`);
-        continue;
+      const updates: Record<string, unknown> = {};
+
+      // Meta Ads run
+      if (metaUrl) {
+        const metaRunId = await startApifyRun(APIFY_TOKEN, APIFY_META_ACTOR, {
+          startUrls: [{ url: metaUrl }],
+          resultsLimit: 50,
+          activeStatus: "active",
+        });
+        if (metaRunId) updates.apify_run_id = metaRunId;
       }
 
-      const runId = await startApifyRun(APIFY_TOKEN, metaUrl);
-      if (!runId) {
-        console.error(`Failed to start Apify run for competitor ${inserted.id}`);
-        continue;
+      // Google Ads run — auto-built from domain
+      if (domain) {
+        const googleUrl = `https://adstransparency.google.com/?region=CZ&domain=${domain}`;
+        const googleRunId = await startApifyRun(APIFY_TOKEN, APIFY_GOOGLE_ACTOR, {
+          startUrls: [{ url: googleUrl }],
+          maxItems: 50,
+        });
+        if (googleRunId) updates.apify_google_run_id = googleRunId;
       }
 
-      await supa
-        .from("lm_session_competitors")
-        .update({ apify_run_id: runId, status: "scraping" })
-        .eq("id", inserted.id);
+      if (Object.keys(updates).length) {
+        updates.status = "scraping";
+        await supa.from("lm_session_competitors").update(updates).eq("id", inserted.id);
+      }
 
-      console.log(`Competitor ${inserted.id}: Apify run ${runId} started`);
+      console.log(`Competitor ${inserted.id} (${c.url}): Meta=${updates.apify_run_id ?? "—"} Google=${updates.apify_google_run_id ?? "—"}`);
     }
 
     return ok({ ok: true, session_id });
