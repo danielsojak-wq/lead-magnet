@@ -1041,6 +1041,182 @@ export type Database = {
         }
         Relationships: []
       }
+      lm_session_ads: {
+        Row: {
+          ad_archive_id: string | null
+          ad_source: string
+          ad_start_date: string | null
+          ad_type: string | null
+          competitor_id: string
+          created_at: string
+          id: string
+          image_url: string | null
+          is_active: boolean
+          primary_text: string | null
+          session_id: string
+          video_url: string | null
+        }
+        Insert: {
+          ad_archive_id?: string | null
+          ad_source?: string
+          ad_start_date?: string | null
+          ad_type?: string | null
+          competitor_id: string
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          primary_text?: string | null
+          session_id: string
+          video_url?: string | null
+        }
+        Update: {
+          ad_archive_id?: string | null
+          ad_source?: string
+          ad_start_date?: string | null
+          ad_type?: string | null
+          competitor_id?: string
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          primary_text?: string | null
+          session_id?: string
+          video_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lm_session_ads_competitor_id_fkey"
+            columns: ["competitor_id"]
+            isOneToOne: false
+            referencedRelation: "lm_session_competitors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lm_session_ads_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "lm_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lm_session_competitors: {
+        Row: {
+          ad_mix: Json
+          ads_count: number
+          ai_analysis: Json | null
+          created_at: string
+          google_library_url: string | null
+          id: string
+          meta_library_url: string | null
+          name: string | null
+          position: number
+          session_id: string
+          status: string
+          summary: string | null
+          url: string
+        }
+        Insert: {
+          ad_mix?: Json
+          ads_count?: number
+          ai_analysis?: Json | null
+          created_at?: string
+          google_library_url?: string | null
+          id?: string
+          meta_library_url?: string | null
+          name?: string | null
+          position: number
+          session_id: string
+          status?: string
+          summary?: string | null
+          url: string
+        }
+        Update: {
+          ad_mix?: Json
+          ads_count?: number
+          ai_analysis?: Json | null
+          created_at?: string
+          google_library_url?: string | null
+          id?: string
+          meta_library_url?: string | null
+          name?: string | null
+          position?: number
+          session_id?: string
+          status?: string
+          summary?: string | null
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lm_session_competitors_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "lm_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lm_sessions: {
+        Row: {
+          ai_cross_analysis: Json | null
+          completed_at: string | null
+          created_at: string
+          cross_summary: string | null
+          email: string
+          email_verified_at: string | null
+          error_message: string | null
+          eshop_ad_mix: Json
+          eshop_google_library_url: string | null
+          eshop_meta_library_url: string | null
+          eshop_name: string | null
+          eshop_summary: string | null
+          eshop_url: string | null
+          id: string
+          status: string
+          token_expires_at: string
+          verification_token: string | null
+        }
+        Insert: {
+          ai_cross_analysis?: Json | null
+          completed_at?: string | null
+          created_at?: string
+          cross_summary?: string | null
+          email: string
+          email_verified_at?: string | null
+          error_message?: string | null
+          eshop_ad_mix?: Json
+          eshop_google_library_url?: string | null
+          eshop_meta_library_url?: string | null
+          eshop_name?: string | null
+          eshop_summary?: string | null
+          eshop_url?: string | null
+          id?: string
+          status?: string
+          token_expires_at?: string
+          verification_token?: string | null
+        }
+        Update: {
+          ai_cross_analysis?: Json | null
+          completed_at?: string | null
+          created_at?: string
+          cross_summary?: string | null
+          email?: string
+          email_verified_at?: string | null
+          error_message?: string | null
+          eshop_ad_mix?: Json
+          eshop_google_library_url?: string | null
+          eshop_meta_library_url?: string | null
+          eshop_name?: string | null
+          eshop_summary?: string | null
+          eshop_url?: string | null
+          id?: string
+          status?: string
+          token_expires_at?: string
+          verification_token?: string | null
+        }
+        Relationships: []
+      }
       marketing_users: {
         Row: {
           created_at: string | null
