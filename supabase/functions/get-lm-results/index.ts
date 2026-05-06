@@ -83,6 +83,7 @@ Deno.serve(async (req) => {
       name: c.name ?? c.url,
       website_url: c.url,
       summary: c.summary ?? null,
+      ai_analysis: c.ai_analysis ?? null,
       status: c.status as "ready" | "processing" | "failed" | "empty",
       ads_count: c.ads_count,
       ad_mix: c.ad_mix ?? { brand: 0, sales: 0, retargeting: 0 },
@@ -103,6 +104,7 @@ Deno.serve(async (req) => {
       eshop_name: session.eshop_name ?? "Váš e-shop",
       competitors: mappedCompetitors,
       cross_summary: session.cross_summary ?? null,
+      ai_cross_analysis: session.ai_cross_analysis ?? null,
     });
   } catch (e) {
     console.error(e);

@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowRight, Globe, Search, ShieldCheck, Info, X, Play } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import * as Dialog from "@radix-ui/react-dialog";
 import performindLogo from "@/assets/performind-logo-dark.svg";
 
@@ -262,8 +263,27 @@ export default function AnalyzePage() {
     setSubmitting(true);
     setError(null);
 
-    // Placeholder: will call backend Edge Function
-    await new Promise((r) => setTimeout(r, 800));
+    const competitors = [
+      { url: competitor1.url.trim(), meta_url: competitor1.meta.trim() || undefined, position: 1 },
+      ...(competitor2.url.trim()
+        ? [{ url: competitor2.url.trim(), meta_url: competitor2.meta.trim() || undefined, position: 2 }]
+        : []),
+    ];
+
+    const { error: fnErr } = await supabase.functions.invoke("start-lm-analysis", {
+      body: {
+        session_id: sessionId,
+        eshop_url: eshop.url.trim(),
+        eshop_meta_url: eshop.meta.trim() || undefined,
+        competitors,
+      },
+    });
+
+    if (fnErr) {
+      setError("Nepodařilo se spustit analýzu. Zkuste to prosím znovu.");
+      setSubmitting(false);
+      return;
+    }
 
     navigate(`/waiting/${sessionId}`);
   };
