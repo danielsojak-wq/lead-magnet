@@ -2,6 +2,7 @@ import { useSearchParams } from "react-router-dom";
 import { useState } from "react";
 import { Mail, ArrowRight, RefreshCw, CheckCircle2, Clock } from "lucide-react";
 import performindLogo from "@/assets/performind-logo-dark.svg";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function CheckEmailPage() {
   const [params] = useSearchParams();
@@ -11,7 +12,7 @@ export default function CheckEmailPage() {
 
   const handleResend = async () => {
     setResending(true);
-    await new Promise((r) => setTimeout(r, 1200));
+    await supabase.functions.invoke("send-verification-email", { body: { email } });
     setResending(false);
     setResent(true);
   };

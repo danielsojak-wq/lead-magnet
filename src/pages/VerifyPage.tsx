@@ -2,8 +2,9 @@ import { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { CheckCircle2, XCircle, Loader2, ArrowRight } from "lucide-react";
 import performindLogo from "@/assets/performind-logo-dark.svg";
+import { supabase } from "@/integrations/supabase/client";
 
-type State = "verifying" | "success" | "error";
+type State = "verifying" | "success" | "expired" | "error";
 
 export default function VerifyPage() {
   const [params] = useSearchParams();
@@ -11,39 +12,47 @@ export default function VerifyPage() {
   const token = params.get("token");
   const [state, setState] = useState<State>("verifying");
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string>("Ověřovací odkaz není platný nebo vypršel.");
 
   useEffect(() => {
     if (!token) {
       setState("error");
       return;
     }
-    // Placeholder: simulate token verification until backend is ready
-    const timer = setTimeout(() => {
-      const mockSessionId = crypto.randomUUID();
-      setSessionId(mockSessionId);
-      setState("success");
-    }, 1800);
-    return () => clearTimeout(timer);
+    supabase.functions
+      .invoke("verify-lm-token", { body: { token } })
+      .then(({ data, error }) => {
+        if (error || !data?.session_id) {
+          const msg = data?.error || error?.message || "";
+          if (msg.includes("vypršel")) {
+            setState("expired");
+          } else {
+            setState("error");
+          }
+          if (msg) setErrorMsg(msg);
+          return;
+        }
+        setSessionId(data.session_id);
+        setState("success");
+      });
   }, [token]);
 
   useEffect(() => {
     if (state === "success" && sessionId) {
-      const timer = setTimeout(() => navigate(`/analyze/${sessionId}`), 1500);
-      return () => clearTimeout(timer);
+      const t = setTimeout(() => navigate(`/analyze/${sessionId}`), 1500);
+      return () => clearTimeout(t);
     }
   }, [state, sessionId, navigate]);
 
   return (
     <div className="min-h-screen bg-white text-gray-900 font-[family-name:var(--font-body)] flex flex-col">
 
-      {/* Navbar */}
       <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-100">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center">
           <img src={performindLogo} alt="Performind Studio" className="h-6 object-contain" />
         </div>
       </nav>
 
-      {/* Content */}
       <div className="flex-1 flex items-center justify-center px-4 py-16">
         <div className="w-full max-w-md text-center">
 
@@ -53,9 +62,9 @@ export default function VerifyPage() {
                 <Loader2 className="h-9 w-9 text-[#4f11ff] animate-spin" />
               </div>
               <h1 className="font-[family-name:var(--font-heading)] text-2xl font-bold mb-3 text-gray-900">
-                Overujeme vas email
+                Ověřujeme váš email
               </h1>
-              <p className="text-gray-400 text-sm">Chvilku strpeni...</p>
+              <p className="text-gray-400 text-sm">Chvilku strpení…</p>
             </div>
           )}
 
@@ -69,17 +78,35 @@ export default function VerifyPage() {
                   <CheckCircle2 className="h-3.5 w-3.5 text-black" />
                 </div>
               </div>
-
               <h1 className="font-[family-name:var(--font-heading)] text-2xl sm:text-3xl font-bold mb-3 text-gray-900">
-                Email overen!
+                Email ověřen!
               </h1>
               <p className="text-gray-500 mb-8 leading-relaxed">
-                Presmeroujeme vas na analyzu...
+                Přesměrováváme vás na analýzu…
               </p>
-
               <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
                 <div className="bg-[#4f11ff] h-1.5 rounded-full animate-[progress_1.5s_linear_forwards]" />
               </div>
+            </div>
+          )}
+
+          {state === "expired" && (
+            <div className="bg-white border border-gray-100 rounded-3xl p-12 shadow-sm">
+              <div className="inline-flex w-20 h-20 rounded-2xl bg-amber-50 border border-amber-100 items-center justify-center mb-8">
+                <XCircle className="h-9 w-9 text-amber-400" />
+              </div>
+              <h1 className="font-[family-name:var(--font-heading)] text-2xl font-bold mb-3 text-gray-900">
+                Odkaz vypršel
+              </h1>
+              <p className="text-gray-500 mb-10 leading-relaxed">
+                Ověřovací odkaz je platný 24 hodin. Vraťte se zpět a zadejte email znovu — pošleme nový.
+              </p>
+              <button
+                onClick={() => navigate("/")}
+                className="inline-flex items-center gap-2 bg-[#4f11ff] hover:bg-[#3d0dcc] text-white font-semibold px-8 py-4 rounded-xl transition-colors text-sm"
+              >
+                Zpět na úvod <ArrowRight className="h-4 w-4" />
+              </button>
             </div>
           )}
 
@@ -88,32 +115,27 @@ export default function VerifyPage() {
               <div className="inline-flex w-20 h-20 rounded-2xl bg-red-50 border border-red-100 items-center justify-center mb-8">
                 <XCircle className="h-9 w-9 text-red-400" />
               </div>
-
               <h1 className="font-[family-name:var(--font-heading)] text-2xl font-bold mb-3 text-gray-900">
-                Odkaz neni platny
+                Odkaz není platný
               </h1>
               <p className="text-gray-500 mb-10 leading-relaxed">
-                Overovaci odkaz vypršel nebo byl jiz použit.<br />
-                Vraťte se zpet a zadejte email znovu.
+                {errorMsg}
               </p>
-
               <button
                 onClick={() => navigate("/")}
                 className="inline-flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold px-8 py-4 rounded-xl transition-colors text-sm"
               >
-                <ArrowRight className="h-4 w-4 rotate-180" />
-                Zpet na uvod
+                <ArrowRight className="h-4 w-4 rotate-180" /> Zpět na úvod
               </button>
             </div>
           )}
 
           <p className="text-gray-400 text-xs mt-6">
-            Odkaz je platny 24 hodin · Analyza je zdarma a bez zavazku
+            Odkaz je platný 24 hodin · Analýza je zdarma a bez závazku
           </p>
         </div>
       </div>
 
-      {/* Footer */}
       <footer className="border-t border-gray-100 py-6 px-6 text-center bg-white">
         <p className="text-gray-400 text-xs">
           © {new Date().getFullYear()} Performind Studio s.r.o.

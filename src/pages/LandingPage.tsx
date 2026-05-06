@@ -6,6 +6,7 @@ import {
   Gift, Globe, Database, Cpu, Shield, BarChart3, Layers,
 } from "lucide-react";
 import performindLogo from "@/assets/performind-logo-dark.svg";
+import { supabase } from "@/integrations/supabase/client";
 
 /* ─── Data ─────────────────────────────────────────────────────────────────── */
 
@@ -120,8 +121,14 @@ function EmailForm({ size = "lg" }: { size?: "lg" | "sm" }) {
     }
     setError("");
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 700));
+    const { error: fnErr } = await supabase.functions.invoke("send-verification-email", {
+      body: { email: trimmed },
+    });
     setLoading(false);
+    if (fnErr) {
+      setError("Nepodařilo se odeslat email. Zkuste to prosím znovu.");
+      return;
+    }
     navigate(`/check-email?email=${encodeURIComponent(trimmed)}`);
   };
 
