@@ -164,7 +164,7 @@ Deno.serve(async (req) => {
     const projectRef = supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1] ?? "";
     // Derive the public app URL from the Supabase project ref isn't reliable —
     // use an env var SITE_URL instead (set in Supabase dashboard secrets).
-    const siteUrl = Deno.env.get("SITE_URL") ?? "https://performind.cz";
+    const siteUrl = Deno.env.get("SITE_URL") ?? "https://analyza.performind.cz";
     const resultsUrl = `${siteUrl}/results/${sessionId}`;
 
     const html = buildEmailHtml({
