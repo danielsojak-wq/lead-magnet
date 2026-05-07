@@ -127,7 +127,7 @@ Deno.serve(async (req) => {
       token = created.verification_token;
     }
 
-    const verifyUrl = `${SITE_URL}/verify?token=${token}`;
+    const verifyUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/verify-lm-token?token=${token}`;
 
     const resendRes = await fetch("https://api.resend.com/emails", {
       method: "POST",
