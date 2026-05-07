@@ -45,32 +45,6 @@ function mapMetaItem(it: any, sessionId: string, competitorId: string) {
   };
 }
 
-function mapGoogleItem(it: any, sessionId: string, competitorId: string) {
-  const toDate = (v: any): string | null => {
-    if (!v) return null;
-    if (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
-    const n = typeof v === "number" ? v * (v < 1e12 ? 1000 : 1) : Date.parse(v);
-    if (!n || isNaN(n)) return null;
-    return new Date(n).toISOString().slice(0, 10);
-  };
-  const rawId = it?.creativeId || it?.creative_id || it?.id || it?.adId || crypto.randomUUID();
-  const headline    = it?.headline || it?.title || it?.adTitle || null;
-  const description = it?.description || it?.body || it?.text || null;
-  const primaryText = [headline, description].filter(Boolean).join("\n") || null;
-  return {
-    session_id:    sessionId,
-    competitor_id: competitorId,
-    ad_source:     "google",
-    ad_archive_id: `g_${rawId}`,
-    image_url:     it?.imageUrl || it?.image_url || it?.thumbnailUrl || null,
-    video_url:     it?.videoUrl || it?.video_url || null,
-    primary_text:  primaryText,
-    is_active:     it?.isActive ?? it?.is_active ?? true,
-    ad_start_date: toDate(it?.firstShownDate || it?.first_shown_date || it?.startDate),
-    ad_type:       null,
-  };
-}
-
 // ─── Classify ads ─────────────────────────────────────────────────────────────
 
 async function classifyAds(apiKey: string, supa: ReturnType<typeof admin>, sessionId: string, competitorId: string) {
@@ -198,45 +172,24 @@ Deno.serve(async (req) => {
     const scraping = comps.filter(c => c.status === "scraping");
 
     for (const comp of scraping) {
-      let metaDone    = !comp.apify_run_id;        // no run = already done (skipped)
-      let googleDone  = !comp.apify_google_run_id;
-      let totalAds    = 0;
+      let totalAds = 0;
 
       // Check Meta run
       if (comp.apify_run_id) {
         const { done, succeeded, items } = await checkAndProcessRun(APIFY_TOKEN, comp.apify_run_id);
-        if (done) {
-          metaDone = true;
-          if (succeeded && items.length) {
-            const rows = items.map(it => mapMetaItem(it, session_id, comp.id));
-            await supa.from("lm_session_ads").upsert(rows, { onConflict: "session_id,ad_archive_id", ignoreDuplicates: false });
-            totalAds += items.length;
-            if (LOVABLE_KEY) await classifyAds(LOVABLE_KEY, supa, session_id, comp.id).catch(console.error);
-            console.log(`Competitor ${comp.id}: saved ${items.length} Meta ads`);
-          }
+        if (!done) continue;
+        if (succeeded && items.length) {
+          const rows = items.map(it => mapMetaItem(it, session_id, comp.id));
+          await supa.from("lm_session_ads").upsert(rows, { onConflict: "session_id,ad_archive_id", ignoreDuplicates: false });
+          totalAds = items.length;
+          if (LOVABLE_KEY) await classifyAds(LOVABLE_KEY, supa, session_id, comp.id).catch(console.error);
+          console.log(`Competitor ${comp.id}: saved ${items.length} Meta ads`);
         }
       }
 
-      // Check Google run
-      if (comp.apify_google_run_id) {
-        const { done, succeeded, items } = await checkAndProcessRun(APIFY_TOKEN, comp.apify_google_run_id);
-        if (done) {
-          googleDone = true;
-          if (succeeded && items.length) {
-            const rows = items.map(it => mapGoogleItem(it, session_id, comp.id));
-            await supa.from("lm_session_ads").upsert(rows, { onConflict: "session_id,ad_archive_id", ignoreDuplicates: false });
-            totalAds += items.length;
-            console.log(`Competitor ${comp.id}: saved ${items.length} Google ads`);
-          }
-        }
-      }
-
-      // Mark competitor done when both sources finished
-      if (metaDone && googleDone) {
-        await supa.from("lm_session_competitors")
-          .update({ status: "scraped", ads_count: totalAds })
-          .eq("id", comp.id);
-      }
+      await supa.from("lm_session_competitors")
+        .update({ status: "scraped", ads_count: totalAds })
+        .eq("id", comp.id);
     }
 
     // Re-check for any still scraping

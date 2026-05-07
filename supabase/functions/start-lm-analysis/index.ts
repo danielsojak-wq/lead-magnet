@@ -1,8 +1,7 @@
 import { corsHeaders } from "../_shared/cors.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const APIFY_META_ACTOR   = "apify~facebook-ads-scraper";
-const APIFY_GOOGLE_ACTOR = "easyapi~google-ads-transparency-center-scraper";
+const APIFY_META_ACTOR = "apify~facebook-ads-scraper";
 
 function admin() {
   return createClient(
@@ -109,16 +108,8 @@ Deno.serve(async (req) => {
         else log.push(`meta=FAILED: ${metaErr}`);
       } else log.push("meta=no_url");
 
-      // Google Ads run — auto-built from domain
-      if (domain) {
-        const googleUrl = `https://adstransparency.google.com/?region=CZ&domain=${domain}`;
-        const { runId: googleRunId, error: googleErr } = await startApifyRun(APIFY_TOKEN, APIFY_GOOGLE_ACTOR, {
-          startUrls: [{ url: googleUrl }],
-          maxItems: 50,
-        });
-        if (googleRunId) { updates.apify_google_run_id = googleRunId; log.push(`google=${googleRunId}`); }
-        else log.push(`google=FAILED: ${googleErr}`);
-      }
+      // Google Ads: not scraped automatically — link shown in UI
+      if (domain) log.push(`google=link_only:${domain}`);
 
       if (Object.keys(updates).length) {
         updates.status = "scraping";
