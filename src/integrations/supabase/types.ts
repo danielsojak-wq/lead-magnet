@@ -1106,6 +1106,8 @@ export type Database = {
           ad_mix: Json
           ads_count: number
           ai_analysis: Json | null
+          apify_google_run_id: string | null
+          apify_run_id: string | null
           created_at: string
           google_library_url: string | null
           id: string
@@ -1121,6 +1123,8 @@ export type Database = {
           ad_mix?: Json
           ads_count?: number
           ai_analysis?: Json | null
+          apify_google_run_id?: string | null
+          apify_run_id?: string | null
           created_at?: string
           google_library_url?: string | null
           id?: string
@@ -1136,6 +1140,8 @@ export type Database = {
           ad_mix?: Json
           ads_count?: number
           ai_analysis?: Json | null
+          apify_google_run_id?: string | null
+          apify_run_id?: string | null
           created_at?: string
           google_library_url?: string | null
           id?: string
