@@ -189,6 +189,12 @@ Deno.serve(async (req) => {
       .eq("session_id", session_id);
 
     const comps = competitors ?? [];
+
+    // If any competitor is still pending (Apify not yet started), report scraping
+    if (comps.some(c => c.status === "pending")) {
+      return ok({ status: "scraping" });
+    }
+
     const scraping = comps.filter(c => c.status === "scraping");
 
     for (const comp of scraping) {

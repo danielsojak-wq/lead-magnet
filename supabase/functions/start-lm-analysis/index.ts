@@ -93,6 +93,7 @@ Deno.serve(async (req) => {
       }
 
       const updates: Record<string, unknown> = {};
+      const log: string[] = [];
 
       // Meta Ads run
       if (metaUrl) {
@@ -101,8 +102,9 @@ Deno.serve(async (req) => {
           resultsLimit: 50,
           activeStatus: "active",
         });
-        if (metaRunId) updates.apify_run_id = metaRunId;
-      }
+        if (metaRunId) { updates.apify_run_id = metaRunId; log.push(`meta=${metaRunId}`); }
+        else log.push("meta=FAILED");
+      } else log.push("meta=no_url");
 
       // Google Ads run — auto-built from domain
       if (domain) {
@@ -111,7 +113,8 @@ Deno.serve(async (req) => {
           startUrls: [{ url: googleUrl }],
           maxItems: 50,
         });
-        if (googleRunId) updates.apify_google_run_id = googleRunId;
+        if (googleRunId) { updates.apify_google_run_id = googleRunId; log.push(`google=${googleRunId}`); }
+        else log.push("google=FAILED");
       }
 
       if (Object.keys(updates).length) {
@@ -119,10 +122,16 @@ Deno.serve(async (req) => {
         await supa.from("lm_session_competitors").update(updates).eq("id", inserted.id);
       }
 
-      console.log(`Competitor ${inserted.id} (${c.url}): Meta=${updates.apify_run_id ?? "—"} Google=${updates.apify_google_run_id ?? "—"}`);
+      console.log(`Competitor ${inserted.id} (${c.url}): ${log.join(" | ")}`);
     }
 
-    return ok({ ok: true, session_id });
+    // Re-read competitors to confirm what was saved
+    const { data: savedComps } = await supa
+      .from("lm_session_competitors")
+      .select("url, status, apify_run_id, apify_google_run_id")
+      .eq("session_id", session_id);
+
+    return ok({ ok: true, session_id, competitors: savedComps });
   } catch (e) {
     console.error("start-lm-analysis error:", e);
     return err((e as Error).message, 500);
