@@ -25,7 +25,7 @@ function extractDomain(url: string): string | null {
   }
 }
 
-async function startApifyRun(token: string, actor: string, input: unknown): Promise<string | null> {
+async function startApifyRun(token: string, actor: string, input: unknown): Promise<{ runId: string | null; error?: string }> {
   const res = await fetch(
     `https://api.apify.com/v2/acts/${actor}/runs?token=${token}`,
     {
@@ -35,13 +35,14 @@ async function startApifyRun(token: string, actor: string, input: unknown): Prom
     },
   );
   if (!res.ok) {
-    console.error(`Apify start failed (${actor}):`, res.status, await res.text());
-    return null;
+    const body = await res.text();
+    console.error(`Apify start failed (${actor}):`, res.status, body);
+    return { runId: null, error: `HTTP ${res.status}: ${body.slice(0, 200)}` };
   }
   const d = await res.json();
   const runId = d?.data?.id ?? null;
   console.log(`Apify run started (${actor}): ${runId}`);
-  return runId;
+  return { runId };
 }
 
 Deno.serve(async (req) => {
@@ -71,6 +72,8 @@ Deno.serve(async (req) => {
       status: "processing",
     }).eq("id", session_id);
 
+    const runLogs: { url: string; log: string }[] = [];
+
     for (const c of competitors) {
       const metaUrl = c.meta_url?.trim() || null;
       const domain  = extractDomain(c.url);
@@ -97,24 +100,24 @@ Deno.serve(async (req) => {
 
       // Meta Ads run
       if (metaUrl) {
-        const metaRunId = await startApifyRun(APIFY_TOKEN, APIFY_META_ACTOR, {
+        const { runId: metaRunId, error: metaErr } = await startApifyRun(APIFY_TOKEN, APIFY_META_ACTOR, {
           startUrls: [{ url: metaUrl }],
           resultsLimit: 50,
           activeStatus: "active",
         });
         if (metaRunId) { updates.apify_run_id = metaRunId; log.push(`meta=${metaRunId}`); }
-        else log.push("meta=FAILED");
+        else log.push(`meta=FAILED: ${metaErr}`);
       } else log.push("meta=no_url");
 
       // Google Ads run — auto-built from domain
       if (domain) {
         const googleUrl = `https://adstransparency.google.com/?region=CZ&domain=${domain}`;
-        const googleRunId = await startApifyRun(APIFY_TOKEN, APIFY_GOOGLE_ACTOR, {
+        const { runId: googleRunId, error: googleErr } = await startApifyRun(APIFY_TOKEN, APIFY_GOOGLE_ACTOR, {
           startUrls: [{ url: googleUrl }],
           maxItems: 50,
         });
         if (googleRunId) { updates.apify_google_run_id = googleRunId; log.push(`google=${googleRunId}`); }
-        else log.push("google=FAILED");
+        else log.push(`google=FAILED: ${googleErr}`);
       }
 
       if (Object.keys(updates).length) {
@@ -123,6 +126,7 @@ Deno.serve(async (req) => {
       }
 
       console.log(`Competitor ${inserted.id} (${c.url}): ${log.join(" | ")}`);
+      runLogs.push({ url: c.url, log: log.join(" | ") });
     }
 
     // Re-read competitors to confirm what was saved
@@ -131,7 +135,7 @@ Deno.serve(async (req) => {
       .select("url, status, apify_run_id, apify_google_run_id")
       .eq("session_id", session_id);
 
-    return ok({ ok: true, session_id, competitors: savedComps });
+    return ok({ ok: true, session_id, runLogs, competitors: savedComps });
   } catch (e) {
     console.error("start-lm-analysis error:", e);
     return err((e as Error).message, 500);
