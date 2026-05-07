@@ -22,11 +22,6 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
-      - name: Apply migrations
-        run: supabase db push
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-
       - name: Deploy edge functions
         run: |
           for fn in start-lm-analysis poll-lm-pipeline analyze-lm-session \
