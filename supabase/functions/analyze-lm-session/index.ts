@@ -1,8 +1,8 @@
 import { corsHeaders } from "../_shared/cors.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const AI_URL   = "https://ai.gateway.lovable.dev/v1/chat/completions";
-const AI_MODEL = "google/gemini-2.5-flash";
+const AI_URL   = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+const AI_MODEL = "gemini-2.5-flash";
 
 function admin() {
   return createClient(
@@ -27,8 +27,8 @@ function extractJson(text: string): unknown {
   return JSON.parse(match[0]);
 }
 
-async function callAI(apiKey: string, system: string, user: string, maxTokens = 1200): Promise<unknown> {
-  for (let attempt = 0; attempt < 2; attempt++) {
+async function callAI(apiKey: string, system: string, user: string, maxTokens = 8000): Promise<unknown> {
+  for (let attempt = 0; attempt < 4; attempt++) {
     try {
       const res = await fetch(AI_URL, {
         method: "POST",
@@ -37,19 +37,26 @@ async function callAI(apiKey: string, system: string, user: string, maxTokens = 
           model: AI_MODEL,
           max_tokens: maxTokens,
           temperature: 0.3,
+          response_format: { type: "json_object" },
           messages: [
             { role: "system", content: system },
             { role: "user", content: user },
           ],
         }),
       });
+      if (res.status === 429) {
+        const wait = (attempt + 1) * 15000;
+        console.warn(`callAI rate limited, waiting ${wait}ms (attempt ${attempt + 1})`);
+        await new Promise(r => setTimeout(r, wait));
+        continue;
+      }
       if (!res.ok) throw new Error(`AI HTTP ${res.status}: ${await res.text()}`);
       const d = await res.json();
       const content: string = d?.choices?.[0]?.message?.content ?? "";
       return extractJson(content);
     } catch (e) {
       console.error(`callAI attempt ${attempt + 1} failed:`, e);
-      if (attempt === 1) throw e;
+      if (attempt === 3) throw e;
     }
   }
 }
@@ -242,15 +249,18 @@ export async function runAnalysis(sessionId: string, apiKey: string): Promise<vo
   // Prepare ads per competitor (filtered)
   const compAdsFiltered = comps.map(c => filterAds(adsMap.get(c.id) ?? []));
 
-  // L1: analyze each player in parallel (eshop + competitors)
-  const eshopAds: any[] = []; // eshop ads not scraped separately for now
-  const [eshopL1, ...compL1s] = await Promise.all([
-    callAI(apiKey, L1_SYSTEM, l1User(session.eshop_name || session.eshop_url || "Váš e-shop", session.eshop_url || "", eshopAds)),
-    ...comps.map((c, i) =>
-      callAI(apiKey, L1_SYSTEM, l1User(c.name || c.url, c.url, compAdsFiltered[i]))
-        .catch(e => { console.error(`L1 failed for competitor ${c.id}:`, e); return null; })
-    ),
-  ]);
+  // L1: sequential with small stagger to avoid parallel rate-limit collisions
+  const eshopAds: any[] = [];
+  const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
+
+  const eshopL1 = await callAI(apiKey, L1_SYSTEM, l1User(session.eshop_name || session.eshop_url || "Váš e-shop", session.eshop_url || "", eshopAds));
+  const compL1s: (unknown | null)[] = [];
+  for (let i = 0; i < comps.length; i++) {
+    await delay(3000);
+    const result = await callAI(apiKey, L1_SYSTEM, l1User(comps[i].name || comps[i].url, comps[i].url, compAdsFiltered[i]))
+      .catch(e => { console.error(`L1 failed for competitor ${comps[i].id}:`, e); return null; });
+    compL1s.push(result);
+  }
 
   // Save L1 results per competitor
   await Promise.all(comps.map(async (c, i) => {
@@ -270,7 +280,7 @@ export async function runAnalysis(sessionId: string, apiKey: string): Promise<vo
   }));
 
   // L2: synthesis (needs all L1 results)
-  const l2 = await callAI(apiKey, L2_SYSTEM, l2User(eshopL1, compL1s[0] ?? {}, compL1s[1] ?? {}), 1500)
+  const l2 = await callAI(apiKey, L2_SYSTEM, l2User(eshopL1, compL1s[0] ?? {}, compL1s[1] ?? {}), 8000)
     .catch(e => { console.error("L2 failed:", e); return null; });
 
   // Save session result
@@ -295,8 +305,8 @@ Deno.serve(async (req) => {
     const sessionId = body.session_id as string | undefined;
     if (!sessionId) return err("session_id required");
 
-    const apiKey = Deno.env.get("LOVABLE_API_KEY");
-    if (!apiKey) return err("LOVABLE_API_KEY not configured", 500);
+    const apiKey = Deno.env.get("GEMINI_API_KEY");
+    if (!apiKey) return err("GEMINI_API_KEY not configured", 500);
 
     // Run analysis in background — return 202 immediately so poll-lm-pipeline isn't blocked
     const task = runAnalysis(sessionId, apiKey).catch(async (e) => {

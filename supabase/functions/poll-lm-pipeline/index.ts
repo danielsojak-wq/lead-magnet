@@ -60,11 +60,11 @@ async function classifyAds(apiKey: string, supa: ReturnType<typeof admin>, sessi
   for (let i = 0; i < ads.length; i += BATCH) {
     const batch = ads.slice(i, i + BATCH);
     try {
-      const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      const res = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
         method: "POST",
         headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
+          model: "gemini-2.5-flash",
           max_tokens: 200,
           messages: [
             { role: "system", content: "Klasifikuj každou reklamu: brand = budování značky; sales = přímá konverze; retargeting = připomenutí. Zavolej classify_batch." },
@@ -143,7 +143,7 @@ Deno.serve(async (req) => {
     if (!session_id) return err("session_id required");
 
     const APIFY_TOKEN = Deno.env.get("APIFY_API_TOKEN");
-    const LOVABLE_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const LOVABLE_KEY = Deno.env.get("GEMINI_API_KEY");
     if (!APIFY_TOKEN) return err("APIFY_API_TOKEN not configured", 500);
 
     const supa = admin();
@@ -182,7 +182,8 @@ Deno.serve(async (req) => {
           const rows = items.map(it => mapMetaItem(it, session_id, comp.id));
           await supa.from("lm_session_ads").upsert(rows, { onConflict: "session_id,ad_archive_id", ignoreDuplicates: false });
           totalAds = items.length;
-          if (LOVABLE_KEY) await classifyAds(LOVABLE_KEY, supa, session_id, comp.id).catch(console.error);
+          // classifyAds disabled — ad types assigned by analyze-lm-session L1
+          // if (LOVABLE_KEY) await classifyAds(LOVABLE_KEY, supa, session_id, comp.id).catch(console.error);
           console.log(`Competitor ${comp.id}: saved ${items.length} Meta ads`);
         }
       }
