@@ -92,12 +92,18 @@ Deno.serve(async (req) => {
     let sessionId: string;
     let token: string;
 
-    if (existing && existing.status !== "email_pending") {
+    const TEST_EMAILS = ["daniel.sojak@performind.cz"];
+    if (existing && existing.status !== "email_pending" && !TEST_EMAILS.includes(email)) {
       // Email už prošel ověřením — neumožníme reset
       return ok({ ok: true, already_verified: true });
     }
 
-    if (existing) {
+    // Test email nebo pending — smaž starou session a vytvoř novou
+    if (existing && TEST_EMAILS.includes(email)) {
+      await supa.from("lm_sessions").delete().eq("id", existing.id);
+    }
+
+    if (existing && !TEST_EMAILS.includes(email)) {
       // Refresh token pro existující pending session
       const newToken = crypto.randomUUID();
       await supa
