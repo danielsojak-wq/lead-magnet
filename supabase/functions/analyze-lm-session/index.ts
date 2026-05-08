@@ -301,25 +301,25 @@ export async function runAnalysis(sessionId: string, apiKey: string): Promise<vo
   const eshopL1 = l1Results[0];
   const compL1s = l1Results.slice(1);
 
-  // Save L1 results per competitor
-  await Promise.all(comps.map(async (c, i) => {
-    const analysis = compL1s[i];
-    const ads = adsMap.get(c.id) ?? [];
+  // Save L1 results per competitor (position > 0) and eshop (position 0)
+  const saveL1 = async (id: string, analysis: unknown, ads: any[]) => {
     const l1AdMix = (analysis as any)?.ad_mix_pct;
     const adMix = (l1AdMix && typeof l1AdMix.brand === "number")
       ? { brand: l1AdMix.brand, sales: l1AdMix.sales, retargeting: l1AdMix.retargeting }
       : adMixFromAds(ads);
-    await supa
-      .from("lm_session_competitors")
-      .update({
-        ai_analysis: analysis ?? null,
-        status: analysis ? "ready" : "failed",
-        ads_count: ads.length,
-        ad_mix: adMix,
-        summary: analysis ? l1ToMarkdown(analysis) : null,
-      })
-      .eq("id", c.id);
-  }));
+    await supa.from("lm_session_competitors").update({
+      ai_analysis: analysis ?? null,
+      status: analysis ? "ready" : "failed",
+      ads_count: ads.length,
+      ad_mix: adMix,
+      summary: analysis ? l1ToMarkdown(analysis) : null,
+    }).eq("id", id);
+  };
+
+  await Promise.all([
+    ...(eshopComp ? [saveL1(eshopComp.id, eshopL1, eshopAds)] : []),
+    ...comps.map((c, i) => saveL1(c.id, compL1s[i], adsMap.get(c.id) ?? [])),
+  ]);
 
   // L2: synthesis (needs all L1 results)
   const compsForL2 = comps.map((c: any, i: number) => ({

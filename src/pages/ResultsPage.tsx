@@ -91,6 +91,7 @@ interface CompetitorResult {
 interface AnalysisResults {
   status?: string;
   eshop_name: string;
+  eshop_competitor?: CompetitorResult | null;
   competitors: CompetitorResult[];
   cross_summary: string | null;
   ai_cross_analysis: AiCrossAnalysis | null;
@@ -557,7 +558,7 @@ function AdModal({ ad, onClose }: { ad: AdItem; onClose: () => void }) {
   );
 }
 
-function CompetitorSection({ competitor, index }: { competitor: CompetitorResult; index: number }) {
+function CompetitorSection({ competitor, index, isEshop }: { competitor: CompetitorResult; index: number; isEshop?: boolean }) {
   const [selectedAd, setSelectedAd] = useState<AdItem | null>(null);
   const sections = competitor.summary ? parseMarkdown(competitor.summary) : [];
   const typeIcon = (t: string) => t === "brand" ? Megaphone : t === "sales" ? ShoppingBag : TrendingUp;
@@ -567,9 +568,13 @@ function CompetitorSection({ competitor, index }: { competitor: CompetitorResult
       {/* Header */}
       <div className="px-6 sm:px-8 py-5 border-b border-gray-100 flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-3">
-          <span className="w-9 h-9 rounded-xl bg-[#4f11ff]/8 border border-[#4f11ff]/15 flex items-center justify-center text-sm font-bold text-[#4f11ff] font-[family-name:var(--font-heading)]">
-            {index + 1}
-          </span>
+          {isEshop ? (
+            <span className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-sm font-bold text-emerald-600 font-[family-name:var(--font-heading)]">Vy</span>
+          ) : (
+            <span className="w-9 h-9 rounded-xl bg-[#4f11ff]/8 border border-[#4f11ff]/15 flex items-center justify-center text-sm font-bold text-[#4f11ff] font-[family-name:var(--font-heading)]">
+              {index + 1}
+            </span>
+          )}
           <div>
             <h2 className="font-[family-name:var(--font-heading)] font-bold text-gray-900 text-lg">{competitor.name}</h2>
             {competitor.website_url && (
@@ -846,6 +851,11 @@ export default function ResultsPage() {
               ))}
             </div>
           </section>
+        )}
+
+        {/* Eshop (Váš e-shop) */}
+        {results.eshop_competitor && results.eshop_competitor.ads.length > 0 && (
+          <CompetitorSection competitor={{ ...results.eshop_competitor, name: results.eshop_name }} index={0} isEshop />
         )}
 
         {/* Per-competitor */}

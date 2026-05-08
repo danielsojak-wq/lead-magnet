@@ -81,30 +81,37 @@ Deno.serve(async (req) => {
       adsByCompetitor.set(ad.competitor_id, list);
     }
 
-    const mappedCompetitors = (competitors ?? []).filter((c: any) => c.position > 0).map((c: any) => ({
-      id: c.id,
-      name: c.name ?? domainName(c.url),
-      website_url: c.url,
-      summary: c.summary ?? null,
-      ai_analysis: c.ai_analysis ?? null,
-      status: c.status as "ready" | "processing" | "failed" | "empty" | "scrape_failed",
-      ads_count: c.ads_count,
-      ad_mix: c.ad_mix ?? { brand: 0, sales: 0, retargeting: 0 },
-      ads: (adsByCompetitor.get(c.id) ?? []).slice(0, 18).map((a: any) => ({
-        id: a.id,
-        image_url: a.image_url ?? null,
-        video_url: a.video_url ?? null,
-        primary_text: a.primary_text ?? null,
-        ad_type: a.ad_type ?? null,
-        ad_source: a.ad_source as "meta" | "google",
-        is_active: a.is_active,
-        ad_start_date: a.ad_start_date ?? null,
-      })),
-    }));
+    function mapCompetitor(c: any) {
+      return {
+        id: c.id,
+        name: c.name ?? domainName(c.url),
+        website_url: c.url,
+        summary: c.summary ?? null,
+        ai_analysis: c.ai_analysis ?? null,
+        status: c.status as "ready" | "processing" | "failed" | "empty" | "scrape_failed",
+        ads_count: c.ads_count,
+        ad_mix: c.ad_mix ?? { brand: 0, sales: 0, retargeting: 0 },
+        ads: (adsByCompetitor.get(c.id) ?? []).slice(0, 18).map((a: any) => ({
+          id: a.id,
+          image_url: a.image_url ?? null,
+          video_url: a.video_url ?? null,
+          primary_text: a.primary_text ?? null,
+          ad_type: a.ad_type ?? null,
+          ad_source: a.ad_source as "meta" | "google",
+          is_active: a.is_active,
+          ad_start_date: a.ad_start_date ?? null,
+        })),
+      };
+    }
+
+    const eshopRow = (competitors ?? []).find((c: any) => c.position === 0);
+    const mappedCompetitors = (competitors ?? []).filter((c: any) => c.position > 0).map(mapCompetitor);
+    const eshopCompetitor = eshopRow ? mapCompetitor(eshopRow) : null;
 
     return ok({
       status: session.status as string,
       eshop_name: session.eshop_name ?? "Váš e-shop",
+      eshop_competitor: eshopCompetitor,
       competitors: mappedCompetitors,
       cross_summary: session.cross_summary ?? null,
       ai_cross_analysis: session.ai_cross_analysis ?? null,
