@@ -280,10 +280,10 @@ export async function runAnalysis(sessionId: string, apiKey: string): Promise<vo
   // L1: all in parallel — retry logic in callAI handles rate limiting
   const eshopAds: any[] = [];
   const l1Results = await Promise.all([
-    callAI(apiKey, L1_SYSTEM, l1User(session.eshop_name || session.eshop_url || "Váš e-shop", session.eshop_url || "", eshopAds), 1500)
+    callAI(apiKey, L1_SYSTEM, l1User(session.eshop_name || session.eshop_url || "Váš e-shop", session.eshop_url || "", eshopAds))
       .catch(e => { console.error("L1 failed for eshop:", e); return null; }),
     ...comps.map((c, i) =>
-      callAI(apiKey, L1_SYSTEM, l1User(c.name || c.url, c.url, compAdsFiltered[i]), 1500)
+      callAI(apiKey, L1_SYSTEM, l1User(c.name || c.url, c.url, compAdsFiltered[i]))
         .catch(e => { console.error(`L1 failed for competitor ${c.id}:`, e); return null; })
     ),
   ]);
