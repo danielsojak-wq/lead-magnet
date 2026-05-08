@@ -51,7 +51,7 @@ export default function WaitingPage() {
 
     // First poll immediately, then every 10s
     poll();
-    const interval = setInterval(poll, 10_000);
+    const interval = setInterval(poll, 3_000);
     return () => { stopped = true; clearInterval(interval); };
   }, [sessionId, navigate]);
 

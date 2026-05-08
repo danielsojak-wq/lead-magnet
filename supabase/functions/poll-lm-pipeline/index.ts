@@ -153,8 +153,22 @@ Deno.serve(async (req) => {
       .from("lm_sessions").select("status").eq("id", session_id).single();
 
     if (session?.status === "ready" || session?.status === "completed") return ok({ status: "ready" });
-    if (session?.status === "analyzing") return ok({ status: "analyzing" });
     if (session?.status === "failed")    return ok({ status: "failed" });
+
+    // Recovery: if stuck in "analyzing" for more than 5 minutes, reset to "processing"
+    if (session?.status === "analyzing") {
+      const { data: fullSession } = await supa
+        .from("lm_sessions").select("updated_at").eq("id", session_id).single();
+      const updatedAt = fullSession?.updated_at ? new Date(fullSession.updated_at).getTime() : 0;
+      const stuckTooLong = Date.now() - updatedAt > 5 * 60 * 1000;
+      if (stuckTooLong) {
+        console.warn(`Session ${session_id} stuck in analyzing for >5min, resetting to processing`);
+        await supa.from("lm_sessions").update({ status: "processing" }).eq("id", session_id);
+        // Fall through to re-trigger analysis below
+      } else {
+        return ok({ status: "analyzing" });
+      }
+    }
 
     // Load all competitors
     const { data: competitors } = await supa

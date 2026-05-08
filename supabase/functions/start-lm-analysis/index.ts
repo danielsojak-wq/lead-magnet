@@ -71,9 +71,7 @@ Deno.serve(async (req) => {
       status: "processing",
     }).eq("id", session_id);
 
-    const runLogs: { url: string; log: string }[] = [];
-
-    for (const c of competitors) {
+    const runLogs = await Promise.all(competitors.map(async (c) => {
       const metaUrl = c.meta_url?.trim() || null;
       const domain  = extractDomain(c.url);
 
@@ -91,7 +89,7 @@ Deno.serve(async (req) => {
 
       if (compErr || !inserted) {
         console.error("competitor upsert error:", compErr);
-        continue;
+        return { url: c.url, log: "upsert_failed" };
       }
 
       const updates: Record<string, unknown> = {};
@@ -114,15 +112,14 @@ Deno.serve(async (req) => {
       if (updates.apify_run_id) {
         updates.status = "scraping";
       } else {
-        // No run started (no URL provided or Apify failed) — mark as scraped with 0 ads
         updates.status = "scraped";
         updates.ads_count = 0;
       }
       await supa.from("lm_session_competitors").update(updates).eq("id", inserted.id);
 
       console.log(`Competitor ${inserted.id} (${c.url}): ${log.join(" | ")}`);
-      runLogs.push({ url: c.url, log: log.join(" | ") });
-    }
+      return { url: c.url, log: log.join(" | ") };
+    }));
 
     // Re-read competitors to confirm what was saved
     const { data: savedComps } = await supa

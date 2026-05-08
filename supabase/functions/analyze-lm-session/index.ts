@@ -46,7 +46,7 @@ async function callAI(apiKey: string, system: string, user: string, maxTokens = 
         }),
       });
       if (res.status === 429) {
-        const wait = (attempt + 1) * 15000;
+        const wait = (attempt + 1) * 5000;
         console.warn(`callAI rate limited, waiting ${wait}ms (attempt ${attempt + 1})`);
         await new Promise(r => setTimeout(r, wait));
         continue;
@@ -278,18 +278,18 @@ export async function runAnalysis(sessionId: string, apiKey: string): Promise<vo
   // Prepare ads per competitor (filtered)
   const compAdsFiltered = comps.map(c => filterAds(adsMap.get(c.id) ?? []));
 
-  // L1: sequential with small stagger to avoid parallel rate-limit collisions
+  // L1: all in parallel — retry logic in callAI handles rate limiting
   const eshopAds: any[] = [];
-  const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
-
-  const eshopL1 = await callAI(apiKey, L1_SYSTEM, l1User(session.eshop_name || session.eshop_url || "Váš e-shop", session.eshop_url || "", eshopAds));
-  const compL1s: (unknown | null)[] = [];
-  for (let i = 0; i < comps.length; i++) {
-    await delay(3000);
-    const result = await callAI(apiKey, L1_SYSTEM, l1User(comps[i].name || comps[i].url, comps[i].url, compAdsFiltered[i]))
-      .catch(e => { console.error(`L1 failed for competitor ${comps[i].id}:`, e); return null; });
-    compL1s.push(result);
-  }
+  const l1Results = await Promise.all([
+    callAI(apiKey, L1_SYSTEM, l1User(session.eshop_name || session.eshop_url || "Váš e-shop", session.eshop_url || "", eshopAds), 1500)
+      .catch(e => { console.error("L1 failed for eshop:", e); return null; }),
+    ...comps.map((c, i) =>
+      callAI(apiKey, L1_SYSTEM, l1User(c.name || c.url, c.url, compAdsFiltered[i]), 1500)
+        .catch(e => { console.error(`L1 failed for competitor ${c.id}:`, e); return null; })
+    ),
+  ]);
+  const eshopL1 = l1Results[0];
+  const compL1s = l1Results.slice(1);
 
   // Save L1 results per competitor
   await Promise.all(comps.map(async (c, i) => {
