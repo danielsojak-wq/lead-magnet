@@ -7,6 +7,27 @@ import performindLogo from "@/assets/performind-logo-dark.svg";
 
 type VideoType = "meta" | null;
 
+// ─── URL helpers ──────────────────────────────────────────────────────────────
+
+function normalizeWebUrl(raw: string): string | null {
+  const s = raw.trim();
+  if (!s) return null;
+  const withProtocol = /^https?:\/\//i.test(s) ? s : `https://${s}`;
+  try {
+    const url = new URL(withProtocol);
+    if (!url.hostname.includes(".")) return null;
+    return url.href.replace(/\/$/, "");
+  } catch {
+    return null;
+  }
+}
+
+function validateMetaUrl(raw: string): boolean {
+  if (!raw.trim()) return true;
+  const s = raw.trim().toLowerCase();
+  return s.includes("facebook.com/ads/library") || s.includes("fb.com/ads/library");
+}
+
 const VIDEO_CONFIG = {
   meta: {
     title: "Jak najít Meta Ads Library URL",
@@ -101,6 +122,7 @@ function UrlInput({
   onChange,
   required,
   hint,
+  error,
 }: {
   label: string;
   placeholder: string;
@@ -108,6 +130,7 @@ function UrlInput({
   onChange: (v: string) => void;
   required?: boolean;
   hint?: string;
+  error?: string;
 }) {
   return (
     <div className="space-y-1.5">
@@ -120,15 +143,18 @@ function UrlInput({
       <div className="relative">
         <Globe className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
         <input
-          type="url"
+          type="text"
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          required={required}
-          className="w-full bg-white border border-gray-200 rounded-xl pl-11 pr-4 py-3 text-gray-900 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#4f11ff]/30 focus:border-[#4f11ff] transition-all"
+          className={`w-full bg-white border rounded-xl pl-11 pr-4 py-3 text-gray-900 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 transition-all ${
+            error
+              ? "border-red-300 focus:ring-red-200 focus:border-red-400"
+              : "border-gray-200 focus:ring-[#4f11ff]/30 focus:border-[#4f11ff]"
+          }`}
         />
       </div>
-      {hint && <p className="text-xs text-gray-400">{hint}</p>}
+      {error ? <p className="text-xs text-red-500">{error}</p> : hint && <p className="text-xs text-gray-400">{hint}</p>}
     </div>
   );
 }
@@ -140,6 +166,7 @@ function LibraryInput({
   onChange,
   onHelp,
   icon,
+  error,
 }: {
   label: string;
   placeholder: string;
@@ -147,6 +174,7 @@ function LibraryInput({
   onChange: (v: string) => void;
   onHelp: () => void;
   icon: React.ReactNode;
+  error?: string;
 }) {
   return (
     <div className="space-y-1.5">
@@ -169,13 +197,18 @@ function LibraryInput({
           {icon}
         </span>
         <input
-          type="url"
+          type="text"
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-11 pr-4 py-3 text-gray-900 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#4f11ff]/30 focus:border-[#4f11ff] transition-all"
+          className={`w-full bg-gray-50 border rounded-xl pl-11 pr-4 py-3 text-gray-900 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 transition-all ${
+            error
+              ? "border-red-300 focus:ring-red-200 focus:border-red-400"
+              : "border-gray-200 focus:ring-[#4f11ff]/30 focus:border-[#4f11ff]"
+          }`}
         />
       </div>
+      {error && <p className="text-xs text-red-500">{error}</p>}
     </div>
   );
 }
@@ -192,6 +225,11 @@ interface ShopFields {
   meta: string;
 }
 
+interface ShopErrors {
+  url?: string;
+  meta?: string;
+}
+
 function ShopSection({
   title,
   badge,
@@ -199,6 +237,7 @@ function ShopSection({
   onChange,
   required,
   onHelp,
+  errors,
 }: {
   title: string;
   badge?: string;
@@ -206,9 +245,10 @@ function ShopSection({
   onChange: (key: keyof ShopFields, v: string) => void;
   required?: boolean;
   onHelp: (type: VideoType) => void;
+  errors?: ShopErrors;
 }) {
   return (
-    <div className="rounded-2xl border border-gray-100 p-5 space-y-4 bg-gray-50/40">
+    <div className={`rounded-2xl border p-5 space-y-4 bg-gray-50/40 transition-colors ${errors?.url || errors?.meta ? "border-red-200" : "border-gray-100"}`}>
       <div className="flex items-center gap-2">
         <span className="font-[family-name:var(--font-heading)] font-semibold text-gray-900 text-sm">{title}</span>
         {badge && (
@@ -217,11 +257,12 @@ function ShopSection({
       </div>
 
       <UrlInput
-        label="URL e-shopu"
-        placeholder="https://eshop.cz"
+        label="URL webu"
+        placeholder="eshop.cz nebo https://eshop.cz"
         value={fields.url}
         onChange={(v) => onChange("url", v)}
         required={required}
+        error={errors?.url}
       />
 
       <LibraryInput
@@ -231,6 +272,7 @@ function ShopSection({
         onChange={(v) => onChange("meta", v)}
         onHelp={() => onHelp("meta")}
         icon={<MetaIcon />}
+        error={errors?.meta}
       />
     </div>
   );
@@ -254,26 +296,60 @@ export default function AnalyzePage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [videoOpen, setVideoOpen] = useState<VideoType>(null);
+  const [fieldErrors, setFieldErrors] = useState<{ eshop: ShopErrors; comp1: ShopErrors; comp2: ShopErrors }>({
+    eshop: {}, comp1: {}, comp2: {},
+  });
 
   const isValid = eshop.url.trim() !== "" && competitor1.url.trim() !== "";
+
+  const validate = (): boolean => {
+    const errs = { eshop: {} as ShopErrors, comp1: {} as ShopErrors, comp2: {} as ShopErrors };
+    let ok = true;
+
+    const checkShop = (fields: ShopFields, target: ShopErrors, required: boolean) => {
+      if (required && !fields.url.trim()) {
+        target.url = "URL webu je povinné.";
+        ok = false;
+      } else if (fields.url.trim() && !normalizeWebUrl(fields.url)) {
+        target.url = "Zadejte platnou URL (např. eshop.cz nebo https://eshop.cz).";
+        ok = false;
+      }
+      if (fields.meta.trim() && !validateMetaUrl(fields.meta)) {
+        target.meta = "Musí jít o odkaz z Meta Ads Library (facebook.com/ads/library/…).";
+        ok = false;
+      }
+    };
+
+    checkShop(eshop, errs.eshop, true);
+    checkShop(competitor1, errs.comp1, true);
+    if (competitor2.url.trim() || competitor2.meta.trim()) {
+      checkShop(competitor2, errs.comp2, false);
+    }
+
+    setFieldErrors(errs);
+    return ok;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isValid || submitting) return;
+    if (!validate()) return;
     setSubmitting(true);
     setError(null);
 
+    const norm = (url: string) => normalizeWebUrl(url) ?? url.trim();
+
     const competitors = [
-      { url: competitor1.url.trim(), meta_url: competitor1.meta.trim() || undefined, position: 1 },
+      { url: norm(competitor1.url), meta_url: competitor1.meta.trim() || undefined, position: 1 },
       ...(competitor2.url.trim()
-        ? [{ url: competitor2.url.trim(), meta_url: competitor2.meta.trim() || undefined, position: 2 }]
+        ? [{ url: norm(competitor2.url), meta_url: competitor2.meta.trim() || undefined, position: 2 }]
         : []),
     ];
 
     const { error: fnErr } = await supabase.functions.invoke("start-lm-analysis", {
       body: {
         session_id: sessionId,
-        eshop_url: eshop.url.trim(),
+        eshop_url: norm(eshop.url),
         eshop_meta_url: eshop.meta.trim() || undefined,
         competitors,
       },
@@ -351,24 +427,27 @@ export default function AnalyzePage() {
                 title="Váš e-shop"
                 badge="vy"
                 fields={eshop}
-                onChange={(key, v) => setEshop((s) => ({ ...s, [key]: v }))}
+                onChange={(key, v) => { setEshop((s) => ({ ...s, [key]: v })); setFieldErrors(e => ({ ...e, eshop: { ...e.eshop, [key]: undefined } })); }}
                 required
                 onHelp={setVideoOpen}
+                errors={fieldErrors.eshop}
               />
 
               <ShopSection
                 title="Konkurent 1"
                 fields={competitor1}
-                onChange={(key, v) => setCompetitor1((s) => ({ ...s, [key]: v }))}
+                onChange={(key, v) => { setCompetitor1((s) => ({ ...s, [key]: v })); setFieldErrors(e => ({ ...e, comp1: { ...e.comp1, [key]: undefined } })); }}
                 required
                 onHelp={setVideoOpen}
+                errors={fieldErrors.comp1}
               />
 
               <ShopSection
                 title="Konkurent 2"
                 fields={competitor2}
-                onChange={(key, v) => setCompetitor2((s) => ({ ...s, [key]: v }))}
+                onChange={(key, v) => { setCompetitor2((s) => ({ ...s, [key]: v })); setFieldErrors(e => ({ ...e, comp2: { ...e.comp2, [key]: undefined } })); }}
                 onHelp={setVideoOpen}
+                errors={fieldErrors.comp2}
               />
 
               {error && (

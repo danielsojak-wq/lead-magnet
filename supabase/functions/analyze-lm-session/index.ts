@@ -16,6 +16,7 @@ function ok(d: unknown) {
 function err(msg: string, status = 400) {
   return new Response(JSON.stringify({ error: msg }), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 }
+const AI_MODEL = "gemini-2.5-flash";
 
 // ─── AI helper ───────────────────────────────────────────────────────────────
 
@@ -64,9 +65,13 @@ async function callAI(apiKey: string, system: string, user: string, maxTokens = 
 // ─── Filters ─────────────────────────────────────────────────────────────────
 
 function filterAds(ads: any[]): any[] {
-  const cutoff = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString().slice(0, 10);
-  return ads
-    .filter(a => a.is_active !== false && (!a.ad_start_date || a.ad_start_date <= cutoff))
+  // Sort active first, then by start date descending — include all ads for analysis
+  return [...ads]
+    .sort((a, b) => {
+      if (a.is_active && !b.is_active) return -1;
+      if (!a.is_active && b.is_active) return 1;
+      return (b.ad_start_date ?? "").localeCompare(a.ad_start_date ?? "");
+    })
     .slice(0, 50);
 }
 
@@ -88,7 +93,15 @@ function adMixFromAds(ads: any[]): { brand: number; sales: number; retargeting: 
 
 // ─── Prompt builders ─────────────────────────────────────────────────────────
 
-const L1_SYSTEM = `Jsi senior marketingový stratég. Analyzuj reklamní data níže a vrať POUZE validní JSON bez markdown bloků ani backtickú. Pole vyplň reálnými hodnotami na základě dat.`;
+const L1_SYSTEM = `Jsi senior marketingový stratég specializující se na digitální reklamu.
+Analyzuj reklamní data a vrať POUZE validní JSON bez markdown bloků ani backtickú.
+
+PRAVIDLA:
+- Vyplňuj POUZE na základě konkrétních dat z reklam — žádné dohady
+- Pokud je k dispozici méně než 5 reklam, nastav messaging.hlavni_claim na "Nedostatek dat pro spolehlivou analýzu" a buď konzervativní u všech odhadů
+- top_reklama.popis a proc_funguje musí vycházet z konkrétní reklamy z dat — pokud taková není, napiš "Bez dat"
+- aktivita.pocet_aktivnich_reklam vyplň přesně dle dat (počet kde is_active=true)
+- Nikdy nevymýšlej strategie, claimy ani vzorce bez datové opory`;
 
 function l1User(playerName: string, playerUrl: string, ads: any[]): string {
   const adRows = ads.slice(0, 30).map(a => ({
@@ -99,8 +112,13 @@ function l1User(playerName: string, playerUrl: string, ads: any[]): string {
     started: a.ad_start_date || null,
   }));
   const playerData = { name: playerName, url: playerUrl, total_ads: ads.length, ads: adRows };
+  const dataNote = ads.length === 0
+    ? "\n\nUPOZORNĚNÍ: Nemáme žádná reklamní data pro tohoto hráče. Vyplň JSON konzervativními hodnotami (hodnoty 0 tam kde jsou čísla), messaging.hlavni_claim = \"Data nejsou k dispozici\", top_reklama.popis = \"Bez dat\"."
+    : ads.length < 5
+    ? `\n\nPOZNÁMKA: Málo dat (${ads.length} reklam). Buď konzervativní, analytické závěry opři výhradně o dostupné záznamy.`
+    : "";
 
-  return `DATA HRÁČE: ${JSON.stringify(playerData)}
+  return `DATA HRÁČE: ${JSON.stringify(playerData)}${dataNote}
 
 Vrať JSON v přesně tomto formátu:
 {
@@ -134,12 +152,23 @@ Vrať JSON v přesně tomto formátu:
 }`;
 }
 
-const L2_SYSTEM = `Jsi senior marketingový stratég. Na základě L1 analýz 3 hráčů vrať syntézu. POUZE validní JSON bez markdown bloků ani backtickú.`;
+const L2_SYSTEM = `Jsi senior marketingový stratég. Na základě L1 analýz hráčů vrať syntézu. POUZE validní JSON bez markdown bloků.
 
-function l2User(eshop: unknown, compA: unknown, compB: unknown): string {
+PRAVIDLA PRO KVALITU INSIGHTŮ:
+- category_truths: Konkrétní OPAKUJÍCÍ SE vzorce z dat — ne obecné marketingové pravdy. Vzor musí být viditelný alespoň u 2 hráčů.
+- co_funguje_vsem: Co konkrétního (formát, hook, délka, emoce) mají společné — s příklady z dat
+- mezery_prilezitosti: Konkrétní témata, formáty nebo segmenty, které NIKDO nepoužívá — přímé obchodní příležitosti
+- quick_wins: Každá akce musí být specifická a přímo vycházet z analýzy, ne generické rady
+- Pokud data jsou slabá nebo chybí, zdůvodnění musí explicitně uvést "data chybí — doporučení vychází z obecných vzorců segmentu"
+- Vždy uveď aspoň 2 položky v každém poli`;
+
+function l2User(eshop: unknown, compA: unknown, compB: unknown, adsA: number, adsB: number): string {
+  const dataWarning = adsA + adsB < 5
+    ? "\n\nUPOZORNĚNÍ: Málo reklamních dat. Kde chybí, explicitně uveď v zdůvodnění \"data chybí — odhad vychází z obecných vzorců\". Přesto poskytni konkrétní doporučení."
+    : "";
   return `ZADAVATEL: ${JSON.stringify(eshop)}
-KONKURENT_A: ${JSON.stringify(compA)}
-KONKURENT_B: ${JSON.stringify(compB ?? {})}
+KONKURENT_A (${adsA} reklam): ${JSON.stringify(compA)}
+KONKURENT_B (${adsB} reklam): ${JSON.stringify(compB ?? {})}${dataWarning}
 
 Vrať JSON v přesně tomto formátu (min. 2 položky v každém poli):
 {
@@ -280,7 +309,9 @@ export async function runAnalysis(sessionId: string, apiKey: string): Promise<vo
   }));
 
   // L2: synthesis (needs all L1 results)
-  const l2 = await callAI(apiKey, L2_SYSTEM, l2User(eshopL1, compL1s[0] ?? {}, compL1s[1] ?? {}), 8000)
+  const adsCountA = compAdsFiltered[0]?.length ?? 0;
+  const adsCountB = compAdsFiltered[1]?.length ?? 0;
+  const l2 = await callAI(apiKey, L2_SYSTEM, l2User(eshopL1, compL1s[0] ?? {}, compL1s[1] ?? {}, adsCountA, adsCountB), 8000)
     .catch(e => { console.error("L2 failed:", e); return null; });
 
   // Save session result

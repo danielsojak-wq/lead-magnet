@@ -164,6 +164,14 @@ Deno.serve(async (req) => {
 
     const comps = competitors ?? [];
 
+    // Advance "pending" competitors with no Apify run to "scraped" so the pipeline doesn't block forever
+    for (const comp of comps.filter(c => c.status === "pending" && !c.apify_run_id)) {
+      await supa.from("lm_session_competitors")
+        .update({ status: "scraped", ads_count: 0 })
+        .eq("id", comp.id);
+      comp.status = "scraped";
+    }
+
     // If any competitor is still pending (Apify not yet started), report scraping
     if (comps.some(c => c.status === "pending")) {
       return ok({ status: "scraping" });

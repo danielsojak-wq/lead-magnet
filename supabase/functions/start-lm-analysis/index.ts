@@ -111,10 +111,14 @@ Deno.serve(async (req) => {
       // Google Ads: not scraped automatically — link shown in UI
       if (domain) log.push(`google=link_only:${domain}`);
 
-      if (Object.keys(updates).length) {
+      if (updates.apify_run_id) {
         updates.status = "scraping";
-        await supa.from("lm_session_competitors").update(updates).eq("id", inserted.id);
+      } else {
+        // No run started (no URL provided or Apify failed) — mark as scraped with 0 ads
+        updates.status = "scraped";
+        updates.ads_count = 0;
       }
+      await supa.from("lm_session_competitors").update(updates).eq("id", inserted.id);
 
       console.log(`Competitor ${inserted.id} (${c.url}): ${log.join(" | ")}`);
       runLogs.push({ url: c.url, log: log.join(" | ") });
