@@ -66,7 +66,6 @@ Deno.serve(async (req) => {
           .from("lm_session_ads")
           .select("*")
           .in("competitor_id", competitorIds)
-          .order("created_at", { ascending: false })
       : { data: [] as any[], error: null };
 
     if (adsErr) throw adsErr;
