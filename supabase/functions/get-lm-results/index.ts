@@ -77,7 +77,7 @@ Deno.serve(async (req) => {
       adsByCompetitor.set(ad.competitor_id, list);
     }
 
-    const mappedCompetitors = (competitors ?? []).map((c: any) => ({
+    const mappedCompetitors = (competitors ?? []).filter((c: any) => c.position > 0).map((c: any) => ({
       id: c.id,
       name: c.name ?? c.url,
       website_url: c.url,

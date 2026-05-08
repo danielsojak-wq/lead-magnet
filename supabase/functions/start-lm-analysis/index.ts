@@ -71,6 +71,29 @@ Deno.serve(async (req) => {
       status: "processing",
     }).eq("id", session_id);
 
+    // Eshop as position 0 — scrape its ads if Meta URL provided
+    const eshopLog: string[] = [];
+    if (eshop_meta_url?.trim()) {
+      const { data: eshopRow } = await supa
+        .from("lm_session_competitors")
+        .upsert({ session_id, position: 0, url: eshop_url, meta_library_url: eshop_meta_url.trim(), status: "pending" }, { onConflict: "session_id,position" })
+        .select().single();
+      if (eshopRow) {
+        const { runId, error: runErr } = await startApifyRun(APIFY_TOKEN, APIFY_META_ACTOR, {
+          startUrls: [{ url: eshop_meta_url.trim() }],
+          resultsLimit: 50,
+          activeStatus: "active",
+        });
+        if (runId) {
+          await supa.from("lm_session_competitors").update({ apify_run_id: runId, status: "scraping" }).eq("id", eshopRow.id);
+          eshopLog.push(`eshop_meta=${runId}`);
+        } else {
+          await supa.from("lm_session_competitors").update({ status: "scraped", ads_count: 0 }).eq("id", eshopRow.id);
+          eshopLog.push(`eshop_meta=FAILED: ${runErr}`);
+        }
+      }
+    }
+
     const runLogs = await Promise.all(competitors.map(async (c) => {
       const metaUrl = c.meta_url?.trim() || null;
       const domain  = extractDomain(c.url);

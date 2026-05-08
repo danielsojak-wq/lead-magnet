@@ -238,11 +238,12 @@ function l2ToMarkdown(l: any): string {
 export async function runAnalysis(sessionId: string, apiKey: string): Promise<void> {
   const supa = admin();
 
-  // Mark all competitors as processing
+  // Mark real competitors (position > 0) as processing
   await supa
     .from("lm_session_competitors")
     .update({ status: "processing" })
-    .eq("session_id", sessionId);
+    .eq("session_id", sessionId)
+    .gt("position", 0);
 
   // Load session
   const { data: session, error: sessErr } = await supa
@@ -252,14 +253,16 @@ export async function runAnalysis(sessionId: string, apiKey: string): Promise<vo
     .single();
   if (sessErr || !session) throw new Error(`Session ${sessionId} not found`);
 
-  // Load competitors
+  // Load competitors — position 0 = eshop, position 1+ = real competitors
   const { data: competitors } = await supa
     .from("lm_session_competitors")
     .select("*")
     .eq("session_id", sessionId)
     .order("position");
 
-  const comps = competitors ?? [];
+  const allComps = competitors ?? [];
+  const eshopComp = allComps.find((c: any) => c.position === 0);
+  const comps = allComps.filter((c: any) => c.position > 0);
 
   // Load all ads grouped by competitor
   const { data: allAds } = await supa
@@ -275,10 +278,10 @@ export async function runAnalysis(sessionId: string, apiKey: string): Promise<vo
   }
 
   // Prepare ads per competitor (filtered)
-  const compAdsFiltered = comps.map(c => filterAds(adsMap.get(c.id) ?? []));
+  const compAdsFiltered = comps.map((c: any) => filterAds(adsMap.get(c.id) ?? []));
 
-  // L1: all in parallel — retry logic in callAI handles rate limiting
-  const eshopAds: any[] = [];
+  // Eshop ads from position 0 row (if scraped)
+  const eshopAds: any[] = eshopComp ? filterAds(adsMap.get(eshopComp.id) ?? []) : [];
   const l1Results = await Promise.all([
     callAI(apiKey, L1_SYSTEM, l1User(session.eshop_name || session.eshop_url || "Váš e-shop", session.eshop_url || "", eshopAds))
       .catch(e => { console.error("L1 failed for eshop:", e); return null; }),
