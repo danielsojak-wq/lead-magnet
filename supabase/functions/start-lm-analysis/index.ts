@@ -71,6 +71,10 @@ Deno.serve(async (req) => {
       status: "processing",
     }).eq("id", session_id);
 
+    // Clear previous run data for this session (handles resubmit via back button)
+    await supa.from("lm_session_competitors").delete().eq("session_id", session_id);
+    await supa.from("lm_session_ads").delete().eq("session_id", session_id);
+
     // Eshop as position 0 — scrape its ads if Meta URL provided
     const eshopLog: string[] = [];
     if (eshop_meta_url?.trim()) {
