@@ -119,8 +119,9 @@ function l1User(playerName: string, playerUrl: string, ads: any[]): string {
 
   return `DATA HRÁČE: ${JSON.stringify(playerData)}${dataNote}
 
-Vrať JSON v přesně tomto formátu:
+Vrať JSON v přesně tomto formátu (ad_mix_pct: odhadni % rozdělení reklam na brand/sales/retargeting, součet = 100):
 {
+  "ad_mix_pct": { "brand": 0, "sales": 0, "retargeting": 0 },
   "reklamni_mix": {
     "meta": { "single_image": 0, "carousel": 0, "video": 0, "stories": 0 },
     "google": { "search": 0, "display": 0, "video": 0, "pmax": 0 }
@@ -297,7 +298,10 @@ export async function runAnalysis(sessionId: string, apiKey: string): Promise<vo
   await Promise.all(comps.map(async (c, i) => {
     const analysis = compL1s[i];
     const ads = adsMap.get(c.id) ?? [];
-    const adMix = adMixFromAds(ads);
+    const l1AdMix = (analysis as any)?.ad_mix_pct;
+    const adMix = (l1AdMix && typeof l1AdMix.brand === "number")
+      ? { brand: l1AdMix.brand, sales: l1AdMix.sales, retargeting: l1AdMix.retargeting }
+      : adMixFromAds(ads);
     await supa
       .from("lm_session_competitors")
       .update({

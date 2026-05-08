@@ -22,6 +22,10 @@ function err(message: string, status = 400) {
   });
 }
 
+function domainName(url: string): string {
+  try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return url; }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -79,7 +83,7 @@ Deno.serve(async (req) => {
 
     const mappedCompetitors = (competitors ?? []).filter((c: any) => c.position > 0).map((c: any) => ({
       id: c.id,
-      name: c.name ?? c.url,
+      name: c.name ?? domainName(c.url),
       website_url: c.url,
       summary: c.summary ?? null,
       ai_analysis: c.ai_analysis ?? null,

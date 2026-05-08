@@ -524,7 +524,41 @@ function MessagingCard({ ai }: { ai: AiAnalysis }) {
   );
 }
 
+function AdModal({ ad, onClose }: { ad: AdItem; onClose: () => void }) {
+  return (
+    <Dialog.Root open onOpenChange={o => !o && onClose()}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 bg-black/75 z-50 animate-in fade-in-0" />
+        <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-2xl z-50 w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in-0 zoom-in-95 max-h-[92vh] flex flex-col">
+          <div className="relative bg-black flex items-center justify-center" style={{ maxHeight: "60vh" }}>
+            {ad.video_url
+              ? <video src={ad.video_url} poster={ad.image_url || undefined} controls autoPlay className="w-full max-h-[60vh] object-contain" />
+              : ad.image_url
+                ? <img src={ad.image_url} alt="" className="w-full max-h-[60vh] object-contain" />
+                : <div className="w-full h-48 flex items-center justify-center bg-gray-800"><ImageIcon className="h-12 w-12 text-gray-500" /></div>}
+            <button onClick={onClose} className="absolute top-3 right-3 w-8 h-8 bg-black/60 hover:bg-black/80 rounded-full flex items-center justify-center transition-colors">
+              <X className="h-4 w-4 text-white" />
+            </button>
+            <div className="absolute top-3 left-3"><AdSourceBadge source={ad.ad_source} /></div>
+            {ad.is_active && <div className="absolute bottom-3 right-3 flex items-center gap-1.5 bg-black/50 rounded-full px-2 py-0.5"><span className="w-1.5 h-1.5 rounded-full bg-[#b0f221]" /><span className="text-[10px] text-white font-medium">Aktivní</span></div>}
+          </div>
+          <div className="p-5 overflow-y-auto flex-1">
+            <div className="flex flex-wrap items-center gap-2 mb-3">
+              <AdTypePill type={ad.ad_type} />
+              {ad.ad_start_date && <span className="text-xs text-gray-400">spuštěna {ad.ad_start_date}</span>}
+            </div>
+            {ad.primary_text
+              ? <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">{ad.primary_text}</p>
+              : <p className="text-sm text-gray-400 italic">Žádný text</p>}
+          </div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+  );
+}
+
 function CompetitorSection({ competitor, index }: { competitor: CompetitorResult; index: number }) {
+  const [selectedAd, setSelectedAd] = useState<AdItem | null>(null);
   const sections = competitor.summary ? parseMarkdown(competitor.summary) : [];
   const typeIcon = (t: string) => t === "brand" ? Megaphone : t === "sales" ? ShoppingBag : TrendingUp;
 
@@ -633,25 +667,26 @@ function CompetitorSection({ competitor, index }: { competitor: CompetitorResult
             <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">Ukázka reklam ({competitor.ads.length})</h3>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
               {competitor.ads.map(ad => (
-                <div key={ad.id} className="group relative rounded-xl overflow-hidden bg-gray-100 aspect-square border border-gray-200">
+                <button key={ad.id} onClick={() => setSelectedAd(ad)} className="group relative rounded-xl overflow-hidden bg-gray-100 aspect-square border border-gray-200 hover:border-[#4f11ff]/40 hover:shadow-md transition-all text-left">
                   {ad.video_url
                     ? <video src={ad.video_url} poster={ad.image_url || undefined} muted playsInline preload="metadata" className="w-full h-full object-cover" />
                     : ad.image_url
                       ? <img src={ad.image_url} alt="" className="w-full h-full object-cover" loading="lazy" />
                       : <div className="w-full h-full flex items-center justify-center"><ImageIcon className="h-6 w-6 text-gray-300" /></div>}
-                  {ad.video_url && <div className="absolute top-2 right-2"><Video className="h-3.5 w-3.5 text-white drop-shadow" /></div>}
+                  {ad.video_url && <div className="absolute top-2 right-2 bg-black/50 rounded-full p-1"><Video className="h-3 w-3 text-white" /></div>}
                   <AdSourceBadge source={ad.ad_source} />
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/60 transition-all flex flex-col justify-end p-2 opacity-0 group-hover:opacity-100">
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-all flex flex-col justify-end p-2 opacity-0 group-hover:opacity-100">
                     <AdTypePill type={ad.ad_type} />
                     {ad.primary_text && <p className="text-white text-[10px] mt-1 line-clamp-3 leading-tight">{ad.primary_text}</p>}
                   </div>
                   {ad.is_active && <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-[#b0f221] shadow" />}
-                </div>
+                </button>
               ))}
             </div>
           </div>
         )}
       </div>
+      {selectedAd && <AdModal ad={selectedAd} onClose={() => setSelectedAd(null)} />}
     </section>
   );
 }
