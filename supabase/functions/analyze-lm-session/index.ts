@@ -155,20 +155,27 @@ Vrať JSON v přesně tomto formátu (ad_mix_pct: odhadni % rozdělení reklam n
 const L2_SYSTEM = `Jsi senior marketingový stratég. Na základě L1 analýz hráčů vrať syntézu. POUZE validní JSON bez markdown bloků.
 
 PRAVIDLA PRO KVALITU INSIGHTŮ:
-- category_truths: Konkrétní OPAKUJÍCÍ SE vzorce z dat — ne obecné marketingové pravdy. Vzor musí být viditelný alespoň u 2 hráčů.
+- category_truths: Konkrétní OPAKUJÍCÍ SE vzorce z dat — ne obecné marketingové pravdy. Vzor musí být viditelný u zadavatele nebo alespoň jednoho konkurenta.
 - co_funguje_vsem: Co konkrétního (formát, hook, délka, emoce) mají společné — s příklady z dat
 - mezery_prilezitosti: Konkrétní témata, formáty nebo segmenty, které NIKDO nepoužívá — přímé obchodní příležitosti
 - quick_wins: Každá akce musí být specifická a přímo vycházet z analýzy, ne generické rady
 - Pokud data jsou slabá nebo chybí, zdůvodnění musí explicitně uvést "data chybí — doporučení vychází z obecných vzorců segmentu"
 - Vždy uveď aspoň 2 položky v každém poli`;
 
-function l2User(eshop: unknown, compA: unknown, compB: unknown, adsA: number, adsB: number): string {
-  const dataWarning = adsA + adsB < 5
+function domainName(url: string): string {
+  try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return url; }
+}
+
+function l2User(eshop: unknown, competitors: Array<{ name: string; l1: unknown; adsCount: number }>): string {
+  const totalAds = competitors.reduce((s, c) => s + c.adsCount, 0);
+  const dataWarning = totalAds < 5
     ? "\n\nUPOZORNĚNÍ: Málo reklamních dat. Kde chybí, explicitně uveď v zdůvodnění \"data chybí — odhad vychází z obecných vzorců\". Přesto poskytni konkrétní doporučení."
     : "";
+  const competitorLines = competitors.map((c, i) =>
+    `KONKURENT_${String.fromCharCode(65 + i)} — ${c.name} (${c.adsCount} reklam): ${JSON.stringify(c.l1)}`
+  ).join("\n");
   return `ZADAVATEL: ${JSON.stringify(eshop)}
-KONKURENT_A (${adsA} reklam): ${JSON.stringify(compA)}
-KONKURENT_B (${adsB} reklam): ${JSON.stringify(compB ?? {})}${dataWarning}
+${competitorLines}${dataWarning}
 
 Vrať JSON v přesně tomto formátu (min. 2 položky v každém poli):
 {
@@ -315,9 +322,12 @@ export async function runAnalysis(sessionId: string, apiKey: string): Promise<vo
   }));
 
   // L2: synthesis (needs all L1 results)
-  const adsCountA = compAdsFiltered[0]?.length ?? 0;
-  const adsCountB = compAdsFiltered[1]?.length ?? 0;
-  const l2 = await callAI(apiKey, L2_SYSTEM, l2User(eshopL1, compL1s[0] ?? {}, compL1s[1] ?? {}, adsCountA, adsCountB), 8000)
+  const compsForL2 = comps.map((c: any, i: number) => ({
+    name: c.name || domainName(c.url),
+    l1: compL1s[i] ?? {},
+    adsCount: compAdsFiltered[i]?.length ?? 0,
+  }));
+  const l2 = await callAI(apiKey, L2_SYSTEM, l2User(eshopL1, compsForL2), 8000)
     .catch(e => { console.error("L2 failed:", e); return null; });
 
   // Save session result
