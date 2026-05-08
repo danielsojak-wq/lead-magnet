@@ -194,66 +194,58 @@ export default function LandingPage() {
       </nav>
 
       {/* ── Hero ───────────────────────────────────────────────────────────── */}
-      <section className="pt-14 pb-0 bg-white">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center">
+      <section className="relative pt-16 pb-20 overflow-hidden bg-gray-950">
+        {/* Background blobs */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[500px] bg-[#4f11ff]/25 rounded-full blur-[140px] pointer-events-none" />
+        <div className="absolute bottom-10 right-10 w-72 h-72 bg-[#b0f221]/12 rounded-full blur-[100px] pointer-events-none" />
+        <div className="absolute top-20 left-10 w-48 h-48 bg-[#4f11ff]/15 rounded-full blur-[80px] pointer-events-none" />
+        {/* Dot grid */}
+        <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: "radial-gradient(circle, #ffffff 1px, transparent 1px)", backgroundSize: "28px 28px" }} />
 
-          {/* USP chips */}
-          <div className="flex flex-wrap justify-center gap-3 mb-8">
-            {USP_CHIPS.map(({ icon: Icon, label, className }) => (
-              <div key={label} className={`inline-flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-full ${className}`}>
-                <Icon className="h-4 w-4 flex-shrink-0" />
-                {label}
-              </div>
-            ))}
+        <div className="relative max-w-4xl mx-auto px-4 sm:px-6 text-center">
+          {/* Badge */}
+          <div className="inline-flex items-center gap-2 bg-white/6 border border-white/10 rounded-full px-4 py-2 text-sm text-white/60 mb-10">
+            <span className="w-2 h-2 rounded-full bg-[#b0f221] animate-pulse shrink-0" />
+            Nahrazuje analýzu za 10 000 Kč od agentury
           </div>
 
-          <h1 className="font-[family-name:var(--font-heading)] text-4xl sm:text-5xl lg:text-[3.5rem] font-bold leading-[1.1] tracking-tight mb-5 text-gray-900">
-            Víte, co vaše konkurence
+          <h1 className="font-[family-name:var(--font-heading)] text-4xl sm:text-5xl lg:text-[3.25rem] font-bold leading-[1.12] tracking-tight mb-6 text-white">
+            Za analýzu marketingové strategie
+            <br className="hidden sm:block" />
+            {" "}konkurence si agentury účtují{" "}
+            <span className="relative inline-block">
+              <span className="relative z-10 text-white/40 line-through decoration-[#b0f221]/60">10 000 Kč</span>
+            </span>
             <br />
-            <span className="text-[#4f11ff]">investuje do reklam</span>{" "}
-            v Google a na Metě?
+            <span className="text-[#b0f221]">Teď ji získáte zdarma.</span>
           </h1>
 
-          <p className="text-gray-500 text-lg sm:text-xl max-w-2xl mx-auto mb-10 leading-relaxed">
-            Náš AI nástroj proskenuuje jejich reklamy, porovná je s vašimi
-            a připraví konkrétní doporučení, kde máte prostor je předběhnout.
-            <strong className="text-gray-800"> Zdarma, za 5 minut.</strong>
+          <p className="text-white/50 text-lg max-w-xl mx-auto mb-10 leading-relaxed">
+            AI nástroj, který proskenuuje reklamy vaší konkurence na Metě, analyzuje jejich strategii a připraví konkrétní doporučení — za 5 minut.
           </p>
 
-          {/* CTA form — centered */}
-          <div ref={ctaRef} className="flex justify-center mb-12">
+          {/* CTA form */}
+          <div ref={ctaRef} className="flex justify-center mb-14">
             <EmailForm size="lg" />
           </div>
-        </div>
 
-        {/* ── Video — full width, autoplay, muted ── */}
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 pb-0">
-          <div className="relative rounded-2xl overflow-hidden shadow-2xl shadow-gray-200 border border-gray-100 bg-gray-900 aspect-video">
-            <video
-              ref={videoRef}
-              autoPlay
-              muted
-              loop
-              playsInline
-              poster=""
-              className="w-full h-full object-cover"
-            >
-              {/* <source src="/video/daniel-pitch.mp4" type="video/mp4" /> */}
-            </video>
-
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900 gap-4">
-              <div className="w-16 h-16 rounded-full bg-[#4f11ff] flex items-center justify-center shadow-lg shadow-[#4f11ff]/40">
-                <svg className="h-6 w-6 text-white ml-1" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M8 5v14l11-7z" />
-                </svg>
+          {/* Feature cards strip */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-2xl mx-auto">
+            {[
+              { icon: Database, label: "Reklamy z Meta Ads Library", sub: "Reálná data, ne odhady" },
+              { icon: Cpu,      label: "AI analýza za minuty",         sub: "Gemini 2.5 Flash" },
+              { icon: BarChart3, label: "Konkrétní quick wins",       sub: "Přímo použitelná doporučení" },
+            ].map(({ icon: Icon, label, sub }) => (
+              <div key={label} className="flex items-center gap-3 bg-white/5 border border-white/8 rounded-2xl px-4 py-3 text-left">
+                <div className="w-9 h-9 rounded-xl bg-[#b0f221]/15 border border-[#b0f221]/20 flex items-center justify-center shrink-0">
+                  <Icon className="h-4 w-4 text-[#b0f221]" />
+                </div>
+                <div>
+                  <p className="text-white text-xs font-semibold leading-snug">{label}</p>
+                  <p className="text-white/40 text-[11px] mt-0.5">{sub}</p>
+                </div>
               </div>
-              <div className="text-center">
-                <p className="text-white font-semibold text-lg font-[family-name:var(--font-heading)]">Daniel Sojak, Performind Studio</p>
-                <p className="text-white/50 text-sm mt-1">Proč jsme tento nástroj vytvořili</p>
-              </div>
-            </div>
-
-            <div className="absolute bottom-0 left-0 right-0 h-1 bg-[#b0f221]" />
+            ))}
           </div>
         </div>
       </section>
