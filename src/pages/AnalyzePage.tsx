@@ -464,7 +464,7 @@ export default function AnalyzePage() {
               <button
                 type="submit"
                 disabled={!isValid || submitting}
-                className="w-full flex items-center justify-center gap-2 bg-[#4f11ff] hover:bg-[#3d0dcc] disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold px-6 py-4 rounded-xl transition-all text-sm shadow-lg shadow-[#4f11ff]/20"
+                className="w-full flex items-center justify-center gap-2 bg-[#b0f221] hover:bg-[#a3e01e] disabled:opacity-40 disabled:cursor-not-allowed text-gray-900 font-semibold px-6 py-4 rounded-xl transition-all text-sm shadow-lg shadow-[#b0f221]/30"
               >
                 {submitting ? "Spoustim analyzu..." : "Spustit analyzu"}
                 {!submitting && <ArrowRight className="h-4 w-4" />}

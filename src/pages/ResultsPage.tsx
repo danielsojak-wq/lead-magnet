@@ -702,7 +702,7 @@ function SendReportDialog({ sessionId, open, onClose }: { sessionId: string; ope
               {state === "error" && <p className="text-sm text-red-500 mb-3">Odesílání se nezdařilo. Zkuste to znovu.</p>}
               <div className="flex gap-2">
                 <button onClick={onClose} className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2.5 rounded-xl text-sm transition-colors">Zrušit</button>
-                <button onClick={handleSend} disabled={state === "sending"} className="flex-1 flex items-center justify-center gap-2 bg-[#4f11ff] hover:bg-[#3d0dcc] disabled:opacity-60 text-white font-semibold py-2.5 rounded-xl text-sm transition-colors">
+                <button onClick={handleSend} disabled={state === "sending"} className="flex-1 flex items-center justify-center gap-2 bg-[#b0f221] hover:bg-[#a3e01e] disabled:opacity-60 text-gray-900 font-semibold py-2.5 rounded-xl text-sm transition-colors">
                   {state === "sending" ? <RefreshCw className="h-4 w-4 animate-spin" /> : "Odeslat"}
                 </button>
               </div>
@@ -746,7 +746,7 @@ export default function ResultsPage() {
             <button onClick={() => window.print()} className="hidden sm:inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg transition-colors">
               <Printer className="h-3.5 w-3.5" /> Uložit PDF
             </button>
-            <button onClick={() => setEmailDialogOpen(true)} className="inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-[#4f11ff] hover:bg-[#3d0dcc] px-3 py-1.5 rounded-lg transition-colors">
+            <button onClick={() => setEmailDialogOpen(true)} className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-900 bg-[#b0f221] hover:bg-[#a3e01e] px-3 py-1.5 rounded-lg transition-colors">
               <Mail className="h-3.5 w-3.5" /> Odeslat na mail
             </button>
           </div>

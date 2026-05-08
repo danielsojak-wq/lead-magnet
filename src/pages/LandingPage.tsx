@@ -150,7 +150,7 @@ function EmailForm({ size = "lg" }: { size?: "lg" | "sm" }) {
         <button
           type="submit"
           disabled={loading}
-          className={`flex items-center justify-center gap-2 bg-[#4f11ff] hover:bg-[#3d0dcc] text-white font-semibold rounded-xl transition-all whitespace-nowrap disabled:opacity-60 shadow-lg shadow-[#4f11ff]/20 ${isLg ? "px-6 py-3.5 text-base" : "px-5 py-3 text-sm"}`}
+          className={`flex items-center justify-center gap-2 bg-[#b0f221] hover:bg-[#a3e01e] text-gray-900 font-semibold rounded-xl transition-all whitespace-nowrap disabled:opacity-60 shadow-lg shadow-[#b0f221]/30 ${isLg ? "px-6 py-3.5 text-base" : "px-5 py-3 text-sm"}`}
         >
           {loading ? (
             <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block" />
@@ -186,7 +186,7 @@ export default function LandingPage() {
           </div>
           <button
             onClick={scrollToCta}
-            className="hidden sm:flex items-center gap-2 bg-[#4f11ff] hover:bg-[#3d0dcc] text-white text-sm font-semibold px-4 py-2 rounded-lg transition-all shadow-md shadow-[#4f11ff]/20"
+            className="hidden sm:flex items-center gap-2 bg-[#b0f221] hover:bg-[#a3e01e] text-gray-900 text-sm font-semibold px-4 py-2 rounded-lg transition-all shadow-md shadow-[#b0f221]/30"
           >
             Získat analýzu zdarma <ArrowRight className="h-3.5 w-3.5" />
           </button>

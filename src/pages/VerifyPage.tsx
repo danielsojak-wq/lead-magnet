@@ -103,7 +103,7 @@ export default function VerifyPage() {
               </p>
               <button
                 onClick={() => navigate("/")}
-                className="inline-flex items-center gap-2 bg-[#4f11ff] hover:bg-[#3d0dcc] text-white font-semibold px-8 py-4 rounded-xl transition-colors text-sm"
+                className="inline-flex items-center gap-2 bg-[#b0f221] hover:bg-[#a3e01e] text-gray-900 font-semibold px-8 py-4 rounded-xl transition-colors text-sm"
               >
                 Zpět na úvod <ArrowRight className="h-4 w-4" />
               </button>
