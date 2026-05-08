@@ -178,7 +178,12 @@ export default function LandingPage() {
       {/* ── Navbar ─────────────────────────────────────────────────────────── */}
       <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-100">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <img src={performindLogo} alt="Performind Studio" className="h-6 object-contain" />
+          <div className="flex items-center gap-3">
+            <img src={performindLogo} alt="Performind Studio" className="h-6 object-contain" />
+            <span className="hidden sm:flex items-center gap-1.5 bg-[#4f11ff]/8 text-[#4f11ff] text-xs font-semibold px-2.5 py-1 rounded-full border border-[#4f11ff]/15 tracking-wide uppercase">
+              Analýza konkurence
+            </span>
+          </div>
           <button
             onClick={scrollToCta}
             className="hidden sm:flex items-center gap-2 bg-[#4f11ff] hover:bg-[#3d0dcc] text-white text-sm font-semibold px-4 py-2 rounded-lg transition-all shadow-md shadow-[#4f11ff]/20"
