@@ -82,7 +82,7 @@ interface CompetitorResult {
   website_url: string | null;
   summary: string | null;
   ai_analysis: AiAnalysis | null;
-  status: "ready" | "processing" | "failed" | "empty";
+  status: "ready" | "processing" | "failed" | "empty" | "scrape_failed";
   ads_count: number;
   ad_mix: { brand: number; sales: number; retargeting: number };
   ads: AdItem[];
@@ -602,6 +602,15 @@ function CompetitorSection({ competitor, index }: { competitor: CompetitorResult
             )}
             {competitor.status === "failed" && (
               <div className="text-sm text-red-500 bg-red-50 rounded-xl p-4">Analýza selhala.</div>
+            )}
+            {competitor.status === "scrape_failed" && (
+              <div className="flex items-start gap-3 text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-xl p-4">
+                <AlertCircle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold">Scrapování Meta Ads Library selhalo</p>
+                  <p className="text-amber-700 text-xs mt-0.5">Zkontrolujte, zda je zadaný odkaz na Meta Ads Library správný a veřejně dostupný. Analýza proběhla bez reklamních dat tohoto konkurenta.</p>
+                </div>
+              </div>
             )}
             {competitor.ai_analysis ? (
               <MessagingCard ai={competitor.ai_analysis} />

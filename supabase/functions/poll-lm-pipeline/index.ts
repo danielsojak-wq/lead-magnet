@@ -196,23 +196,27 @@ Deno.serve(async (req) => {
 
     for (const comp of scraping) {
       let totalAds = 0;
+      let scrapeStatus = "scraped";
 
       // Check Meta run
       if (comp.apify_run_id) {
         const { done, succeeded, items } = await checkAndProcessRun(APIFY_TOKEN, comp.apify_run_id);
         if (!done) continue;
-        if (succeeded && items.length) {
-          const rows = items.map(it => mapMetaItem(it, session_id, comp.id));
-          await supa.from("lm_session_ads").upsert(rows, { onConflict: "session_id,ad_archive_id", ignoreDuplicates: false });
-          totalAds = items.length;
-          // classifyAds disabled — ad types assigned by analyze-lm-session L1
-          // if (LOVABLE_KEY) await classifyAds(LOVABLE_KEY, supa, session_id, comp.id).catch(console.error);
-          console.log(`Competitor ${comp.id}: saved ${items.length} Meta ads`);
+        if (succeeded) {
+          if (items.length) {
+            const rows = items.map(it => mapMetaItem(it, session_id, comp.id));
+            await supa.from("lm_session_ads").upsert(rows, { onConflict: "session_id,ad_archive_id", ignoreDuplicates: false });
+            totalAds = items.length;
+            console.log(`Competitor ${comp.id}: saved ${items.length} Meta ads`);
+          }
+        } else {
+          scrapeStatus = "scrape_failed";
+          console.warn(`Competitor ${comp.id}: Apify run failed`);
         }
       }
 
       await supa.from("lm_session_competitors")
-        .update({ status: "scraped", ads_count: totalAds })
+        .update({ status: scrapeStatus, ads_count: totalAds })
         .eq("id", comp.id);
     }
 

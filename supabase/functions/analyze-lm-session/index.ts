@@ -16,7 +16,6 @@ function ok(d: unknown) {
 function err(msg: string, status = 400) {
   return new Response(JSON.stringify({ error: msg }), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 }
-const AI_MODEL = "gemini-2.5-flash";
 
 // ─── AI helper ───────────────────────────────────────────────────────────────
 

@@ -84,7 +84,7 @@ Deno.serve(async (req) => {
       website_url: c.url,
       summary: c.summary ?? null,
       ai_analysis: c.ai_analysis ?? null,
-      status: c.status as "ready" | "processing" | "failed" | "empty",
+      status: c.status as "ready" | "processing" | "failed" | "empty" | "scrape_failed",
       ads_count: c.ads_count,
       ad_mix: c.ad_mix ?? { brand: 0, sales: 0, retargeting: 0 },
       ads: (adsByCompetitor.get(c.id) ?? []).slice(0, 18).map((a: any) => ({
