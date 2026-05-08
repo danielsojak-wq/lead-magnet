@@ -599,41 +599,8 @@ function CompetitorSection({ competitor, index, isEshop }: { competitor: Competi
       </div>
 
       <div className="p-6 sm:p-8 space-y-8">
-        {/* Ad mix + AI messaging */}
-        <div className="grid lg:grid-cols-[220px_1fr] gap-8">
-          <div className="space-y-6">
-            <div>
-              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">Reklamní mix</h3>
-              <AdMixDonut mix={competitor.ad_mix} />
-            </div>
-            <div className="space-y-2">
-              {(["brand", "sales", "retargeting"] as const).map(type => {
-                const total = competitor.ad_mix.brand + competitor.ad_mix.sales + competitor.ad_mix.retargeting;
-                const val = competitor.ad_mix[type];
-                const pct = total ? Math.round((val / total) * 100) : 0;
-                const Icon = typeIcon(type);
-                return (
-                  <div key={type} className="flex items-center gap-3">
-                    <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: typeColor(type) + "18" }}>
-                      <Icon className="h-3.5 w-3.5" style={{ color: typeColor(type) }} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between text-xs mb-1">
-                        <span className="font-medium text-gray-700">{TYPE_LABELS[type]}</span>
-                        <span className="font-bold text-gray-900">{pct}%</span>
-                      </div>
-                      <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden">
-                        <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: typeColor(type) }} />
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* AI messaging & activity */}
-          <div className="space-y-5">
+        {/* AI messaging & activity */}
+        <div className="space-y-5">
             {competitor.status === "processing" && (
               <div className="flex items-center gap-3 text-sm text-gray-500 bg-gray-50 rounded-xl p-4">
                 <RefreshCw className="h-4 w-4 animate-spin text-[#4f11ff]" /> Generuji analýzu…
@@ -663,7 +630,6 @@ function CompetitorSection({ competitor, index, isEshop }: { competitor: Competi
             ) : (competitor.status === "ready" || competitor.status === "empty") ? (
               <p className="text-sm text-gray-400">Žádná data k zobrazení.</p>
             ) : null}
-          </div>
         </div>
 
         {/* Ads grid */}
@@ -829,29 +795,6 @@ export default function ResultsPage() {
           <PositioningSection cross={cross} eshopName={results.eshop_name} />
         )}
 
-        {/* Overall comparison chart */}
-        {results.competitors.length >= 2 && (
-          <section className="bg-white rounded-3xl border border-gray-100 p-6 sm:p-8 shadow-sm">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-9 h-9 rounded-xl bg-[#4f11ff]/8 border border-[#4f11ff]/15 flex items-center justify-center">
-                <TrendingUp className="h-4 w-4 text-[#4f11ff]" />
-              </div>
-              <div>
-                <h2 className="font-[family-name:var(--font-heading)] font-bold text-gray-900">Reklamní mix: akvizice vs. brand</h2>
-                <p className="text-xs text-gray-400 mt-0.5">Kdo sází na okamžitý výkon a kdo buduje značku</p>
-              </div>
-            </div>
-            <ComparisonChart competitors={results.competitors} />
-            <div className="flex flex-wrap gap-4 mt-4 justify-center text-xs text-gray-500">
-              {(["brand", "sales", "retargeting"] as const).map(t => (
-                <span key={t} className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-sm" style={{ background: typeColor(t) }} />
-                  {TYPE_LABELS[t]}
-                </span>
-              ))}
-            </div>
-          </section>
-        )}
 
         {/* Eshop (Váš e-shop) */}
         {results.eshop_competitor && results.eshop_competitor.ads.length > 0 && (
