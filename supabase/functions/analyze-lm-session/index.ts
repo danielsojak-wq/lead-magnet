@@ -63,16 +63,16 @@ async function callAI(apiKey: string, system: string, user: string, maxTokens = 
 
 // ─── Website scraper ─────────────────────────────────────────────────────────
 
-async function fetchWebsiteContent(url: string): Promise<string> {
+async function fetchWebsiteContent(url: string): Promise<{ content: string; rawTitle: string }> {
   try {
     const res = await fetch(url, {
       headers: { "User-Agent": "Mozilla/5.0 (compatible; Performind-Bot/1.0)" },
       signal: AbortSignal.timeout(8000),
     });
-    if (!res.ok) return "";
+    if (!res.ok) return { content: "", rawTitle: "" };
     const html = await res.text();
 
-    const title = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1]?.replace(/<[^>]+>/g, "").trim() ?? "";
+    const rawTitle = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1]?.replace(/<[^>]+>/g, "").trim() ?? "";
     const desc  = html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']{0,300})/i)?.[1]?.trim()
                ?? html.match(/<meta[^>]+content=["']([^"']{0,300})["'][^>]+name=["']description["']/i)?.[1]?.trim()
                ?? "";
@@ -91,16 +91,27 @@ async function fetchWebsiteContent(url: string): Promise<string> {
       .trim()
       .slice(0, 2500);
 
-    return [
-      title   ? `Titulek: ${title}` : "",
-      desc    ? `Meta popis: ${desc}` : "",
+    const content = [
+      rawTitle ? `Titulek: ${rawTitle}` : "",
+      desc     ? `Meta popis: ${desc}` : "",
       headings ? `Nadpisy: ${headings}` : "",
       bodyText ? `Obsah stránky: ${bodyText}` : "",
     ].filter(Boolean).join("\n");
+
+    return { content, rawTitle };
   } catch (e) {
     console.warn(`fetchWebsiteContent failed for ${url}:`, e);
-    return "";
+    return { content: "", rawTitle: "" };
   }
+}
+
+function extractShopName(rawTitle: string, fallbackUrl: string): string | null {
+  if (!rawTitle) return null;
+  // "Rebiom – přírodní doplňky" → "Rebiom"
+  // "Úvod | Symprove CZ" → "Symprove CZ"
+  const name = rawTitle.split(/[\|\–\-—]/)[0].trim();
+  if (name.length < 2 || name.length > 40) return null;
+  return name;
 }
 
 // ─── Filters ─────────────────────────────────────────────────────────────────
@@ -336,12 +347,22 @@ export async function runAnalysis(sessionId: string, apiKey: string): Promise<vo
   // Eshop ads from position 0 row (if scraped)
   const eshopAds: any[] = eshopComp ? filterAds(adsMap.get(eshopComp.id) ?? []) : [];
 
-  // Fetch landing pages in parallel with each other (before AI calls)
+  // Fetch landing pages in parallel (before AI calls)
   const allUrls = [session.eshop_url || "", ...comps.map((c: any) => c.url)];
-  const websiteContents = await Promise.all(allUrls.map(url => url ? fetchWebsiteContent(url) : Promise.resolve("")));
-  const eshopWeb = websiteContents[0];
-  const compWebs = websiteContents.slice(1);
+  const webResults = await Promise.all(allUrls.map(url => url ? fetchWebsiteContent(url) : Promise.resolve({ content: "", rawTitle: "" })));
+  const eshopWeb = webResults[0].content;
+  const compWebs = webResults.slice(1).map(r => r.content);
   console.log(`Fetched ${allUrls.length} landing pages`);
+
+  // Auto-fill eshop_name from page title if not set
+  if (!session.eshop_name && webResults[0].rawTitle) {
+    const detectedName = extractShopName(webResults[0].rawTitle, session.eshop_url || "");
+    if (detectedName) {
+      await supa.from("lm_sessions").update({ eshop_name: detectedName }).eq("id", sessionId);
+      session.eshop_name = detectedName;
+      console.log(`Auto-detected eshop name: ${detectedName}`);
+    }
+  }
 
   const l1Results = await Promise.all([
     callAI(apiKey, L1_SYSTEM, l1User(session.eshop_name || session.eshop_url || "Váš e-shop", session.eshop_url || "", eshopAds, eshopWeb))
