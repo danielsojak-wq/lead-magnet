@@ -61,6 +61,48 @@ async function callAI(apiKey: string, system: string, user: string, maxTokens = 
   }
 }
 
+// ─── Website scraper ─────────────────────────────────────────────────────────
+
+async function fetchWebsiteContent(url: string): Promise<string> {
+  try {
+    const res = await fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; Performind-Bot/1.0)" },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return "";
+    const html = await res.text();
+
+    const title = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1]?.replace(/<[^>]+>/g, "").trim() ?? "";
+    const desc  = html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']{0,300})/i)?.[1]?.trim()
+               ?? html.match(/<meta[^>]+content=["']([^"']{0,300})["'][^>]+name=["']description["']/i)?.[1]?.trim()
+               ?? "";
+    const headings = [...html.matchAll(/<h[1-3][^>]*>([\s\S]*?)<\/h[1-3]>/gi)]
+      .map(m => m[1].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim())
+      .filter(Boolean)
+      .slice(0, 12)
+      .join(" | ");
+    const bodyText = html
+      .replace(/<script[\s\S]*?<\/script>/gi, "")
+      .replace(/<style[\s\S]*?<\/style>/gi, "")
+      .replace(/<nav[\s\S]*?<\/nav>/gi, "")
+      .replace(/<footer[\s\S]*?<\/footer>/gi, "")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 2500);
+
+    return [
+      title   ? `Titulek: ${title}` : "",
+      desc    ? `Meta popis: ${desc}` : "",
+      headings ? `Nadpisy: ${headings}` : "",
+      bodyText ? `Obsah stránky: ${bodyText}` : "",
+    ].filter(Boolean).join("\n");
+  } catch (e) {
+    console.warn(`fetchWebsiteContent failed for ${url}:`, e);
+    return "";
+  }
+}
+
 // ─── Filters ─────────────────────────────────────────────────────────────────
 
 function filterAds(ads: any[]): any[] {
@@ -102,7 +144,7 @@ PRAVIDLA:
 - aktivita.pocet_aktivnich_reklam vyplň přesně dle dat (počet kde is_active=true)
 - Nikdy nevymýšlej strategie, claimy ani vzorce bez datové opory`;
 
-function l1User(playerName: string, playerUrl: string, ads: any[]): string {
+function l1User(playerName: string, playerUrl: string, ads: any[], websiteContent = ""): string {
   const adRows = ads.slice(0, 30).map(a => ({
     text: (a.primary_text || "").slice(0, 200),
     type: a.ad_type || null,
@@ -116,8 +158,11 @@ function l1User(playerName: string, playerUrl: string, ads: any[]): string {
     : ads.length < 5
     ? `\n\nPOZNÁMKA: Málo dat (${ads.length} reklam). Buď konzervativní, analytické závěry opři výhradně o dostupné záznamy.`
     : "";
+  const webNote = websiteContent
+    ? `\n\nLANDING PAGE DATA (použij pro lepší pochopení positioning a messaging):\n${websiteContent.slice(0, 2500)}`
+    : "";
 
-  return `DATA HRÁČE: ${JSON.stringify(playerData)}${dataNote}
+  return `DATA HRÁČE: ${JSON.stringify(playerData)}${dataNote}${webNote}
 
 Vrať JSON v přesně tomto formátu (ad_mix_pct: odhadni % rozdělení reklam na brand/sales/retargeting, součet = 100):
 {
@@ -290,11 +335,19 @@ export async function runAnalysis(sessionId: string, apiKey: string): Promise<vo
 
   // Eshop ads from position 0 row (if scraped)
   const eshopAds: any[] = eshopComp ? filterAds(adsMap.get(eshopComp.id) ?? []) : [];
+
+  // Fetch landing pages in parallel with each other (before AI calls)
+  const allUrls = [session.eshop_url || "", ...comps.map((c: any) => c.url)];
+  const websiteContents = await Promise.all(allUrls.map(url => url ? fetchWebsiteContent(url) : Promise.resolve("")));
+  const eshopWeb = websiteContents[0];
+  const compWebs = websiteContents.slice(1);
+  console.log(`Fetched ${allUrls.length} landing pages`);
+
   const l1Results = await Promise.all([
-    callAI(apiKey, L1_SYSTEM, l1User(session.eshop_name || session.eshop_url || "Váš e-shop", session.eshop_url || "", eshopAds))
+    callAI(apiKey, L1_SYSTEM, l1User(session.eshop_name || session.eshop_url || "Váš e-shop", session.eshop_url || "", eshopAds, eshopWeb))
       .catch(e => { console.error("L1 failed for eshop:", e); return null; }),
-    ...comps.map((c, i) =>
-      callAI(apiKey, L1_SYSTEM, l1User(c.name || c.url, c.url, compAdsFiltered[i]))
+    ...comps.map((c: any, i: number) =>
+      callAI(apiKey, L1_SYSTEM, l1User(c.name || c.url, c.url, compAdsFiltered[i], compWebs[i]))
         .catch(e => { console.error(`L1 failed for competitor ${c.id}:`, e); return null; })
     ),
   ]);
