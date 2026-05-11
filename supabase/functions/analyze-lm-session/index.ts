@@ -27,6 +27,8 @@ function extractJson(text: string): unknown {
   return JSON.parse(match[0]);
 }
 
+const RETRY_DELAYS = [8000, 16000, 32000, 48000];
+
 async function callAI(apiKey: string, system: string, user: string, maxTokens = 8000): Promise<unknown> {
   for (let attempt = 0; attempt < 4; attempt++) {
     try {
@@ -45,18 +47,22 @@ async function callAI(apiKey: string, system: string, user: string, maxTokens = 
         }),
       });
       if (res.status === 429) {
-        const wait = (attempt + 1) * 5000;
+        const wait = RETRY_DELAYS[attempt] ?? 48000;
         console.warn(`callAI rate limited, waiting ${wait}ms (attempt ${attempt + 1})`);
         await new Promise(r => setTimeout(r, wait));
         continue;
       }
-      if (!res.ok) throw new Error(`AI HTTP ${res.status}: ${await res.text()}`);
+      if (!res.ok) {
+        const body = await res.text();
+        throw new Error(`AI HTTP ${res.status}: ${body.slice(0, 300)}`);
+      }
       const d = await res.json();
       const content: string = d?.choices?.[0]?.message?.content ?? "";
       return extractJson(content);
     } catch (e) {
       console.error(`callAI attempt ${attempt + 1} failed:`, e);
       if (attempt === 3) throw e;
+      await new Promise(r => setTimeout(r, RETRY_DELAYS[attempt] ?? 8000));
     }
   }
 }
@@ -364,23 +370,13 @@ export async function runAnalysis(sessionId: string, apiKey: string): Promise<vo
     }
   }
 
-  const l1Results = await Promise.all([
-    callAI(apiKey, L1_SYSTEM, l1User(session.eshop_name || session.eshop_url || "Váš e-shop", session.eshop_url || "", eshopAds, eshopWeb))
-      .catch(e => { console.error("L1 failed for eshop:", e); return null; }),
-    ...comps.map((c: any, i: number) =>
-      callAI(apiKey, L1_SYSTEM, l1User(c.name || c.url, c.url, compAdsFiltered[i], compWebs[i]))
-        .catch(e => { console.error(`L1 failed for competitor ${c.id}:`, e); return null; })
-    ),
-  ]);
-  const eshopL1 = l1Results[0];
-  const compL1s = l1Results.slice(1);
-
-  // Save L1 results per competitor (position > 0) and eshop (position 0)
-  const saveL1 = async (id: string, analysis: unknown, ads: any[]) => {
+  // Save L1 result immediately after each call — so partial results survive a timeout
+  const saveL1 = async (id: string, analysis: unknown, ads: any[], errorMsg?: string) => {
     const l1AdMix = (analysis as any)?.ad_mix_pct;
     const adMix = (l1AdMix && typeof l1AdMix.brand === "number")
       ? { brand: l1AdMix.brand, sales: l1AdMix.sales, retargeting: l1AdMix.retargeting }
       : adMixFromAds(ads);
+    if (errorMsg) console.error(`saveL1 error for ${id}: ${errorMsg}`);
     await supa.from("lm_session_competitors").update({
       ai_analysis: analysis ?? null,
       status: analysis ? "ready" : "failed",
@@ -390,12 +386,41 @@ export async function runAnalysis(sessionId: string, apiKey: string): Promise<vo
     }).eq("id", id);
   };
 
-  await Promise.all([
-    ...(eshopComp ? [saveL1(eshopComp.id, eshopL1, eshopAds)] : []),
-    ...comps.map((c, i) => saveL1(c.id, compL1s[i], adsMap.get(c.id) ?? [])),
-  ]);
+  // ── Sequential L1 calls with 2 s gap — avoids simultaneous rate-limit hits ──
 
-  // L2: synthesis (needs all L1 results)
+  // Eshop (position 0)
+  let eshopL1: unknown = null;
+  if (eshopComp) {
+    console.log(`L1: eshop (${eshopAds.length} ads)`);
+    eshopL1 = await callAI(apiKey, L1_SYSTEM, l1User(session.eshop_name || session.eshop_url || "Váš e-shop", session.eshop_url || "", eshopAds, eshopWeb))
+      .catch(async (e) => {
+        console.error("L1 failed for eshop:", e);
+        await saveL1(eshopComp.id, null, eshopAds, String(e));
+        return null;
+      });
+    if (eshopL1) await saveL1(eshopComp.id, eshopL1, eshopAds);
+    if (comps.length > 0) await new Promise(r => setTimeout(r, 2000));
+  }
+
+  // Competitors (position 1+) — one by one
+  const compL1s: unknown[] = [];
+  for (let i = 0; i < comps.length; i++) {
+    const c = comps[i] as any;
+    console.log(`L1: competitor ${i + 1}/${comps.length} — ${c.url} (${compAdsFiltered[i].length} ads)`);
+    const result = await callAI(apiKey, L1_SYSTEM, l1User(c.name || c.url, c.url, compAdsFiltered[i], compWebs[i]))
+      .catch(async (e) => {
+        console.error(`L1 failed for competitor ${c.id}:`, e);
+        await saveL1(c.id, null, adsMap.get(c.id) ?? [], String(e));
+        return null;
+      });
+    compL1s.push(result);
+    if (result) await saveL1(c.id, result, adsMap.get(c.id) ?? []);
+    if (i < comps.length - 1) await new Promise(r => setTimeout(r, 2000));
+  }
+
+  // L2: synthesis — wait 2 s after last L1 before firing
+  await new Promise(r => setTimeout(r, 2000));
+  console.log("L2: cross-analysis synthesis");
   const compsForL2 = comps.map((c: any, i: number) => ({
     name: c.name || domainName(c.url),
     l1: compL1s[i] ?? {},
