@@ -6,6 +6,7 @@ import LandingPage from "@/pages/LandingPage";
 import CheckEmailPage from "@/pages/CheckEmailPage";
 import VerifyPage from "@/pages/VerifyPage";
 import AnalyzePage from "@/pages/AnalyzePage";
+import EmailGatePage from "@/pages/EmailGatePage";
 import WaitingPage from "@/pages/WaitingPage";
 import ResultsPage from "@/pages/ResultsPage";
 import DevPage from "@/pages/DevPage";
@@ -23,6 +24,7 @@ const App = () => (
           <Route path="/check-email" element={<CheckEmailPage />} />
           <Route path="/verify" element={<VerifyPage />} />
           <Route path="/analyze" element={<AnalyzePage />} />
+          <Route path="/get-email" element={<EmailGatePage />} />
           <Route path="/waiting/:sessionId" element={<WaitingPage />} />
           <Route path="/results/:sessionId" element={<ResultsPage />} />
           <Route path="/dev" element={<DevPage />} />
