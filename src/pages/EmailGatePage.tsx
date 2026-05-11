@@ -347,6 +347,11 @@ export default function EmailGatePage() {
                     Vaše analýza se připravuje
                   </h1>
 
+                  {/* Subtext */}
+                  <p className="text-gray-500 text-sm mb-6 leading-relaxed">
+                    Zadejte svůj email — výsledky vám zobrazíme okamžitě a zároveň je odešleme přímo do vašeho inboxu.
+                  </p>
+
                   {/* What's in the analysis */}
                   <div className="bg-gray-50 border border-gray-100 rounded-2xl p-4 mb-6 text-left space-y-2">
                     <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Co v analýze najdete</p>
