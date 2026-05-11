@@ -206,22 +206,18 @@ export default function LandingPage() {
           {/* Badge */}
           <div className="inline-flex items-center gap-2 bg-white/6 border border-white/10 rounded-full px-4 py-2 text-sm text-white/60 mb-10">
             <span className="w-2 h-2 rounded-full bg-[#b0f221] animate-pulse shrink-0" />
-            Nahrazuje analýzu za 10 000 Kč od agentury
+            Analýzu získáte do 5 minut
           </div>
 
-          <h1 className="font-[family-name:var(--font-heading)] text-4xl sm:text-5xl lg:text-[3.25rem] font-bold leading-[1.12] tracking-tight mb-6 text-white">
-            Za analýzu marketingové strategie
-            <br className="hidden sm:block" />
-            {" "}konkurence si agentury účtují{" "}
-            <span className="relative inline-block">
-              <span className="relative z-10 text-white/40 line-through decoration-[#b0f221]/60">10 000 Kč</span>
-            </span>
-            <br />
+          <h1 className="font-[family-name:var(--font-heading)] text-4xl sm:text-5xl lg:text-[3.25rem] font-bold leading-[1.12] tracking-tight mb-6 text-white whitespace-pre-line">
+            Víte, co dělá vaše konkurence?{"\n\n\n"}
+            Za komplexní analýzu si agentury účtují 10 000 Kč.{"\n"}
             <span className="text-[#b0f221]">Teď ji získáte zdarma.</span>
           </h1>
 
-          <p className="text-white/50 text-lg max-w-xl mx-auto mb-10 leading-relaxed">
-            AI nástroj, který proskenuuje reklamy vaší konkurence na Metě, analyzuje jejich strategii a připraví konkrétní doporučení — za 5 minut.
+          <p className="text-white/50 text-lg max-w-xl mx-auto mb-10 leading-relaxed whitespace-pre-line">
+            Proskenujeme aktivní reklamy vaší konkurence, zhodnotíme strategii{"\n"}
+            a najdeme potenciál.
           </p>
 
           {/* CTA form */}
