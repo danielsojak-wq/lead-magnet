@@ -42,15 +42,33 @@ type VideoType = "meta" | null;
 function VideoHelpModal({ type, onClose }: { type: VideoType; onClose: () => void }) {
   if (!type) return null;
   const config = VIDEO_CONFIG[type];
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  const handleFullscreen = () => {
-    const el = containerRef.current;
-    if (!el) return;
-    if (el.requestFullscreen) el.requestFullscreen();
-  };
+  const [expanded, setExpanded] = useState(false);
 
   return (
+    <>
+      {/* Expanded "full view" overlay */}
+      {expanded && (
+        <div className="fixed inset-0 z-[60] bg-black/90 flex items-center justify-center p-4 sm:p-8 animate-in fade-in-0">
+          <div className="relative w-full max-w-5xl">
+            <video
+              src={config.src}
+              loop
+              autoPlay
+              muted
+              playsInline
+              className="w-full rounded-xl shadow-2xl"
+            />
+            <button
+              onClick={() => setExpanded(false)}
+              className="absolute -top-4 -right-4 w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-gray-100 transition-colors"
+              aria-label="Zavřít"
+            >
+              <X className="h-5 w-5 text-gray-700" />
+            </button>
+          </div>
+        </div>
+      )}
+
     <Dialog.Root open onOpenChange={(open) => !open && onClose()}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 animate-in fade-in-0" />
@@ -63,7 +81,7 @@ function VideoHelpModal({ type, onClose }: { type: VideoType; onClose: () => voi
               <X className="h-4 w-4 text-gray-500" />
             </button>
           </div>
-          <div ref={containerRef} className="relative bg-gray-950 aspect-video group">
+          <div className="relative bg-gray-950 aspect-video group">
             <video
               src={config.src}
               loop
@@ -73,9 +91,9 @@ function VideoHelpModal({ type, onClose }: { type: VideoType; onClose: () => voi
               className="absolute inset-0 w-full h-full object-cover"
             />
             <button
-              onClick={handleFullscreen}
+              onClick={() => setExpanded(true)}
               className="absolute bottom-3 right-3 w-8 h-8 bg-black/50 hover:bg-black/75 rounded-lg flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 z-10"
-              aria-label="Celá obrazovka"
+              aria-label="Zobrazit větší"
             >
               <Maximize2 className="h-4 w-4 text-white" />
             </button>
@@ -94,6 +112,7 @@ function VideoHelpModal({ type, onClose }: { type: VideoType; onClose: () => voi
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
+    </>
   );
 }
 
