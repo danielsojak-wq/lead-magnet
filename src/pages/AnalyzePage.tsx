@@ -30,10 +30,10 @@ const VIDEO_CONFIG = {
     title: "Jak najít Meta Ads Library URL",
     src: "/videos/meta-ads-library.mp4",
     steps: [
-      "Jděte na facebook.com/ads/library",
+      <span>Jděte na <a href="https://www.facebook.com/ads/library" target="_blank" rel="noopener noreferrer" className="text-[#4f11ff] underline underline-offset-2 break-all">facebook.com/ads/library</a></span>,
       "Vyhledejte název e-shopu nebo jeho doménu",
       "Zkopírujte URL stránky s výsledky",
-    ],
+    ] as React.ReactNode[],
   },
 };
 
