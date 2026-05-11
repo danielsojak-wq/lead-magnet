@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, Globe, Search, ShieldCheck, Info, X, Play } from "lucide-react";
+import { ArrowRight, Globe, Search, ShieldCheck, Info, X, Play, Maximize2 } from "lucide-react";
 import * as Dialog from "@radix-ui/react-dialog";
 import performindLogo from "@/assets/performind-logo-dark.svg";
 
@@ -42,6 +42,14 @@ type VideoType = "meta" | null;
 function VideoHelpModal({ type, onClose }: { type: VideoType; onClose: () => void }) {
   if (!type) return null;
   const config = VIDEO_CONFIG[type];
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const handleFullscreen = () => {
+    const el = containerRef.current;
+    if (!el) return;
+    if (el.requestFullscreen) el.requestFullscreen();
+  };
+
   return (
     <Dialog.Root open onOpenChange={(open) => !open && onClose()}>
       <Dialog.Portal>
@@ -55,13 +63,21 @@ function VideoHelpModal({ type, onClose }: { type: VideoType; onClose: () => voi
               <X className="h-4 w-4 text-gray-500" />
             </button>
           </div>
-          <div className="relative bg-gray-950 aspect-video">
+          <div ref={containerRef} className="relative bg-gray-950 aspect-video group">
             <iframe
-              src={`https://www.youtube.com/embed/${config.youtubeId}?autoplay=1&mute=1&loop=1&playlist=${config.youtubeId}&controls=0&modestbranding=1&rel=0`}
-              allow="autoplay; encrypted-media"
+              src={`https://www.youtube.com/embed/${config.youtubeId}?autoplay=1&mute=1&loop=1&playlist=${config.youtubeId}&controls=0&modestbranding=1&rel=0&showinfo=0`}
+              allow="autoplay; encrypted-media; fullscreen"
               allowFullScreen
               className="absolute inset-0 w-full h-full"
             />
+            {/* Custom fullscreen button */}
+            <button
+              onClick={handleFullscreen}
+              className="absolute bottom-3 right-3 w-8 h-8 bg-black/50 hover:bg-black/75 rounded-lg flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 z-10"
+              aria-label="Celá obrazovka"
+            >
+              <Maximize2 className="h-4 w-4 text-white" />
+            </button>
           </div>
           <div className="px-6 py-5">
             <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-3">Postup</p>
