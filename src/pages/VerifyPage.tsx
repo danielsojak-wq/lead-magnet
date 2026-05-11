@@ -4,7 +4,7 @@ import { CheckCircle2, XCircle, Loader2, ArrowRight } from "lucide-react";
 import performindLogo from "@/assets/performind-logo-dark.svg";
 import { supabase } from "@/integrations/supabase/client";
 
-type State = "verifying" | "success" | "expired" | "error";
+type State = "verifying" | "starting" | "success" | "expired" | "error";
 
 export default function VerifyPage() {
   const [params] = useSearchParams();
@@ -19,9 +19,10 @@ export default function VerifyPage() {
       setState("error");
       return;
     }
+
     supabase.functions
       .invoke("verify-lm-token", { body: { token } })
-      .then(({ data, error }) => {
+      .then(async ({ data, error }) => {
         if (error || !data?.session_id) {
           const msg = data?.error || error?.message || "";
           if (msg.includes("vypršel")) {
@@ -32,14 +33,29 @@ export default function VerifyPage() {
           if (msg) setErrorMsg(msg);
           return;
         }
-        setSessionId(data.session_id);
+
+        const sid = data.session_id;
+        setSessionId(sid);
+        setState("starting");
+
+        // Kick off analysis — backend reads stored URLs from DB
+        const { error: analysisErr } = await supabase.functions.invoke("start-lm-analysis", {
+          body: { session_id: sid },
+        });
+
+        if (analysisErr) {
+          setErrorMsg("Analýzu se nepodařilo spustit. Zkuste to prosím znovu.");
+          setState("error");
+          return;
+        }
+
         setState("success");
       });
   }, [token]);
 
   useEffect(() => {
     if (state === "success" && sessionId) {
-      const t = setTimeout(() => navigate(`/analyze/${sessionId}`), 1500);
+      const t = setTimeout(() => navigate(`/waiting/${sessionId}`), 1500);
       return () => clearTimeout(t);
     }
   }, [state, sessionId, navigate]);
@@ -56,13 +72,13 @@ export default function VerifyPage() {
       <div className="flex-1 flex items-center justify-center px-4 py-16">
         <div className="w-full max-w-md text-center">
 
-          {state === "verifying" && (
+          {(state === "verifying" || state === "starting") && (
             <div className="bg-white border border-gray-100 rounded-3xl p-12 shadow-sm">
               <div className="inline-flex w-20 h-20 rounded-2xl bg-[#4f11ff]/8 border border-[#4f11ff]/15 items-center justify-center mb-8">
                 <Loader2 className="h-9 w-9 text-[#4f11ff] animate-spin" />
               </div>
               <h1 className="font-[family-name:var(--font-heading)] text-2xl font-bold mb-3 text-gray-900">
-                Ověřujeme váš email
+                {state === "verifying" ? "Ověřujeme váš email" : "Spouštíme analýzu"}
               </h1>
               <p className="text-gray-400 text-sm">Chvilku strpení…</p>
             </div>
@@ -79,10 +95,10 @@ export default function VerifyPage() {
                 </div>
               </div>
               <h1 className="font-[family-name:var(--font-heading)] text-2xl sm:text-3xl font-bold mb-3 text-gray-900">
-                Email ověřen!
+                Analýza spuštěna!
               </h1>
               <p className="text-gray-500 mb-8 leading-relaxed">
-                Přesměrováváme vás na analýzu…
+                Přesměrováváme vás na výsledky…
               </p>
               <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
                 <div className="bg-[#4f11ff] h-1.5 rounded-full animate-[progress_1.5s_linear_forwards]" />
@@ -99,13 +115,13 @@ export default function VerifyPage() {
                 Odkaz vypršel
               </h1>
               <p className="text-gray-500 mb-10 leading-relaxed">
-                Ověřovací odkaz je platný 24 hodin. Vraťte se zpět a zadejte email znovu — pošleme nový.
+                Ověřovací odkaz je platný 24 hodin. Vraťte se zpět a zadejte URL adresy znovu — pošleme nový odkaz.
               </p>
               <button
-                onClick={() => navigate("/")}
+                onClick={() => navigate("/analyze")}
                 className="inline-flex items-center gap-2 bg-[#b0f221] hover:bg-[#a3e01e] text-gray-900 font-semibold px-8 py-4 rounded-xl transition-colors text-sm"
               >
-                Zpět na úvod <ArrowRight className="h-4 w-4" />
+                Zpět na analýzu <ArrowRight className="h-4 w-4" />
               </button>
             </div>
           )}
@@ -116,16 +132,16 @@ export default function VerifyPage() {
                 <XCircle className="h-9 w-9 text-red-400" />
               </div>
               <h1 className="font-[family-name:var(--font-heading)] text-2xl font-bold mb-3 text-gray-900">
-                Odkaz není platný
+                Něco se pokazilo
               </h1>
               <p className="text-gray-500 mb-10 leading-relaxed">
                 {errorMsg}
               </p>
               <button
-                onClick={() => navigate("/")}
+                onClick={() => navigate("/analyze")}
                 className="inline-flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold px-8 py-4 rounded-xl transition-colors text-sm"
               >
-                <ArrowRight className="h-4 w-4 rotate-180" /> Zpět na úvod
+                <ArrowRight className="h-4 w-4 rotate-180" /> Zpět na analýzu
               </button>
             </div>
           )}

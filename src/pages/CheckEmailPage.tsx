@@ -57,10 +57,10 @@ export default function CheckEmailPage() {
 
             {/* Steps */}
             <div className="text-left space-y-4 mb-10 bg-gray-50 border border-gray-100 rounded-2xl p-6">
-              {[
-                { step: "1", text: "Otevrete email od Performind Studio", done: true },
-                { step: "2", text: 'Kliknete na tlacitko "Overit email a pokracovat"', done: false },
-                { step: "3", text: "Vyplnite URL sveho eshopu a 2 konkurentu", done: false },
+              [
+                { step: "1", text: "Otevřete email od Performind Studio", done: true },
+                { step: "2", text: "Klikněte na tlačítko „Ověřit email a spustit analýzu"", done: false },
+                { step: "3", text: "Sledujte výsledky živě přímo v prohlížeči", done: false },
               ].map((item) => (
                 <div key={item.step} className="flex items-center gap-4">
                   <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-sm font-bold font-[family-name:var(--font-heading)] ${item.done ? "bg-[#b0f221] text-black" : "bg-gray-100 text-gray-400"}`}>

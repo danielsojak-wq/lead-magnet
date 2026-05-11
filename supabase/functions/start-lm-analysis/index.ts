@@ -49,21 +49,50 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { session_id, eshop_url, eshop_meta_url, competitors } = body as {
-      session_id: string;
-      eshop_url: string;
-      eshop_meta_url?: string;
-      competitors: Array<{ url: string; meta_url?: string; position: number }>;
-    };
+    const { session_id } = body as { session_id: string };
 
     if (!session_id) return err("session_id required");
-    if (!eshop_url) return err("eshop_url required");
-    if (!competitors?.length) return err("competitors required");
+
+    // Allow callers to pass URL data directly (legacy / admin use),
+    // or omit it so we read from the stored session (new flow).
+    let eshop_url: string | undefined = body.eshop_url;
+    let eshop_meta_url: string | undefined = body.eshop_meta_url;
+    let competitors: Array<{ url: string; meta_url?: string; position: number }> | undefined = body.competitors;
 
     const APIFY_TOKEN = Deno.env.get("APIFY_API_TOKEN");
     if (!APIFY_TOKEN) return err("APIFY_API_TOKEN not configured", 500);
 
     const supa = admin();
+
+    // If URL data was not provided, read it from the stored session
+    if (!eshop_url || !competitors?.length) {
+      const { data: session, error: sessErr } = await supa
+        .from("lm_sessions")
+        .select("eshop_url, eshop_meta_library_url")
+        .eq("id", session_id)
+        .single();
+
+      if (sessErr || !session) return err(sessErr?.message ?? "Session not found", 404);
+      if (!session.eshop_url) return err("eshop_url not stored in session", 400);
+
+      eshop_url = session.eshop_url;
+      eshop_meta_url = session.eshop_meta_library_url ?? undefined;
+
+      const { data: dbComps } = await supa
+        .from("lm_session_competitors")
+        .select("url, meta_library_url, position")
+        .eq("session_id", session_id)
+        .gt("position", 0)
+        .order("position");
+
+      competitors = (dbComps ?? []).map((c) => ({
+        url: c.url,
+        meta_url: c.meta_library_url ?? undefined,
+        position: c.position,
+      }));
+
+      if (!competitors.length) return err("No competitors stored in session", 400);
+    }
 
     await supa.from("lm_sessions").update({
       eshop_url,
@@ -71,7 +100,7 @@ Deno.serve(async (req) => {
       status: "processing",
     }).eq("id", session_id);
 
-    // Clear previous run data for this session (handles resubmit via back button)
+    // Clear previous run data (handles resubmit edge cases)
     await supa.from("lm_session_competitors").delete().eq("session_id", session_id);
     await supa.from("lm_session_ads").delete().eq("session_id", session_id);
 
@@ -122,7 +151,6 @@ Deno.serve(async (req) => {
       const updates: Record<string, unknown> = {};
       const log: string[] = [];
 
-      // Meta Ads run
       if (metaUrl) {
         const { runId: metaRunId, error: metaErr } = await startApifyRun(APIFY_TOKEN, APIFY_META_ACTOR, {
           startUrls: [{ url: metaUrl }],
@@ -133,7 +161,6 @@ Deno.serve(async (req) => {
         else log.push(`meta=FAILED: ${metaErr}`);
       } else log.push("meta=no_url");
 
-      // Google Ads: not scraped automatically — link shown in UI
       if (domain) log.push(`google=link_only:${domain}`);
 
       if (updates.apify_run_id) {
@@ -148,7 +175,6 @@ Deno.serve(async (req) => {
       return { url: c.url, log: log.join(" | ") };
     }));
 
-    // Re-read competitors to confirm what was saved
     const { data: savedComps } = await supa
       .from("lm_session_competitors")
       .select("url, status, apify_run_id, apify_google_run_id")

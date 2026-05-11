@@ -1,6 +1,6 @@
-import { useState, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { ArrowRight, Globe, Search, ShieldCheck, Info, X, Play } from "lucide-react";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { ArrowRight, Globe, Search, ShieldCheck, Info, X, Play, Mail } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import * as Dialog from "@radix-ui/react-dialog";
 import performindLogo from "@/assets/performind-logo-dark.svg";
@@ -41,7 +41,6 @@ const VIDEO_CONFIG = {
 };
 
 function VideoHelpModal({ type, onClose }: { type: VideoType; onClose: () => void }) {
-  const videoRef = useRef<HTMLVideoElement>(null);
   if (!type) return null;
   const config = VIDEO_CONFIG[type];
 
@@ -62,40 +61,17 @@ function VideoHelpModal({ type, onClose }: { type: VideoType; onClose: () => voi
             </button>
           </div>
 
-          {/* Video */}
           <div className="relative bg-gray-950 aspect-video">
             <video
-              ref={videoRef}
               src={config.src}
               loop
               autoPlay
               muted
               playsInline
               className="w-full h-full object-cover"
-              onError={() => {
-                // video not yet uploaded — show placeholder
-              }}
-            >
-              {/* placeholder when video missing */}
-            </video>
-            {/* overlay if no video yet */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 pointer-events-none"
-              style={{ display: "none" }}
-              ref={(el) => {
-                const vid = videoRef.current;
-                if (el && vid) {
-                  vid.addEventListener("error", () => { el.style.display = "flex"; });
-                }
-              }}
-            >
-              <div className="w-14 h-14 rounded-full bg-white/10 flex items-center justify-center">
-                <Play className="h-6 w-6 text-white/60 ml-1" />
-              </div>
-              <p className="text-white/40 text-xs">Video brzy k dispozici</p>
-            </div>
+            />
           </div>
 
-          {/* Steps */}
           <div className="px-6 py-5">
             <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-3">Postup</p>
             <ol className="space-y-2">
@@ -137,7 +113,7 @@ function UrlInput({
       <div className="flex items-center gap-2">
         <label className="text-sm font-medium text-gray-700">{label}</label>
         {!required && (
-          <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">nepovinne</span>
+          <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">nepovinné</span>
         )}
       </div>
       <div className="relative">
@@ -181,7 +157,7 @@ function LibraryInput({
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <label className="text-sm font-medium text-gray-700">{label}</label>
-          <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">nepovinne</span>
+          <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">nepovinné</span>
         </div>
         <button
           type="button"
@@ -189,7 +165,7 @@ function LibraryInput({
           className="flex items-center gap-1.5 text-xs text-[#4f11ff] hover:text-[#3d0dcc] font-medium transition-colors"
         >
           <Play className="h-3 w-3" />
-          Jak ziskat URL?
+          Jak získat URL?
         </button>
       </div>
       <div className="relative">
@@ -218,7 +194,6 @@ const MetaIcon = () => (
     <path d="M12 2C6.477 2 2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.879V14.89h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.989C18.343 21.129 22 16.99 22 12c0-5.523-4.477-10-10-10z" fill="#1877F2"/>
   </svg>
 );
-
 
 interface ShopFields {
   url: string;
@@ -279,32 +254,42 @@ function ShopSection({
 }
 
 const STEPS = [
-  { n: 1, label: "Overeni emailu" },
-  { n: 2, label: "Zadani URL" },
-  { n: 3, label: "Analyza" },
+  { n: 1, label: "Zadání URL" },
+  { n: 2, label: "Ověření emailu" },
+  { n: 3, label: "Analýza" },
 ];
 
 const emptyShop = (): ShopFields => ({ url: "", meta: "" });
 
 export default function AnalyzePage() {
-  const { sessionId } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
 
+  const [email, setEmail] = useState("");
   const [eshop, setEshop] = useState<ShopFields>(emptyShop());
   const [competitor1, setCompetitor1] = useState<ShopFields>(emptyShop());
   const [competitor2, setCompetitor2] = useState<ShopFields>(emptyShop());
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [videoOpen, setVideoOpen] = useState<VideoType>(null);
+
+  const [emailError, setEmailError] = useState<string | undefined>();
   const [fieldErrors, setFieldErrors] = useState<{ eshop: ShopErrors; comp1: ShopErrors; comp2: ShopErrors }>({
     eshop: {}, comp1: {}, comp2: {},
   });
 
-  const isValid = eshop.url.trim() !== "" && competitor1.url.trim() !== "";
+  const isValid = email.trim() !== "" && eshop.url.trim() !== "" && competitor1.url.trim() !== "";
 
   const validate = (): boolean => {
-    const errs = { eshop: {} as ShopErrors, comp1: {} as ShopErrors, comp2: {} as ShopErrors };
     let ok = true;
+    const errs = { eshop: {} as ShopErrors, comp1: {} as ShopErrors, comp2: {} as ShopErrors };
+
+    const trimmedEmail = email.trim().toLowerCase();
+    if (!trimmedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      setEmailError("Zadejte platný pracovní email.");
+      ok = false;
+    } else {
+      setEmailError(undefined);
+    }
 
     const checkShop = (fields: ShopFields, target: ShopErrors, required: boolean) => {
       if (required && !fields.url.trim()) {
@@ -337,6 +322,7 @@ export default function AnalyzePage() {
     setSubmitting(true);
     setError(null);
 
+    const trimmedEmail = email.trim().toLowerCase();
     const norm = (url: string) => normalizeWebUrl(url) ?? url.trim();
 
     const competitors = [
@@ -346,22 +332,23 @@ export default function AnalyzePage() {
         : []),
     ];
 
-    const { error: fnErr } = await supabase.functions.invoke("start-lm-analysis", {
+    const { error: fnErr } = await supabase.functions.invoke("send-verification-email", {
       body: {
-        session_id: sessionId,
+        email: trimmedEmail,
         eshop_url: norm(eshop.url),
         eshop_meta_url: eshop.meta.trim() || undefined,
         competitors,
       },
     });
 
+    setSubmitting(false);
+
     if (fnErr) {
-      setError("Nepodařilo se spustit analýzu. Zkuste to prosím znovu.");
-      setSubmitting(false);
+      setError("Nepodařilo se odeslat ověřovací email. Zkuste to prosím znovu.");
       return;
     }
 
-    navigate(`/waiting/${sessionId}`);
+    navigate(`/check-email?email=${encodeURIComponent(trimmedEmail)}`);
   };
 
   return (
@@ -381,26 +368,23 @@ export default function AnalyzePage() {
           {/* Progress steps */}
           <div className="flex items-center justify-center gap-0 mb-10">
             {STEPS.map((step, i) => {
-              const done = step.n < 2;
-              const active = step.n === 2;
+              const active = step.n === 1;
               return (
                 <div key={step.n} className="flex items-center">
                   <div className="flex flex-col items-center gap-1.5">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold font-[family-name:var(--font-heading)] ${
-                      done
-                        ? "bg-[#b0f221] text-black"
-                        : active
+                      active
                         ? "bg-[#4f11ff] text-white shadow-md shadow-[#4f11ff]/30"
                         : "bg-gray-100 text-gray-400"
                     }`}>
                       {step.n}
                     </div>
-                    <span className={`text-xs whitespace-nowrap ${active ? "text-gray-900 font-medium" : done ? "text-gray-500" : "text-gray-300"}`}>
+                    <span className={`text-xs whitespace-nowrap ${active ? "text-gray-900 font-medium" : "text-gray-300"}`}>
                       {step.label}
                     </span>
                   </div>
                   {i < STEPS.length - 1 && (
-                    <div className={`w-16 sm:w-24 h-px mx-2 mb-5 ${done ? "bg-[#b0f221]/50" : "bg-gray-200"}`} />
+                    <div className="w-16 sm:w-24 h-px mx-2 mb-5 bg-gray-200" />
                   )}
                 </div>
               );
@@ -419,7 +403,7 @@ export default function AnalyzePage() {
               </h1>
             </div>
             <p className="text-gray-500 text-sm mb-8 ml-[52px]">
-              Cim vice dat zadáte, tim presnejsi analyza. Ads Library URL jsou nepovinné.
+              Čím více dat zadáte, tím přesnější analýza. Ads Library URL jsou nepovinné.
             </p>
 
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -450,6 +434,27 @@ export default function AnalyzePage() {
                 errors={fieldErrors.comp2}
               />
 
+              {/* Email field */}
+              <div className="space-y-1.5 pt-2">
+                <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                  <Mail className="h-4 w-4 text-gray-400" />
+                  Váš pracovní email
+                </label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => { setEmail(e.target.value); setEmailError(undefined); }}
+                  placeholder="vas@firma.cz"
+                  className={`w-full border rounded-xl px-4 py-3 text-gray-900 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 transition-all ${
+                    emailError
+                      ? "border-red-300 focus:ring-red-200 focus:border-red-400"
+                      : "border-gray-200 focus:ring-[#4f11ff]/30 focus:border-[#4f11ff]"
+                  }`}
+                />
+                {emailError && <p className="text-xs text-red-500">{emailError}</p>}
+                <p className="text-xs text-gray-400">Pošleme vám ověřovací odkaz — po kliknutí se analýza spustí automaticky.</p>
+              </div>
+
               {error && (
                 <p className="text-red-500 text-sm">{error}</p>
               )}
@@ -457,7 +462,7 @@ export default function AnalyzePage() {
               <div className="bg-gray-50 border border-gray-100 rounded-2xl p-4 flex gap-3">
                 <Info className="h-4 w-4 text-gray-400 flex-shrink-0 mt-0.5" />
                 <p className="text-gray-500 text-xs leading-relaxed">
-                  Meta Ads Library URL zpresní analyzu reklamního sdělení. Google Ads analyza probíhá automaticky z URL e-shopu.
+                  Meta Ads Library URL zpřesní analýzu reklamního sdělení. Google Ads analýza probíhá automaticky z URL e-shopu.
                 </p>
               </div>
 
@@ -466,7 +471,7 @@ export default function AnalyzePage() {
                 disabled={!isValid || submitting}
                 className="w-full flex items-center justify-center gap-2 bg-[#b0f221] hover:bg-[#a3e01e] disabled:opacity-40 disabled:cursor-not-allowed text-gray-900 font-semibold px-6 py-4 rounded-xl transition-all text-sm shadow-lg shadow-[#b0f221]/30"
               >
-                {submitting ? "Spoustim analyzu..." : "Spustit analyzu"}
+                {submitting ? "Odesílám..." : "Spustit analýzu"}
                 {!submitting && <ArrowRight className="h-4 w-4" />}
               </button>
             </form>
@@ -475,7 +480,7 @@ export default function AnalyzePage() {
           {/* Trust note */}
           <div className="flex items-center justify-center gap-2 text-gray-400 text-xs mt-6">
             <ShieldCheck className="h-3.5 w-3.5" />
-            Analyza je zdarma a bez zavazku · Data zpracovavame pouze interně
+            Analýza je zdarma a bez závazku · Data zpracováváme pouze interně
           </div>
         </div>
       </div>

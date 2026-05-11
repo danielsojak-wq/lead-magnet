@@ -1,12 +1,10 @@
 import { useRef } from "react";
-import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  ArrowRight, Eye, Zap, Target, TrendingUp, Star, Clock, Check,
+  ArrowRight, Eye, Zap, Target, TrendingUp, Clock, Check,
   Gift, Globe, Database, Cpu, Shield, BarChart3, Layers,
 } from "lucide-react";
 import performindLogo from "@/assets/performind-logo-dark.svg";
-import { supabase } from "@/integrations/supabase/client";
 
 /* ─── Data ─────────────────────────────────────────────────────────────────── */
 
@@ -42,18 +40,18 @@ const BENEFITS = [
 const STEPS = [
   {
     num: "01",
-    title: "Zadejte svůj email",
-    body: "Zdarma odemknete přístup k nástroji. Zašleme vám ověřovací odkaz.",
+    title: "Vložte URL eshopu a 2 konkurentů",
+    body: "Přidáte odkaz na váš web a oba konkurenty spolu s jejich Meta Ads Library URL. Trvá to 2 minuty.",
   },
   {
     num: "02",
-    title: "Vložte URL eshopu a 2 konkurentů",
-    body: "Přidáte odkaz na Ad Library svůj a obou konkurentů. Trvá to 2 minuty.",
+    title: "Ověřte svůj email",
+    body: "Zašleme vám ověřovací odkaz. Po kliknutí se automaticky spustí analýza.",
   },
   {
     num: "03",
     title: "Výsledky uvidíte přímo v prohlížeči",
-    body: "Naše AI proskenuuje reklamy v Google i na Metě, porovná je a zobrazí výsledky okamžitě. Analýzu si pak zašlete na email jako PDF.",
+    body: "Naše AI proskenuuje reklamy na Metě, porovná je a zobrazí výsledky okamžitě. Analýzu si pak zašlete na email.",
   },
 ];
 
@@ -104,71 +102,29 @@ const PIPELINE = [
   { icon: Zap,       label: "Výsledky",    sub: "Do 5 minut" },
 ];
 
-/* ─── Email form ────────────────────────────────────────────────────────────── */
+/* ─── CTA button ────────────────────────────────────────────────────────────── */
 
-function EmailForm({ size = "lg" }: { size?: "lg" | "sm" }) {
-  const [email, setEmail]     = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError]     = useState("");
+function CtaButton({ size = "lg" }: { size?: "lg" | "sm" }) {
   const navigate = useNavigate();
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const trimmed = email.trim().toLowerCase();
-    if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
-      setError("Zadejte platný email.");
-      return;
-    }
-    setError("");
-    setLoading(true);
-    const { error: fnErr } = await supabase.functions.invoke("send-verification-email", {
-      body: { email: trimmed },
-    });
-    setLoading(false);
-    if (fnErr) {
-      setError("Nepodařilo se odeslat email. Zkuste to prosím znovu.");
-      return;
-    }
-    navigate(`/check-email?email=${encodeURIComponent(trimmed)}`);
-  };
-
   const isLg = size === "lg";
 
   return (
-    <form onSubmit={handleSubmit} className="w-full">
-      <div className={`flex flex-col sm:flex-row gap-3 mx-auto ${isLg ? "max-w-md" : "max-w-sm"}`}>
-        <div className="flex-1">
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => { setEmail(e.target.value); setError(""); }}
-            placeholder="vas@email.cz"
-            className={`w-full border border-gray-200 rounded-xl bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#4f11ff]/40 focus:border-[#4f11ff] transition-all ${isLg ? "px-4 py-3.5 text-base" : "px-4 py-3 text-sm"}`}
-          />
-          {error && <p className="mt-1.5 text-xs text-red-500">{error}</p>}
-        </div>
-        <button
-          type="submit"
-          disabled={loading}
-          className={`flex items-center justify-center gap-2 bg-[#b0f221] hover:bg-[#a3e01e] text-gray-900 font-semibold rounded-xl transition-all whitespace-nowrap disabled:opacity-60 shadow-lg shadow-[#b0f221]/30 ${isLg ? "px-6 py-3.5 text-base" : "px-5 py-3 text-sm"}`}
-        >
-          {loading ? (
-            <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block" />
-          ) : (
-            <>Odemknout zdarma <ArrowRight className="h-4 w-4" /></>
-          )}
-        </button>
-      </div>
-      <p className="mt-2.5 text-xs text-gray-400 text-center">Bez platební karty. Bez spamu. 1× na e-mailovou adresu.</p>
-    </form>
+    <div className="flex flex-col items-center gap-3">
+      <button
+        onClick={() => navigate("/analyze")}
+        className={`inline-flex items-center justify-center gap-2 bg-[#b0f221] hover:bg-[#a3e01e] text-gray-900 font-semibold rounded-xl transition-all shadow-lg shadow-[#b0f221]/30 ${isLg ? "px-8 py-4 text-base" : "px-6 py-3.5 text-sm"}`}
+      >
+        Získat analýzu zdarma <ArrowRight className="h-4 w-4" />
+      </button>
+      <p className="text-xs text-gray-400">Bez platební karty. Bez spamu. 1× na e-mailovou adresu.</p>
+    </div>
   );
 }
 
 /* ─── Page ──────────────────────────────────────────────────────────────────── */
 
 export default function LandingPage() {
-  const ctaRef  = useRef<HTMLDivElement>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const ctaRef = useRef<HTMLDivElement>(null);
 
   const scrollToCta = () => ctaRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
 
@@ -220,9 +176,9 @@ export default function LandingPage() {
             a najdeme potenciál.
           </p>
 
-          {/* CTA form */}
+          {/* CTA */}
           <div ref={ctaRef} className="flex justify-center mb-14">
-            <EmailForm size="lg" />
+            <CtaButton size="lg" />
           </div>
 
           {/* Feature cards strip */}
@@ -288,7 +244,7 @@ export default function LandingPage() {
           <div className="text-center mb-14">
             <p className="text-[#4f11ff] text-sm font-semibold tracking-wide uppercase mb-3">Jak to funguje</p>
             <h2 className="font-[family-name:var(--font-heading)] text-3xl sm:text-4xl font-bold text-gray-900">
-              Od emailu k výsledkům za 5 minut
+              Od URL adres k výsledkům za 5 minut
             </h2>
           </div>
 
@@ -308,7 +264,7 @@ export default function LandingPage() {
 
           <div className="mt-10 flex items-center justify-center gap-2 text-gray-400 text-sm">
             <Clock className="h-4 w-4" />
-            Analýza probíhá na pozadí — výsledky přijdou emailem do 5 minut
+            Analýza probíhá na pozadí — výsledky se zobrazí přímo v prohlížeči
           </div>
         </div>
       </section>
@@ -328,7 +284,7 @@ export default function LandingPage() {
 
           <div className="grid sm:grid-cols-3 gap-5">
             {[
-              { icon: "🎯", title: "Aktivní reklamy konkurence", desc: "Vidíte všechny jejich spuštěné reklamy v Google i na Metě — kreativy, texty, CTA." },
+              { icon: "🎯", title: "Aktivní reklamy konkurence", desc: "Vidíte všechny jejich spuštěné reklamy na Metě — kreativy, texty, CTA." },
               { icon: "🧠", title: "AI shrnutí strategie", desc: "Co komunikují, komu cílí, jaké formáty udržují nejdéle. V čem jsou dobří a kde slábnou." },
               { icon: "🚀", title: "Konkrétní doporučení", desc: "Co udělat jinak, kde zaútočit, co testovat jako první. Žádná teorie — jen akce." },
             ].map((item) => (
@@ -409,14 +365,11 @@ export default function LandingPage() {
             Chcete vědět, co dělá vaše konkurence?
           </h2>
           <p className="text-white/70 mb-10 text-lg">
-            Zadejte email. Odemknete nástroj, který jinak používáme
-            jen pro naše klienty.
+            Zadejte URL svého eshopu a dvou konkurentů. Analýza je zdarma a trvá 5 minut.
           </p>
 
-          <div className="bg-white rounded-2xl p-6 sm:p-8 text-left shadow-2xl shadow-[#3d0dcc]/30">
-            <p className="font-[family-name:var(--font-heading)] font-bold text-gray-900 mb-1">Váš pracovní email</p>
-            <p className="text-gray-500 text-sm mb-5">Zašleme vám ověřovací odkaz a po potvrzení odemknete analýzu.</p>
-            <EmailForm size="sm" />
+          <div ref={ctaRef} className="flex justify-center">
+            <CtaButton size="sm" />
           </div>
 
           <div className="mt-8 flex flex-wrap items-center justify-center gap-6 text-white/50 text-sm">
