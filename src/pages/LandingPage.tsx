@@ -321,8 +321,8 @@ export default function LandingPage() {
             <h2 className="font-[family-name:var(--font-heading)] text-3xl sm:text-4xl font-bold text-gray-900 mb-3">
               Kompletní přehled o reklamní strategii konkurence
             </h2>
-            <p className="text-gray-500 max-w-xl mx-auto">
-              Analýza, kterou jinak dostanete jen jako placený onboarding u reklamní agentury.
+            <p className="text-gray-500 max-w-xl mx-auto whitespace-pre-line">
+              Za komplexní analýzu si agentury běžně účtují 20 000 Kč.{"\n\n"}
             </p>
           </div>
 
