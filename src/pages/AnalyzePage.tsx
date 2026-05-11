@@ -28,7 +28,7 @@ function validateMetaUrl(raw: string): boolean {
 const VIDEO_CONFIG = {
   meta: {
     title: "Jak najít Meta Ads Library URL",
-    youtubeId: "oEI1QODYUEc",
+    src: "/videos/meta-ads-library.mp4",
     steps: [
       <span>Jděte na <a href="https://www.facebook.com/ads/library" target="_blank" rel="noopener noreferrer" className="text-[#4f11ff] underline underline-offset-2 break-all">facebook.com/ads/library</a></span>,
       "Vyhledejte název e-shopu nebo jeho doménu",
@@ -64,15 +64,14 @@ function VideoHelpModal({ type, onClose }: { type: VideoType; onClose: () => voi
             </button>
           </div>
           <div ref={containerRef} className="relative bg-gray-950 aspect-video group">
-            <iframe
-              src={`https://www.youtube.com/embed/${config.youtubeId}?autoplay=1&mute=1&loop=1&playlist=${config.youtubeId}&controls=0&modestbranding=1&rel=0&showinfo=0&disablekb=1`}
-              allow="autoplay; encrypted-media; fullscreen"
-              allowFullScreen
-              className="absolute inset-0 w-full h-full"
+            <video
+              src={config.src}
+              loop
+              autoPlay
+              muted
+              playsInline
+              className="absolute inset-0 w-full h-full object-cover"
             />
-            {/* Transparent overlay — blocks all mouse/touch events reaching YouTube so its controls never appear */}
-            <div className="absolute inset-0" style={{ pointerEvents: "all" }} />
-            {/* Custom fullscreen button sits above the overlay */}
             <button
               onClick={handleFullscreen}
               className="absolute bottom-3 right-3 w-8 h-8 bg-black/50 hover:bg-black/75 rounded-lg flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 z-10"
