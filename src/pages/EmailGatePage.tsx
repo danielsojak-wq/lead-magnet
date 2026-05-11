@@ -347,14 +347,6 @@ export default function EmailGatePage() {
                     Vaše analýza se připravuje
                   </h1>
 
-                  {/* Dynamic subtext */}
-                  <p className="text-gray-500 text-sm mb-6 leading-relaxed">
-                    Scriptujeme reklamy od{" "}
-                    <span className="font-medium text-gray-700">{comp1}</span>
-                    {comp2 && <> a <span className="font-medium text-gray-700">{comp2}</span></>}
-                    . Zadejte email — výsledky zobrazíme okamžitě a pošleme na váš inbox.
-                  </p>
-
                   {/* What's in the analysis */}
                   <div className="bg-gray-50 border border-gray-100 rounded-2xl p-4 mb-6 text-left space-y-2">
                     <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Co v analýze najdete</p>
