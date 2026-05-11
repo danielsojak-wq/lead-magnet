@@ -1,9 +1,37 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { ArrowRight, Mail, ShieldCheck } from "lucide-react";
+import { ArrowRight, Mail, ShieldCheck, BarChart3, Check } from "lucide-react";
 import performindLogo from "@/assets/performind-logo-dark.svg";
 import { supabase } from "@/integrations/supabase/client";
 import type { UrlFormData } from "./AnalyzePage";
+
+function extractDomain(url: string): string {
+  try {
+    const u = new URL(url.startsWith("http") ? url : `https://${url}`);
+    return u.hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
+}
+
+function useCountdown(seconds: number) {
+  const [remaining, setRemaining] = useState(seconds);
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setRemaining((r) => Math.max(0, r - 1));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+  const m = Math.floor(remaining / 60).toString().padStart(2, "0");
+  const s = (remaining % 60).toString().padStart(2, "0");
+  return `${m}:${s}`;
+}
+
+const ANALYSIS_ITEMS = [
+  "Reklamní strategie obou konkurentů",
+  "Co funguje ve vašem segmentu",
+  "3 příležitosti, kde můžete předběhnout konkurenci",
+];
 
 export default function EmailGatePage() {
   const navigate = useNavigate();
@@ -14,11 +42,15 @@ export default function EmailGatePage() {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  // If someone lands here directly without URL data, send them back
+  const countdown = useCountdown(3600);
+
   if (!urlData?.eshop?.url) {
     navigate("/analyze", { replace: true });
     return null;
   }
+
+  const comp1 = extractDomain(urlData.competitor1.url);
+  const comp2 = urlData.competitor2.url ? extractDomain(urlData.competitor2.url) : null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,17 +103,39 @@ export default function EmailGatePage() {
           <div className="bg-white border border-gray-100 rounded-3xl p-8 sm:p-12 shadow-sm">
 
             {/* Icon */}
-            <div className="w-14 h-14 rounded-2xl bg-[#b0f221]/20 border border-[#b0f221]/40 flex items-center justify-center mb-8">
-              <Mail className="h-7 w-7 text-[#4f11ff]" />
+            <div className="w-14 h-14 rounded-2xl bg-[#4f11ff]/10 border border-[#4f11ff]/20 flex items-center justify-center mb-6">
+              <BarChart3 className="h-7 w-7 text-[#4f11ff]" />
             </div>
 
+            {/* Heading */}
             <h1 className="font-[family-name:var(--font-heading)] text-2xl sm:text-3xl font-bold mb-2 text-gray-900">
-              Kam vám máme zaslat výsledky?
+              Vaše analýza se připravuje
             </h1>
-            <p className="text-gray-500 text-sm mb-8 leading-relaxed">
-              Zadejte pracovní email. Pošleme vám ověřovací odkaz — po kliknutí se analýza spustí okamžitě.
+
+            {/* Dynamic subtext */}
+            <p className="text-gray-500 text-sm mb-6 leading-relaxed">
+              Scriptujeme reklamy od{" "}
+              <span className="font-medium text-gray-700">{comp1}</span>
+              {comp2 && (
+                <> a <span className="font-medium text-gray-700">{comp2}</span></>
+              )}
+              . Zadejte email pro okamžité zobrazení a odeslání výsledků.
             </p>
 
+            {/* What's in the analysis */}
+            <div className="bg-gray-50 border border-gray-100 rounded-2xl p-4 mb-6 space-y-2">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Co v analýze najdete</p>
+              {ANALYSIS_ITEMS.map((item) => (
+                <div key={item} className="flex items-start gap-2.5">
+                  <div className="w-4 h-4 rounded-full bg-[#b0f221]/40 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <Check className="h-2.5 w-2.5 text-gray-700" />
+                  </div>
+                  <span className="text-sm text-gray-600">{item}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Email form */}
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-1.5">
                 <div className="relative">
@@ -110,15 +164,23 @@ export default function EmailGatePage() {
                 {submitting ? (
                   <span className="w-4 h-4 border-2 border-gray-900/20 border-t-gray-900 rounded-full animate-spin" />
                 ) : (
-                  <>Odeslat výsledky <ArrowRight className="h-4 w-4" /></>
+                  <>Zobrazit výsledky <ArrowRight className="h-4 w-4" /></>
                 )}
               </button>
             </form>
 
-            <div className="flex items-center justify-center gap-1.5 text-gray-400 text-xs mt-6">
+            {/* Trust badges */}
+            <div className="flex items-center justify-center gap-1.5 text-gray-400 text-xs mt-4">
               <ShieldCheck className="h-3.5 w-3.5" />
               Bez spamu · 1× na email · Bez závazku
             </div>
+
+            {/* Countdown */}
+            <div className="mt-5 pt-5 border-t border-gray-100 flex items-center justify-center gap-2">
+              <span className="text-xs text-gray-400">Analýza expiruje za</span>
+              <span className="font-mono text-sm font-semibold text-[#4f11ff]">{countdown}</span>
+            </div>
+
           </div>
 
         </div>
