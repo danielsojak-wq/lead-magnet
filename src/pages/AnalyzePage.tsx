@@ -65,12 +65,14 @@ function VideoHelpModal({ type, onClose }: { type: VideoType; onClose: () => voi
           </div>
           <div ref={containerRef} className="relative bg-gray-950 aspect-video group">
             <iframe
-              src={`https://www.youtube.com/embed/${config.youtubeId}?autoplay=1&mute=1&loop=1&playlist=${config.youtubeId}&controls=0&modestbranding=1&rel=0&showinfo=0`}
+              src={`https://www.youtube.com/embed/${config.youtubeId}?autoplay=1&mute=1&loop=1&playlist=${config.youtubeId}&controls=0&modestbranding=1&rel=0&showinfo=0&disablekb=1`}
               allow="autoplay; encrypted-media; fullscreen"
               allowFullScreen
               className="absolute inset-0 w-full h-full"
             />
-            {/* Custom fullscreen button */}
+            {/* Transparent overlay — blocks all mouse/touch events reaching YouTube so its controls never appear */}
+            <div className="absolute inset-0" style={{ pointerEvents: "all" }} />
+            {/* Custom fullscreen button sits above the overlay */}
             <button
               onClick={handleFullscreen}
               className="absolute bottom-3 right-3 w-8 h-8 bg-black/50 hover:bg-black/75 rounded-lg flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 z-10"
