@@ -28,7 +28,7 @@ function validateMetaUrl(raw: string): boolean {
 const VIDEO_CONFIG = {
   meta: {
     title: "Jak najít Meta Ads Library URL",
-    src: "/videos/meta-ads-library.mp4",
+    youtubeId: "oEI1QODYUEc",
     steps: [
       <span>Jděte na <a href="https://www.facebook.com/ads/library" target="_blank" rel="noopener noreferrer" className="text-[#4f11ff] underline underline-offset-2 break-all">facebook.com/ads/library</a></span>,
       "Vyhledejte název e-shopu nebo jeho doménu",
@@ -56,7 +56,12 @@ function VideoHelpModal({ type, onClose }: { type: VideoType; onClose: () => voi
             </button>
           </div>
           <div className="relative bg-gray-950 aspect-video">
-            <video src={config.src} loop autoPlay muted playsInline className="w-full h-full object-cover" />
+            <iframe
+              src={`https://www.youtube.com/embed/${config.youtubeId}?autoplay=1&mute=1&loop=1&playlist=${config.youtubeId}&controls=0&modestbranding=1&rel=0`}
+              allow="autoplay; encrypted-media"
+              allowFullScreen
+              className="absolute inset-0 w-full h-full"
+            />
           </div>
           <div className="px-6 py-5">
             <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-3">Postup</p>
