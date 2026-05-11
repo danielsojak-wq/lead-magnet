@@ -172,7 +172,7 @@ Deno.serve(async (req) => {
       return err("Nepodařilo se odeslat email", 502);
     }
 
-    return ok({ ok: true });
+    return ok({ ok: true, session_id: sessionId });
   } catch (e) {
     console.error("send-verification-email error:", e);
     return err((e as Error).message, 500);

@@ -332,7 +332,7 @@ export default function AnalyzePage() {
         : []),
     ];
 
-    const { error: fnErr } = await supabase.functions.invoke("send-verification-email", {
+    const { data, error: fnErr } = await supabase.functions.invoke("send-verification-email", {
       body: {
         email: trimmedEmail,
         eshop_url: norm(eshop.url),
@@ -343,12 +343,12 @@ export default function AnalyzePage() {
 
     setSubmitting(false);
 
-    if (fnErr) {
+    if (fnErr || !data?.session_id) {
       setError("Nepodařilo se odeslat ověřovací email. Zkuste to prosím znovu.");
       return;
     }
 
-    navigate(`/check-email?email=${encodeURIComponent(trimmedEmail)}`);
+    navigate(`/check-email?session=${data.session_id}&email=${encodeURIComponent(trimmedEmail)}`);
   };
 
   return (
