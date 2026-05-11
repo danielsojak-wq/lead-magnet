@@ -52,6 +52,21 @@ function validateMetaUrl(raw: string): boolean {
   return s.includes("facebook.com/ads/library") || s.includes("fb.com/ads/library");
 }
 
+function useMetaUrlCheck(raw: string): UrlStatus {
+  if (!raw.trim()) return "idle";
+  const s = raw.trim().toLowerCase();
+  if (!s.includes("facebook.com/ads/library") && !s.includes("fb.com/ads/library")) {
+    return "invalid";
+  }
+  try {
+    const url = new URL(raw.trim().startsWith("http") ? raw.trim() : `https://${raw.trim()}`);
+    const hasContent = url.searchParams.has("q") || url.searchParams.has("view_all_page_id");
+    return hasContent ? "valid" : "invalid";
+  } catch {
+    return "invalid";
+  }
+}
+
 const VIDEO_CONFIG = {
   meta: {
     title: "Jak najít Meta Ads Library URL",
@@ -190,6 +205,16 @@ function LibraryInput({ label, placeholder, value, onChange, onHelp, icon, error
   label: string; placeholder: string; value: string; onChange: (v: string) => void;
   onHelp: () => void; icon: React.ReactNode; error?: string;
 }) {
+  const metaStatus = useMetaUrlCheck(value);
+
+  const borderClass = error
+    ? "border-red-300 focus:ring-red-200 focus:border-red-400"
+    : metaStatus === "valid"
+    ? "border-green-300 focus:ring-green-200 focus:border-green-400"
+    : metaStatus === "invalid"
+    ? "border-orange-300 focus:ring-orange-200 focus:border-orange-400"
+    : "border-gray-200 focus:ring-[#4f11ff]/30 focus:border-[#4f11ff]";
+
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between gap-2">
@@ -205,9 +230,22 @@ function LibraryInput({ label, placeholder, value, onChange, onHelp, icon, error
         <span className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 flex items-center justify-center">{icon}</span>
         <input
           type="text" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
-          className={`w-full bg-gray-50 border rounded-xl pl-11 pr-4 py-3 text-gray-900 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 transition-all ${error ? "border-red-300 focus:ring-red-200 focus:border-red-400" : "border-gray-200 focus:ring-[#4f11ff]/30 focus:border-[#4f11ff]"}`}
+          className={`w-full bg-gray-50 border rounded-xl pl-11 pr-10 py-3 text-gray-900 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 transition-all ${borderClass}`}
         />
+        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+          {metaStatus === "valid"   && <CheckCircle2 className="h-4 w-4 text-green-500" />}
+          {metaStatus === "invalid" && <AlertCircle className="h-4 w-4 text-orange-400" />}
+        </div>
       </div>
+      {!error && metaStatus === "valid"   && <p className="text-xs text-green-600 flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> URL je platná — odkaz na výsledky Meta Ads Library</p>}
+      {!error && metaStatus === "invalid" && value.trim() && (
+        <p className="text-xs text-orange-500 flex items-center gap-1">
+          <AlertCircle className="h-3 w-3" />
+          {!value.toLowerCase().includes("facebook.com/ads/library")
+            ? "Musí jít o odkaz z Meta Ads Library (facebook.com/ads/library)"
+            : "URL nevede na konkrétní výsledky — vyhledejte e-shop a zkopírujte URL stránky s výsledky"}
+        </p>
+      )}
       {error && <p className="text-xs text-red-500">{error}</p>}
     </div>
   );
