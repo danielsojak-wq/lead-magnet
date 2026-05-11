@@ -1,6 +1,6 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, Globe, Search, ShieldCheck, Info, X, Play, Maximize2 } from "lucide-react";
+import { ArrowRight, Globe, Search, ShieldCheck, Info, X, Play, Maximize2, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import * as Dialog from "@radix-ui/react-dialog";
 import performindLogo from "@/assets/performind-logo-dark.svg";
 
@@ -17,6 +17,33 @@ function normalizeWebUrl(raw: string): string | null {
   } catch {
     return null;
   }
+}
+
+type UrlStatus = "idle" | "checking" | "valid" | "invalid";
+
+function useUrlCheck(raw: string): UrlStatus {
+  const [status, setStatus] = useState<UrlStatus>("idle");
+
+  useEffect(() => {
+    const normalized = normalizeWebUrl(raw);
+    if (!normalized) { setStatus("idle"); return; }
+
+    setStatus("checking");
+    const timer = setTimeout(async () => {
+      try {
+        const hostname = new URL(normalized).hostname;
+        const res = await fetch(`https://dns.google/resolve?name=${hostname}&type=A`);
+        const json = await res.json();
+        setStatus(json.Status === 0 && json.Answer?.length > 0 ? "valid" : "invalid");
+      } catch {
+        setStatus("idle");
+      }
+    }, 700);
+
+    return () => clearTimeout(timer);
+  }, [raw]);
+
+  return status;
 }
 
 function validateMetaUrl(raw: string): boolean {
@@ -122,6 +149,16 @@ function UrlInput({ label, placeholder, value, onChange, required, error }: {
   label: string; placeholder: string; value: string; onChange: (v: string) => void;
   required?: boolean; error?: string;
 }) {
+  const urlStatus = useUrlCheck(value);
+
+  const borderClass = error
+    ? "border-red-300 focus:ring-red-200 focus:border-red-400"
+    : urlStatus === "valid"
+    ? "border-green-300 focus:ring-green-200 focus:border-green-400"
+    : urlStatus === "invalid"
+    ? "border-orange-300 focus:ring-orange-200 focus:border-orange-400"
+    : "border-gray-200 focus:ring-[#4f11ff]/30 focus:border-[#4f11ff]";
+
   return (
     <div className="space-y-1.5">
       <div className="flex items-center gap-2">
@@ -132,9 +169,18 @@ function UrlInput({ label, placeholder, value, onChange, required, error }: {
         <Globe className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
         <input
           type="text" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
-          className={`w-full bg-white border rounded-xl pl-11 pr-4 py-3 text-gray-900 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 transition-all ${error ? "border-red-300 focus:ring-red-200 focus:border-red-400" : "border-gray-200 focus:ring-[#4f11ff]/30 focus:border-[#4f11ff]"}`}
+          className={`w-full bg-white border rounded-xl pl-11 pr-10 py-3 text-gray-900 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 transition-all ${borderClass}`}
         />
+        {/* Status icon inside input */}
+        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+          {urlStatus === "checking" && <Loader2 className="h-4 w-4 text-gray-400 animate-spin" />}
+          {urlStatus === "valid"    && <CheckCircle2 className="h-4 w-4 text-green-500" />}
+          {urlStatus === "invalid"  && <AlertCircle className="h-4 w-4 text-orange-400" />}
+        </div>
       </div>
+      {/* Status message */}
+      {!error && urlStatus === "valid"   && <p className="text-xs text-green-600 flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> Doména je dostupná</p>}
+      {!error && urlStatus === "invalid" && <p className="text-xs text-orange-500 flex items-center gap-1"><AlertCircle className="h-3 w-3" /> Doména nebyla nalezena — zkontrolujte URL</p>}
       {error && <p className="text-xs text-red-500">{error}</p>}
     </div>
   );
