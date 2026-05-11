@@ -83,7 +83,7 @@ export default function CheckEmailPage() {
       {/* Navbar */}
       <nav className="sticky top-0 z-50 bg-gray-950/80 backdrop-blur-md border-b border-white/8">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center">
-          <img src={performindLogo} alt="Performind Studio" className="h-6 object-contain brightness-0 invert" />
+          <img src={performindLogo} alt="Performind Marketing" className="h-6 object-contain brightness-0 invert" />
         </div>
       </nav>
 
@@ -213,7 +213,7 @@ export default function CheckEmailPage() {
       </div>
 
       <footer className="border-t border-white/8 py-6 px-6 text-center">
-        <p className="text-white/20 text-xs">© {new Date().getFullYear()} Performind Studio s.r.o.</p>
+        <p className="text-white/20 text-xs">© {new Date().getFullYear()} Performind Marketing s.r.o.</p>
       </footer>
     </div>
   );

@@ -244,7 +244,7 @@ export default function WaitingPage() {
 
         <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center">
-            <img src={performindLogo} alt="Performind Studio" className="h-6 object-contain" />
+            <img src={performindLogo} alt="Performind Marketing" className="h-6 object-contain" />
           </div>
         </nav>
 
@@ -319,7 +319,7 @@ export default function WaitingPage() {
         </div>
 
         <footer className="border-t border-gray-100 py-6 px-6 text-center bg-white/70">
-          <p className="text-gray-400 text-xs">© {new Date().getFullYear()} Performind Studio s.r.o.</p>
+          <p className="text-gray-400 text-xs">© {new Date().getFullYear()} Performind Marketing s.r.o.</p>
         </footer>
       </div>
     </div>

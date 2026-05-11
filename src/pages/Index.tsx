@@ -171,7 +171,7 @@ const Index = ({ clientName, clientSlug, isAdmin, initialSection, onBack }: Inde
               {/* Client header — original layout */}
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pt-3 sm:pt-0 sm:h-[72px]">
                 <div className="flex items-center justify-between sm:justify-start gap-3 sm:gap-4">
-                  <img src={performindLogo} alt="Performind Studio" className="w-[120px] sm:w-[180px] block" />
+                  <img src={performindLogo} alt="Performind Marketing" className="w-[120px] sm:w-[180px] block" />
                   <div className="h-5 sm:h-6 w-px bg-border" />
                   <ClientHeaderLogo key={clientSlug} slug={clientSlug} name={clientName} />
                 </div>

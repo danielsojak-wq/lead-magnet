@@ -20,7 +20,7 @@ export default function DevPage() {
   return (
     <div className="min-h-screen bg-gray-50 font-[family-name:var(--font-body)]">
       <nav className="bg-white border-b border-gray-100 px-6 h-16 flex items-center gap-3">
-        <img src={performindLogo} alt="Performind Studio" className="h-5 object-contain" />
+        <img src={performindLogo} alt="Performind Marketing" className="h-5 object-contain" />
         <span className="text-xs font-semibold bg-[#4f11ff]/10 text-[#4f11ff] px-2 py-0.5 rounded-full">DEV NAV</span>
       </nav>
       <div className="max-w-2xl mx-auto px-4 py-12">

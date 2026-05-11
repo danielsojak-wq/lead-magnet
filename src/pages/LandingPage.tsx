@@ -135,7 +135,7 @@ export default function LandingPage() {
       <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-100">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src={performindLogo} alt="Performind Studio" className="h-6 object-contain" />
+            <img src={performindLogo} alt="Performind Marketing" className="h-6 object-contain" />
             <span className="hidden sm:flex items-center gap-1.5 bg-[#4f11ff]/8 text-[#4f11ff] text-xs font-semibold px-2.5 py-1 rounded-full border border-[#4f11ff]/15 tracking-wide uppercase">
               Analýza konkurence
             </span>
@@ -385,9 +385,9 @@ export default function LandingPage() {
       {/* ── Footer ─────────────────────────────────────────────────────────── */}
       <footer className="border-t border-gray-100 py-8 bg-white">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <img src={performindLogo} alt="Performind Studio" className="h-5 object-contain" />
+          <img src={performindLogo} alt="Performind Marketing" className="h-5 object-contain" />
           <p className="text-gray-400 text-xs text-center">
-            © {new Date().getFullYear()} Performind Studio s.r.o. · Strategický výkonnostní marketing
+            © {new Date().getFullYear()} Performind Marketing s.r.o. · Strategický výkonnostní marketing
           </p>
           <a href="https://performind.cz" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-gray-700 text-xs transition-colors">
             performind.cz

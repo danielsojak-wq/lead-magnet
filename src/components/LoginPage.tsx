@@ -309,7 +309,7 @@ function LoginForm() {
         <div className="flex flex-col items-center mb-12">
           <img
             src={performindLogo}
-            alt="Performind Studio"
+            alt="Performind Marketing"
             className="w-[180px] mb-6 drop-shadow-lg"
           />
           <div className="h-px w-16 bg-gradient-to-r from-transparent via-primary/40 to-transparent mb-6" />
@@ -426,7 +426,7 @@ function LoginForm() {
 
         {/* Footer */}
         <p className="text-center text-xs text-muted-foreground/50 mt-8">
-          © {new Date().getFullYear()} Performind Studio
+          © {new Date().getFullYear()} Performind Marketing
         </p>
       </div>
     </div>

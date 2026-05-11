@@ -82,7 +82,7 @@ function buildEmailHtml({
 
     <!-- Header -->
     <div style="background:linear-gradient(135deg,#4f11ff,#7c3aed);padding:32px 32px 28px;">
-      <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:rgba(255,255,255,0.6);margin-bottom:8px;">Performind Studio</div>
+      <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:rgba(255,255,255,0.6);margin-bottom:8px;">Performind Marketing</div>
       <h1 style="margin:0;font-size:24px;font-weight:800;color:#ffffff;line-height:1.2;">
         Konkurenční analýza<br>pro ${eshopName}
       </h1>
@@ -117,7 +117,7 @@ function buildEmailHtml({
     <!-- Footer -->
     <div style="padding:16px 32px;background:#f9fafb;border-top:1px solid #e5e7eb;text-align:center;">
       <p style="margin:0;font-size:11px;color:#9ca3af;">
-        © ${new Date().getFullYear()} Performind Studio s.r.o. · Vyšehradská 1349/2, Praha 2
+        © ${new Date().getFullYear()} Performind Marketing s.r.o. · Vyšehradská 1349/2, Praha 2
       </p>
     </div>
   </div>
@@ -182,7 +182,7 @@ Deno.serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "Performind Studio <vysledek@analyza.performind.cz>",
+        from: "Performind Marketing <vysledek@analyza.performind.cz>",
         to: [session.email],
         subject: `Vaše konkurenční analýza — ${session.eshop_name ?? "výsledky"}`,
         html,
