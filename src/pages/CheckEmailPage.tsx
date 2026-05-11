@@ -57,9 +57,9 @@ export default function CheckEmailPage() {
 
             {/* Steps */}
             <div className="text-left space-y-4 mb-10 bg-gray-50 border border-gray-100 rounded-2xl p-6">
-              [
+              {[
                 { step: "1", text: "Otevřete email od Performind Studio", done: true },
-                { step: "2", text: "Klikněte na tlačítko „Ověřit email a spustit analýzu"", done: false },
+                { step: "2", text: "Klikněte na tlačítko „Ověřit email a spustit analýzu“", done: false },
                 { step: "3", text: "Sledujte výsledky živě přímo v prohlížeči", done: false },
               ].map((item) => (
                 <div key={item.step} className="flex items-center gap-4">
