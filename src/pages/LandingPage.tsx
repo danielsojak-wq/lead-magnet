@@ -304,7 +304,7 @@ export default function LandingPage() {
         <div className="max-w-5xl mx-auto px-4 sm:px-6">
 
           <div className="text-center mb-14">
-            <p className="text-[#b0f221] text-sm font-semibold tracking-wide uppercase mb-3">Metodologie</p>
+            <p className="text-[#b0f221] text-sm font-semibold tracking-wide uppercase mb-3">JAK TO DĚLÁME</p>
             <h2 className="font-[family-name:var(--font-heading)] text-3xl sm:text-4xl font-bold text-white mb-5">
               Víc než scraping reklam.
               <br />
