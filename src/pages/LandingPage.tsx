@@ -166,9 +166,8 @@ export default function LandingPage() {
           </div>
 
           <h1 className="font-[family-name:var(--font-heading)] text-4xl sm:text-5xl lg:text-[3.25rem] font-bold leading-[1.12] tracking-tight mb-6 text-white whitespace-pre-line">
-            Získáte konkrétní doporučení do 10 minut{"\n"}
-            Víte, co dělá vaše konkurence na Metě?{"\n\n"}
-            Za komplexní analýzu si agentury účtují 10 000 Kč.{"\n\n"}
+            Víte, jak vaše konkurence dělá reklamu na Metě?{"\n\n"}
+            Za komplexní analýzu si agentury účtují 10 000 Kč a více.{"\n\n"}
             <span className="text-[#b0f221]">Teď ji získáte zdarma.</span>
           </h1>
 
