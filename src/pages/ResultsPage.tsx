@@ -773,7 +773,7 @@ function CompetitorSection({ competitor, index, isEshop }: { competitor: Competi
         )}
 
         {/* Legacy summary fallback */}
-        {!ai && sections.length > 0 && (
+        {!ai && sections.length > 0 && competitor.status !== "processing" && (
           <div className="space-y-5">
             {sections.map((s, i) => (
               <div key={i}>
