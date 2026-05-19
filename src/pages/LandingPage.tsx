@@ -97,7 +97,7 @@ const AI_FEATURES = [
 
 const PIPELINE = [
   { icon: Globe,     label: "Sběr dat",    sub: "Ad Library API" },
-  { icon: Cpu,       label: "AI analýza",  sub: "Jazykové modely" },
+  { icon: Brain,     label: "AI analýza",  sub: "Jazykové modely" },
   { icon: BarChart3, label: "Benchmarking", sub: "Data z klientů" },
   { icon: Zap,       label: "Výsledky",    sub: "Do 5 minut" },
 ];
