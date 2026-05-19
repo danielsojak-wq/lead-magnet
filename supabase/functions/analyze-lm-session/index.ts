@@ -158,6 +158,69 @@ function adMixFromAds(ads: any[]): { brand: number; sales: number; retargeting: 
   };
 }
 
+// ─── Classify ads ────────────────────────────────────────────────────────────
+
+async function classifyAds(apiKey: string, supa: ReturnType<typeof admin>, sessionId: string): Promise<void> {
+  const { data: ads } = await supa
+    .from("lm_session_ads")
+    .select("id, primary_text")
+    .eq("session_id", sessionId)
+    .is("ad_type", null);
+  if (!ads?.length) return;
+  console.log(`classifyAds: ${ads.length} unclassified ads in session ${sessionId}`);
+
+  const BATCH = 5;
+  for (let i = 0; i < ads.length; i += BATCH) {
+    const batch = ads.slice(i, i + BATCH);
+    try {
+      const res = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "gemini-2.5-flash",
+          max_tokens: 200,
+          messages: [
+            { role: "system", content: "Klasifikuj každou reklamu: brand = budování značky; sales = přímá konverze; retargeting = připomenutí. Zavolej classify_batch." },
+            { role: "user", content: batch.map((ad: any, idx: number) => `--- Reklama ${idx + 1} ---\nText: ${(ad.primary_text || "—").slice(0, 300)}`).join("\n") },
+          ],
+          tools: [{
+            type: "function",
+            function: {
+              name: "classify_batch",
+              parameters: {
+                type: "object",
+                properties: {
+                  results: {
+                    type: "array",
+                    items: { type: "object", properties: { ad_type: { type: "string", enum: ["brand", "sales", "retargeting"] } }, required: ["ad_type"] },
+                  },
+                },
+                required: ["results"],
+              },
+            },
+          }],
+          tool_choice: { type: "function", function: { name: "classify_batch" } },
+        }),
+      });
+      if (!res.ok) { console.warn(`classifyAds batch ${i} HTTP ${res.status}`); continue; }
+      const d = await res.json();
+      const args = d?.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
+      if (!args) continue;
+      const results: { ad_type: string }[] = JSON.parse(args)?.results ?? [];
+      await Promise.all(batch.map(async (ad: any, idx: number) => {
+        const t = results[idx]?.ad_type;
+        if (t === "brand" || t === "sales" || t === "retargeting") {
+          await supa.from("lm_session_ads").update({ ad_type: t }).eq("id", ad.id);
+        }
+      }));
+      if (i + BATCH < ads.length) await new Promise(r => setTimeout(r, 1000));
+    } catch (e) {
+      console.error(`classifyAds batch ${i} error:`, e);
+    }
+  }
+  console.log(`classifyAds: done`);
+}
+
 // ─── Prompt builders ─────────────────────────────────────────────────────────
 
 const L1_SYSTEM = `Jsi senior marketingový stratég specializující se na digitální reklamu.
@@ -169,6 +232,7 @@ PRAVIDLA:
 - top_reklama.popis a proc_funguje musí vycházet z konkrétní reklamy z dat — pokud taková není, napiš "Bez dat"
 - aktivita.pocet_aktivnich_reklam vyplň přesně dle dat (počet kde is_active=true)
 - Analyzuj VÝHRADNĚ Meta reklamy — máme data pouze z Meta Ads Library. Google Ads data NEMÁME. V poli reklamni_mix.google vyplň všechna čísla nulami.
+- reklamni_mix.meta: POČÍTEJ PŘESNĚ z pole "format" každé reklamy v datech. "video" → přičti k video, "carousel" → přičti k carousel, "single_image" → přičti k single_image. Nikdy neodhaduj ani nedoplňuj formát, který v datech není. stories vždy 0. Čísla jsou absolutní počty reklam, ne procenta.
 - NIKDY nezmiňuj procenta rozpočtu, alokaci investic ani % výdajů — tato data nemáme. Místo toho vždy uváděj počty reklam: "X z Y reklam jsou retargetingové povahy"
 - Nikdy nevymýšlej strategie, claimy ani vzorce bez datové opory`;
 
@@ -176,6 +240,7 @@ function l1User(playerName: string, playerUrl: string, ads: any[], websiteConten
   const adRows = ads.slice(0, 30).map(a => ({
     text: (a.primary_text || "").slice(0, 200),
     type: a.ad_type || null,
+    format: a.format || (a.video_url ? "video" : a.image_url ? "single_image" : null),
     source: a.ad_source || "meta",
     active: a.is_active,
     started: a.ad_start_date || null,
@@ -362,11 +427,26 @@ export async function runAnalysis(sessionId: string, apiKey: string): Promise<vo
     adsMap.set(ad.competitor_id, list);
   }
 
+  // Classify unclassified ads (brand/sales/retargeting) before L1 so AI gets typed data
+  await classifyAds(apiKey, supa, sessionId);
+
+  // Reload ads after classification — adsMap now has correct ad_type and format
+  const { data: classifiedAds } = await supa
+    .from("lm_session_ads")
+    .select("*")
+    .eq("session_id", sessionId);
+  const classifiedMap = new Map<string, any[]>();
+  for (const ad of classifiedAds ?? []) {
+    const list = classifiedMap.get(ad.competitor_id) ?? [];
+    list.push(ad);
+    classifiedMap.set(ad.competitor_id, list);
+  }
+
   // Prepare ads per competitor (filtered)
-  const compAdsFiltered = comps.map((c: any) => filterAds(adsMap.get(c.id) ?? []));
+  const compAdsFiltered = comps.map((c: any) => filterAds(classifiedMap.get(c.id) ?? []));
 
   // Eshop ads from position 0 row (if scraped)
-  const eshopAds: any[] = eshopComp ? filterAds(adsMap.get(eshopComp.id) ?? []) : [];
+  const eshopAds: any[] = eshopComp ? filterAds(classifiedMap.get(eshopComp.id) ?? []) : [];
 
   // Fetch landing pages in parallel (before AI calls)
   const allUrls = [session.eshop_url || "", ...comps.map((c: any) => c.url)];
@@ -429,11 +509,11 @@ export async function runAnalysis(sessionId: string, apiKey: string): Promise<vo
     const result = await callAI(apiKey, L1_SYSTEM, l1User(c.name || c.url, c.url, compAdsFiltered[i], compWebs[i]))
       .catch(async (e) => {
         console.error(`L1 failed for competitor ${c.id}:`, e);
-        await saveL1(c.id, null, adsMap.get(c.id) ?? [], String(e));
+        await saveL1(c.id, null, classifiedMap.get(c.id) ?? [], String(e));
         return null;
       });
     compL1s.push(result);
-    if (result) await saveL1(c.id, result, adsMap.get(c.id) ?? []);
+    if (result) await saveL1(c.id, result, classifiedMap.get(c.id) ?? []);
     if (i < comps.length - 1) await new Promise(r => setTimeout(r, 2000));
   }
 
