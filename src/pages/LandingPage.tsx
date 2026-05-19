@@ -2,7 +2,7 @@ import { useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowRight, Eye, Zap, Target, TrendingUp, Clock, Check,
-  Gift, Globe, Database, Cpu, Shield, BarChart3, Layers,
+  Gift, Globe, Database, Brain, Shield, BarChart3, Layers,
 } from "lucide-react";
 import performindLogo from "@/assets/performind-logo-dark.svg";
 
@@ -17,8 +17,8 @@ const USP_CHIPS = [
 const BENEFITS = [
   {
     icon: Eye,
-    title: "Uvidíte, co konkurence skutečně investuje",
-    body: "Nejdéle běžící reklamy jsou ty nejziskovější. Zjistíte, jaké kreativy, texty a sdělení konkurence udržuje měsíce v Google i na Metě – a proč.",
+    title: "Konkrétní doporučení, která můžete aplikovat hned",
+    body: "Jaké formáty, úhly komunikace, kreativy a využívají všichni ",
   },
   {
     icon: Target,
@@ -27,7 +27,7 @@ const BENEFITS = [
   },
   {
     icon: Zap,
-    title: "Konkrétní doporučení, ne data",
+    title: "Žádná teorie, ale konkrétní doporučení",
     body: "Nedostanete tabulky plné čísel. Dostanete jasný seznam: co zlepšit, co testovat a kde máte oproti konkurenci výhodu.",
   },
   {
@@ -40,8 +40,8 @@ const BENEFITS = [
 const STEPS = [
   {
     num: "01",
-    title: "Vložte URL eshopu a 2 konkurentů",
-    body: "Přidáte odkaz na váš web a oba konkurenty spolu s jejich Meta Ads Library URL. Trvá to 2 minuty.",
+    title: "Výsledky přímo v prohlížeči",
+    body: "Proskenujeme  vaše Meta reklamy a reklamy konkurence, porovnáme je a vytvoříme analýzu s konkrétními doporučeními. Tu si poté můžete nechat poslat na mail nebo vyexporrtovat.",
   },
   {
     num: "02",
@@ -65,11 +65,11 @@ const STATS = [
 const AI_FEATURES = [
   {
     icon: Database,
-    title: "Data z obou platforem",
-    body: "Napojujeme se na Meta Ad Library a Google Ads Transparency Center. Vidíme každou aktivní reklamu, její délku běhu i formát.",
+    title: "Data přímo z platforem",
+    body: "Napojujeme se na Meta Ads Library. Vidíme každou aktivní reklamu, její délku běhu i formát.",
   },
   {
-    icon: Cpu,
+    icon: Brain,
     title: "Pokročilé AI modely",
     body: "Analýzu zpracovávají jazykové modely nejnovější generace. Nespoléháme na pravidla — AI interpretuje kontext, sdělení a záměr za každou reklamou.",
   },
@@ -97,7 +97,7 @@ const AI_FEATURES = [
 
 const PIPELINE = [
   { icon: Globe,     label: "Sběr dat",    sub: "Ad Library API" },
-  { icon: Cpu,       label: "AI analýza",  sub: "Jazykové modely" },
+  { icon: Brain,     label: "AI analýza",  sub: "Jazykové modely" },
   { icon: BarChart3, label: "Benchmarking", sub: "Data z klientů" },
   { icon: Zap,       label: "Výsledky",    sub: "Do 5 minut" },
 ];
@@ -116,7 +116,7 @@ function CtaButton({ size = "lg" }: { size?: "lg" | "sm" }) {
       >
         Získat analýzu zdarma <ArrowRight className="h-4 w-4" />
       </button>
-      <p className="text-xs text-gray-400">Bez platební karty. Bez spamu. 1× na e-mailovou adresu.</p>
+      <p className="text-xs text-gray-400">{"\n"}</p>
     </div>
   );
 }
@@ -162,12 +162,13 @@ export default function LandingPage() {
           {/* Badge */}
           <div className="inline-flex items-center gap-2 bg-white/6 border border-white/10 rounded-full px-4 py-2 text-sm text-white/60 mb-10">
             <span className="w-2 h-2 rounded-full bg-[#b0f221] animate-pulse shrink-0" />
-            Analýzu získáte do 5 minut
+            Získejte konkrétní doporučení do 10 minut
           </div>
 
           <h1 className="font-[family-name:var(--font-heading)] text-4xl sm:text-5xl lg:text-[3.25rem] font-bold leading-[1.12] tracking-tight mb-6 text-white whitespace-pre-line">
-            Víte, co dělá vaše konkurence?{"\n\n\n"}
-            Za komplexní analýzu si agentury účtují 10 000 Kč.{"\n"}
+            Získáte konkrétní doporučení do 10 minut{"\n"}
+            Víte, co dělá vaše konkurence na Metě?{"\n\n"}
+            Za komplexní analýzu si agentury účtují 10 000 Kč.{"\n\n"}
             <span className="text-[#b0f221]">Teď ji získáte zdarma.</span>
           </h1>
 
@@ -184,8 +185,8 @@ export default function LandingPage() {
           {/* Feature cards strip */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-2xl mx-auto">
             {[
-              { icon: Database, label: "Pokročilá AI analýza", sub: "Dodáme ihned aplikovatelná doporučení" },
-              { icon: Cpu,      label: "AI analýza za minuty",         sub: "Gemini 2.5 Flash" },
+              { icon: Database, label: "Pokročilá analýza", sub: "Dodáme ihned aplikovatelná doporučení" },
+              { icon: Brain,    label: "Vlastní AI model",         sub: "Trénovaný na marketingových datech" },
               { icon: BarChart3, label: "Konkrétní quick wins",       sub: "Přímo použitelná doporučení" },
             ].map(({ icon: Icon, label, sub }) => (
               <div key={label} className="flex items-center gap-3 bg-white/5 border border-white/8 rounded-2xl px-4 py-3 text-left">
@@ -218,9 +219,9 @@ export default function LandingPage() {
       <section className="py-20 sm:py-28 bg-white">
         <div className="max-w-5xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-14">
-            <p className="text-[#4f11ff] text-sm font-semibold tracking-wide uppercase mb-3">Co z toho získáte</p>
+            <p className="text-[#4f11ff] text-sm font-semibold tracking-wide uppercase mb-3">CO ZÍSKÁTE</p>
             <h2 className="font-[family-name:var(--font-heading)] text-3xl sm:text-4xl font-bold text-gray-900">
-              Informace, které vám konkurence nikdy nedá
+              Informace, které vám konkurence nikdy nedá 👀
             </h2>
           </div>
 
@@ -242,9 +243,9 @@ export default function LandingPage() {
       <section className="py-20 sm:py-28 bg-gray-50 border-y border-gray-100">
         <div className="max-w-3xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-14">
-            <p className="text-[#4f11ff] text-sm font-semibold tracking-wide uppercase mb-3">Jak to funguje</p>
+            <p className="text-[#4f11ff] text-sm font-semibold tracking-wide uppercase mb-3">JAK TO FUNGUJE</p>
             <h2 className="font-[family-name:var(--font-heading)] text-3xl sm:text-4xl font-bold text-gray-900">
-              Od URL adres k výsledkům za 5 minut
+              Od URL k výsledkům za 5-10 minut ⚡️
             </h2>
           </div>
 
@@ -275,10 +276,10 @@ export default function LandingPage() {
           <div className="text-center mb-14">
             <p className="text-[#4f11ff] text-sm font-semibold tracking-wide uppercase mb-3">Co dostanete</p>
             <h2 className="font-[family-name:var(--font-heading)] text-3xl sm:text-4xl font-bold text-gray-900 mb-3">
-              Kompletní přehled o reklamní strategii konkurence
+              Přehled marketingové strategie konkurence zdarma 🔥
             </h2>
             <p className="text-gray-500 max-w-xl mx-auto whitespace-pre-line">
-              Za komplexní analýzu si agentury běžně účtují 20 000 Kč.{"\n\n"}
+              Za podobné analýzy si agentury běžně účtují 10 000 Kč a více{"\n\n"}
             </p>
           </div>
 
@@ -303,7 +304,7 @@ export default function LandingPage() {
         <div className="max-w-5xl mx-auto px-4 sm:px-6">
 
           <div className="text-center mb-14">
-            <p className="text-[#b0f221] text-sm font-semibold tracking-wide uppercase mb-3">Metodologie</p>
+            <p className="text-[#b0f221] text-sm font-semibold tracking-wide uppercase mb-3">JAK TO DĚLÁME</p>
             <h2 className="font-[family-name:var(--font-heading)] text-3xl sm:text-4xl font-bold text-white mb-5">
               Víc než scraping reklam.
               <br />
@@ -359,13 +360,13 @@ export default function LandingPage() {
       <section className="py-20 sm:py-28 bg-[#4f11ff]">
         <div className="max-w-2xl mx-auto px-4 sm:px-6 text-center">
           <div className="inline-flex items-center gap-2 bg-white/10 text-white text-xs font-semibold px-4 py-1.5 rounded-full mb-6">
-            <Check className="h-3 w-3" /> Zdarma · Bez závazků
+            <Check className="h-3 w-3" /> ZDARMA
           </div>
           <h2 className="font-[family-name:var(--font-heading)] text-3xl sm:text-4xl font-bold text-white mb-4">
-            Chcete vědět, co dělá vaše konkurence?
+            Chcete vědět, co dělá vaše konkurence? 👀
           </h2>
           <p className="text-white/70 mb-10 text-lg">
-            Zadejte URL svého eshopu a dvou konkurentů. Analýza je zdarma a trvá 5 minut.
+            {"\n"}
           </p>
 
           <div ref={ctaRef} className="flex justify-center">
@@ -373,7 +374,7 @@ export default function LandingPage() {
           </div>
 
           <div className="mt-8 flex flex-wrap items-center justify-center gap-6 text-white/50 text-sm">
-            {["Bez platební karty", "1× na email", "Výsledky do 5 minut"].map((t) => (
+            {["\n", "1× na email", "Pouze 1x pro každou e-mail adresu"].map((t) => (
               <span key={t} className="flex items-center gap-1.5">
                 <Check className="h-3.5 w-3.5 text-[#b0f221]" /> {t}
               </span>
@@ -387,7 +388,7 @@ export default function LandingPage() {
         <div className="max-w-5xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <img src={performindLogo} alt="Performind Marketing" className="h-5 object-contain" />
           <p className="text-gray-400 text-xs text-center">
-            © {new Date().getFullYear()} Performind Marketing s.r.o. · Strategický výkonnostní marketing
+            © {new Date().getFullYear()} Performind Marketing s.r.o. · Pomáháme firmám růst
           </p>
           <a href="https://performind.cz" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-gray-700 text-xs transition-colors">
             performind.cz
