@@ -374,7 +374,7 @@ export default function LandingPage() {
           </div>
 
           <div className="mt-8 flex flex-wrap items-center justify-center gap-6 text-white/50 text-sm">
-            {["Bez platební karty", "1× na email", "Výsledky do 5 minut"].map((t) => (
+            {["\n", "1× na email", "Pouze 1x pro každou e-mail adresu"].map((t) => (
               <span key={t} className="flex items-center gap-1.5">
                 <Check className="h-3.5 w-3.5 text-[#b0f221]" /> {t}
               </span>
