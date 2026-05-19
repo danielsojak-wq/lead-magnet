@@ -360,11 +360,13 @@ export default function LandingPage() {
           <div className="inline-flex items-center gap-2 bg-white/10 text-white text-xs font-semibold px-4 py-1.5 rounded-full mb-6">
             <Check className="h-3 w-3" /> ZDARMA
           </div>
-          <h2 className="font-[family-name:var(--font-heading)] text-3xl sm:text-4xl font-bold text-white mb-4">
-            Chcete vědět, co dělá vaše konkurence? 👀
+          <h2 className="font-[family-name:var(--font-heading)] text-3xl sm:text-4xl font-bold text-white mb-8 whitespace-pre-line">
+            Co dělá konkurence už víte.{"\n\n"}
+            Otázka zní: Co uděláte vy?
           </h2>
-          <p className="text-white/70 mb-10 text-lg">
-            {"\n"}
+          <p className="text-white/70 mb-10 text-lg whitespace-pre-line">
+            Rezervujte si nezávaznou konzultaci s našimi stratégy právě teď.{"\n"}
+            Zdarma. Bez závazků.
           </p>
 
           <div ref={ctaRef} className="flex justify-center">
