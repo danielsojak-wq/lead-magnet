@@ -486,25 +486,38 @@ export async function runAnalysis(sessionId: string, apiKey: string): Promise<vo
   };
 
   // ── Sequential L1 calls with 2 s gap — avoids simultaneous rate-limit hits ──
+  // Skip competitors already marked "ready" — reuse saved ai_analysis for L2
 
   // Eshop (position 0)
   let eshopL1: unknown = null;
   if (eshopComp) {
-    console.log(`L1: eshop (${eshopAds.length} ads)`);
-    eshopL1 = await callAI(apiKey, L1_SYSTEM, l1User(session.eshop_name || session.eshop_url || "Váš e-shop", session.eshop_url || "", eshopAds, eshopWeb))
-      .catch(async (e) => {
-        console.error("L1 failed for eshop:", e);
-        await saveL1(eshopComp.id, null, eshopAds, String(e));
-        return null;
-      });
-    if (eshopL1) await saveL1(eshopComp.id, eshopL1, eshopAds);
-    if (comps.length > 0) await new Promise(r => setTimeout(r, 2000));
+    if ((eshopComp as any).ai_analysis) {
+      console.log(`L1: skip eshop (already has analysis)`);
+      eshopL1 = (eshopComp as any).ai_analysis;
+      await supa.from("lm_session_competitors").update({ status: "ready" }).eq("id", eshopComp.id);
+    } else {
+      console.log(`L1: eshop (${eshopAds.length} ads)`);
+      eshopL1 = await callAI(apiKey, L1_SYSTEM, l1User(session.eshop_name || session.eshop_url || "Váš e-shop", session.eshop_url || "", eshopAds, eshopWeb))
+        .catch(async (e) => {
+          console.error("L1 failed for eshop:", e);
+          await saveL1(eshopComp.id, null, eshopAds, String(e));
+          return null;
+        });
+      if (eshopL1) await saveL1(eshopComp.id, eshopL1, eshopAds);
+      if (comps.length > 0) await new Promise(r => setTimeout(r, 2000));
+    }
   }
 
   // Competitors (position 1+) — one by one
   const compL1s: unknown[] = [];
   for (let i = 0; i < comps.length; i++) {
     const c = comps[i] as any;
+    if (c.ai_analysis) {
+      console.log(`L1: skip ${c.url} (already has analysis)`);
+      compL1s.push(c.ai_analysis);
+      await supa.from("lm_session_competitors").update({ status: "ready" }).eq("id", c.id);
+      continue;
+    }
     console.log(`L1: competitor ${i + 1}/${comps.length} — ${c.url} (${compAdsFiltered[i].length} ads)`);
     const result = await callAI(apiKey, L1_SYSTEM, l1User(c.name || c.url, c.url, compAdsFiltered[i], compWebs[i]))
       .catch(async (e) => {

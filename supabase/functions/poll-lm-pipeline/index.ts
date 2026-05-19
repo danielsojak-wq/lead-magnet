@@ -176,7 +176,7 @@ Deno.serve(async (req) => {
         .from("lm_sessions").select("analyzing_started_at, ai_cross_analysis").eq("id", session_id).single();
       const startedAt = fullSession?.analyzing_started_at ? new Date(fullSession.analyzing_started_at).getTime() : 0;
       const hasResult = fullSession?.ai_cross_analysis != null;
-      const stuckTooLong = !hasResult && startedAt > 0 && (Date.now() - startedAt > 8 * 60 * 1000);
+      const stuckTooLong = !hasResult && startedAt > 0 && (Date.now() - startedAt > 15 * 60 * 1000);
       if (stuckTooLong) {
         console.warn(`Session ${session_id} stuck in analyzing with no result, resetting to processing`);
         await supa.from("lm_sessions").update({ status: "processing" }).eq("id", session_id);
