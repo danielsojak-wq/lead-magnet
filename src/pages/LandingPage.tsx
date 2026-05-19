@@ -243,9 +243,9 @@ export default function LandingPage() {
       <section className="py-20 sm:py-28 bg-gray-50 border-y border-gray-100">
         <div className="max-w-3xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-14">
-            <p className="text-[#4f11ff] text-sm font-semibold tracking-wide uppercase mb-3">Jak to funguje</p>
+            <p className="text-[#4f11ff] text-sm font-semibold tracking-wide uppercase mb-3">JAK TO FUNGUJE</p>
             <h2 className="font-[family-name:var(--font-heading)] text-3xl sm:text-4xl font-bold text-gray-900">
-              Od URL adres k výsledkům za 5 minut
+              Od URL k výsledkům za 5-10 minut ⚡️
             </h2>
           </div>
 
