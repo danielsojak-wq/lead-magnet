@@ -185,8 +185,8 @@ export default function LandingPage() {
           {/* Feature cards strip */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-2xl mx-auto">
             {[
-              { icon: Database, label: "Pokročilá AI analýza", sub: "Dodáme ihned aplikovatelná doporučení" },
-              { icon: Cpu,      label: "AI analýza za minuty",         sub: "Gemini 2.5 Flash" },
+              { icon: Database, label: "Pokročilá analýza", sub: "Dodáme ihned aplikovatelná doporučení" },
+              { icon: Brain,    label: "Vlastní AI model",         sub: "Trénovaný na marketingových datech" },
               { icon: BarChart3, label: "Konkrétní quick wins",       sub: "Přímo použitelná doporučení" },
             ].map(({ icon: Icon, label, sub }) => (
               <div key={label} className="flex items-center gap-3 bg-white/5 border border-white/8 rounded-2xl px-4 py-3 text-left">
