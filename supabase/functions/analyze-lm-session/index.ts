@@ -168,6 +168,8 @@ PRAVIDLA:
 - Pokud je k dispozici méně než 5 reklam, nastav messaging.hlavni_claim na "Nedostatek dat pro spolehlivou analýzu" a buď konzervativní u všech odhadů
 - top_reklama.popis a proc_funguje musí vycházet z konkrétní reklamy z dat — pokud taková není, napiš "Bez dat"
 - aktivita.pocet_aktivnich_reklam vyplň přesně dle dat (počet kde is_active=true)
+- Analyzuj VÝHRADNĚ Meta reklamy — máme data pouze z Meta Ads Library. Google Ads data NEMÁME. V poli reklamni_mix.google vyplň všechna čísla nulami.
+- NIKDY nezmiňuj procenta rozpočtu, alokaci investic ani % výdajů — tato data nemáme. Místo toho vždy uváděj počty reklam: "X z Y reklam jsou retargetingové povahy"
 - Nikdy nevymýšlej strategie, claimy ani vzorce bez datové opory`;
 
 function l1User(playerName: string, playerUrl: string, ads: any[], websiteContent = ""): string {
@@ -232,7 +234,9 @@ PRAVIDLA PRO KVALITU INSIGHTŮ:
 - quick_wins: Každá akce musí být specifická a přímo vycházet z analýzy, ne generické rady
 - Pokud data jsou slabá nebo chybí, zdůvodnění musí explicitně uvést "data chybí — doporučení vychází z obecných vzorců segmentu"
 - Vždy uveď aspoň 2 položky v každém poli
-- V textech VŽDY používej skutečné názvy hráčů (např. "zajo.com"), NIKDY "Hráč 1", "HRÁČ_1" ani žádné zástupné označení`;
+- V textech VŽDY používej skutečné názvy hráčů (např. "zajo.com"), NIKDY "Hráč 1", "HRÁČ_1" ani žádné zástupné označení
+- Vycházej VÝHRADNĚ z Meta Ads dat. NIKDY nezmiňuj Google Ads, Google kampaně, Google Search ani Display v analýze.
+- NIKDY nezmiňuj procenta rozpočtu, alokaci investic ani % výdajů. Místo toho vždy uváděj počty reklam: "X z Y reklam jsou retargetingové povahy"`;
 
 function domainName(url: string): string {
   try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return url; }
