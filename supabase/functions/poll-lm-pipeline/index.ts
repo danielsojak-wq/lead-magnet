@@ -43,6 +43,9 @@ function mapMetaItem(it: any, sessionId: string, competitorId: string) {
     videos[0]?.videoSdUrl  || videos[0]?.video_sd_url  ||
     cardWithVid?.video_hd_url || cardWithVid?.videoHdUrl ||
     cardWithVid?.video_sd_url || cardWithVid?.videoSdUrl || null;
+  const adFormat: string =
+    videos.length > 0 || !!cardWithVid ? "video" :
+    cards.length > 1 ? "carousel" : "single_image";
   return {
     session_id:    sessionId,
     competitor_id: competitorId,
@@ -50,6 +53,7 @@ function mapMetaItem(it: any, sessionId: string, competitorId: string) {
     ad_archive_id: String(it?.ad_archive_id || it?.adArchiveID || it?.id || crypto.randomUUID()),
     image_url:     firstImg,
     video_url:     firstVid,
+    format:        adFormat,
     primary_text:  snapshot?.body?.text || snapshot?.title || it?.primary_text || null,
     is_active:     it?.is_active ?? true,
     ad_start_date: toDate(it?.start_date || it?.startDate || snapshot?.creation_time),
@@ -155,7 +159,6 @@ Deno.serve(async (req) => {
     if (!session_id) return err("session_id required");
 
     const APIFY_TOKEN = Deno.env.get("APIFY_API_TOKEN");
-    const LOVABLE_KEY = Deno.env.get("GEMINI_API_KEY");
     if (!APIFY_TOKEN) return err("APIFY_API_TOKEN not configured", 500);
 
     const supa = admin();
