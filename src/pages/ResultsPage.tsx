@@ -880,6 +880,11 @@ function CompetitorSection({ competitor, index, isEshop }: { competitor: Competi
                       <Video className="h-2.5 w-2.5 text-white" />
                     </div>
                   )}
+                  {ad.format && (
+                    <div className="absolute bottom-1.5 left-1.5 text-white font-medium leading-none" style={{ background: "rgba(0,0,0,0.7)", fontSize: 11, padding: "4px 8px", borderRadius: 4 }}>
+                      {ad.format === "single_image" ? "Image" : ad.format === "video" ? "Video" : ad.format === "carousel" ? "Carousel" : ad.format}
+                    </div>
+                  )}
                   {ad.is_active && <div className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#b0f221] shadow-sm" />}
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-all flex flex-col justify-end p-1.5 opacity-0 group-hover:opacity-100">
                     <AdTypePill type={ad.ad_type} />
