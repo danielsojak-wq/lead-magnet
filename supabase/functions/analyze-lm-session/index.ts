@@ -133,6 +133,15 @@ function filterAds(ads: any[]): any[] {
     .slice(0, 50);
 }
 
+function computeAvgDuration(ads: any[]): number {
+  const today = Date.now();
+  const active = (ads as any[]).filter((a: any) => a.ad_start_date && a.is_active);
+  const pool   = active.length ? active : (ads as any[]).filter((a: any) => a.ad_start_date);
+  if (!pool.length) return 0;
+  const days = pool.map((a: any) => Math.max(0, Math.floor((today - new Date(a.ad_start_date).getTime()) / 86400000)));
+  return Math.round(days.reduce((s: number, d: number) => s + d, 0) / days.length);
+}
+
 function adMixFromAds(ads: any[]): { brand: number; sales: number; retargeting: number } {
   const counts = { brand: 0, sales: 0, retargeting: 0 };
   for (const a of ads) {
@@ -377,6 +386,10 @@ export async function runAnalysis(sessionId: string, apiKey: string): Promise<vo
       ? { brand: l1AdMix.brand, sales: l1AdMix.sales, retargeting: l1AdMix.retargeting }
       : adMixFromAds(ads);
     if (errorMsg) console.error(`saveL1 error for ${id}: ${errorMsg}`);
+    // AI doesn't know today's date — always compute duration from real data
+    if (analysis && (analysis as any).aktivita) {
+      (analysis as any).aktivita.prumerna_delka_behu_dni = computeAvgDuration(ads);
+    }
     await supa.from("lm_session_competitors").update({
       ai_analysis: analysis ?? null,
       status: analysis ? "ready" : "failed",
