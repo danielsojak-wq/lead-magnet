@@ -17,13 +17,13 @@ const USP_CHIPS = [
 const BENEFITS = [
   {
     icon: Eye,
-    title: "Konkrétní doporučení, která můžete aplikovat hned",
-    body: "Jaké formáty, úhly komunikace, kreativy a využívají všichni ",
+    title: "Doporučení, která můžete aplikovat hned",
+    body: "Výstupem budou konkrétní hodnotná doporučení, která můžete ihned aplikovat.",
   },
   {
     icon: Target,
-    title: "Najdete jejich slepá místa",
-    body: "AI identifikuje témata a příležitosti, které konkurence v reklamách ignoruje. Přesně tam se vyplatí zaútočit.",
+    title: "Doporučení, která můžete aplikovat hned",
+    body: "Výstupem budou konkrétní hodnotná doporučení, která můžete ihned aplikovat.",
   },
   {
     icon: Zap,
