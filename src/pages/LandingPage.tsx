@@ -17,8 +17,8 @@ const USP_CHIPS = [
 const BENEFITS = [
   {
     icon: Eye,
-    title: "Uvidíte, co konkurence skutečně investuje",
-    body: "Nejdéle běžící reklamy jsou ty nejziskovější. Zjistíte, jaké kreativy, texty a sdělení konkurence udržuje měsíce v Google i na Metě – a proč.",
+    title: "Konkrétní doporučení, která můžete aplikovat hned",
+    body: "Jaké formáty, úhly komunikace, kreativy a využívají všichni ",
   },
   {
     icon: Target,
@@ -27,7 +27,7 @@ const BENEFITS = [
   },
   {
     icon: Zap,
-    title: "Konkrétní doporučení, ne data",
+    title: "Žádná teorie, ale konkrétní doporučení",
     body: "Nedostanete tabulky plné čísel. Dostanete jasný seznam: co zlepšit, co testovat a kde máte oproti konkurenci výhodu.",
   },
   {
