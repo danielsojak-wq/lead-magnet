@@ -388,7 +388,7 @@ export default function LandingPage() {
         <div className="max-w-5xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <img src={performindLogo} alt="Performind Marketing" className="h-5 object-contain" />
           <p className="text-gray-400 text-xs text-center">
-            © {new Date().getFullYear()} Performind Marketing s.r.o. · Strategický výkonnostní marketing
+            © {new Date().getFullYear()} Performind Marketing s.r.o. · Pomáháme firmám růst
           </p>
           <a href="https://performind.cz" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-gray-700 text-xs transition-colors">
             performind.cz
