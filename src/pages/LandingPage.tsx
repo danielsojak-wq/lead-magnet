@@ -219,9 +219,9 @@ export default function LandingPage() {
       <section className="py-20 sm:py-28 bg-white">
         <div className="max-w-5xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-14">
-            <p className="text-[#4f11ff] text-sm font-semibold tracking-wide uppercase mb-3">Co z toho získáte</p>
+            <p className="text-[#4f11ff] text-sm font-semibold tracking-wide uppercase mb-3">CO ZÍSKÁTE</p>
             <h2 className="font-[family-name:var(--font-heading)] text-3xl sm:text-4xl font-bold text-gray-900">
-              Informace, které vám konkurence nikdy nedá
+              Informace, které vám konkurence nikdy nedá 👀
             </h2>
           </div>
 
