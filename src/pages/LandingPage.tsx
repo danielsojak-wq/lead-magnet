@@ -162,12 +162,13 @@ export default function LandingPage() {
           {/* Badge */}
           <div className="inline-flex items-center gap-2 bg-white/6 border border-white/10 rounded-full px-4 py-2 text-sm text-white/60 mb-10">
             <span className="w-2 h-2 rounded-full bg-[#b0f221] animate-pulse shrink-0" />
-            Analýzu získáte do 5 minut
+            Získejte konkrétní doporučení do 10 minut
           </div>
 
           <h1 className="font-[family-name:var(--font-heading)] text-4xl sm:text-5xl lg:text-[3.25rem] font-bold leading-[1.12] tracking-tight mb-6 text-white whitespace-pre-line">
-            Víte, co dělá vaše konkurence?{"\n\n\n"}
-            Za komplexní analýzu si agentury účtují 10 000 Kč.{"\n"}
+            Získáte konkrétní doporučení do 10 minut{"\n"}
+            Víte, co dělá vaše konkurence na Metě?{"\n\n"}
+            Za komplexní analýzu si agentury účtují 10 000 Kč.{"\n\n"}
             <span className="text-[#b0f221]">Teď ji získáte zdarma.</span>
           </h1>
 
