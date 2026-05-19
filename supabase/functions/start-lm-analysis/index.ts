@@ -1,7 +1,7 @@
 import { corsHeaders } from "../_shared/cors.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const APIFY_META_ACTOR = "apify~facebook-ads-scraper";
+const APIFY_META_ACTOR = "curious_coder~facebook-ads-library-scraper";
 
 function admin() {
   return createClient(
@@ -113,9 +113,9 @@ Deno.serve(async (req) => {
         .select().single();
       if (eshopRow) {
         const { runId, error: runErr } = await startApifyRun(APIFY_TOKEN, APIFY_META_ACTOR, {
-          startUrls: [{ url: eshop_meta_url.trim() }],
-          resultsLimit: 50,
-          activeStatus: "active",
+          urls: [{ url: eshop_meta_url.trim() }],
+          limitPerSource: 50,
+          "scrapePageAds.activeStatus": "active",
         });
         if (runId) {
           await supa.from("lm_session_competitors").update({ apify_run_id: runId, status: "scraping" }).eq("id", eshopRow.id);
@@ -153,9 +153,9 @@ Deno.serve(async (req) => {
 
       if (metaUrl) {
         const { runId: metaRunId, error: metaErr } = await startApifyRun(APIFY_TOKEN, APIFY_META_ACTOR, {
-          startUrls: [{ url: metaUrl }],
-          resultsLimit: 50,
-          activeStatus: "active",
+          urls: [{ url: metaUrl }],
+          limitPerSource: 50,
+          "scrapePageAds.activeStatus": "active",
         });
         if (metaRunId) { updates.apify_run_id = metaRunId; log.push(`meta=${metaRunId}`); }
         else log.push(`meta=FAILED: ${metaErr}`);

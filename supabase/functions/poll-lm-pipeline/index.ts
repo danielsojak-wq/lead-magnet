@@ -27,10 +27,22 @@ function mapMetaItem(it: any, sessionId: string, competitorId: string) {
   const images = snapshot?.images || it?.images || [];
   const cards  = snapshot?.cards  || it?.cards  || [];
   const videos = snapshot?.videos || it?.videos || [];
+  const cardWithImg = cards.find((c: any) =>
+    c.original_image_url || c.originalImageUrl || c.resized_image_url || c.resizedImageUrl
+  );
   const firstImg =
-    images[0]?.originalImageUrl || images[0]?.resizedImageUrl ||
-    cards.find((c: any) => c.originalImageUrl || c.resizedImageUrl)?.originalImageUrl || null;
-  const firstVid = videos[0]?.videoHdUrl || videos[0]?.videoSdUrl || null;
+    images[0]?.originalImageUrl || images[0]?.original_image_url ||
+    images[0]?.resizedImageUrl  || images[0]?.resized_image_url  ||
+    cardWithImg?.original_image_url || cardWithImg?.originalImageUrl ||
+    cardWithImg?.resized_image_url  || cardWithImg?.resizedImageUrl  || null;
+  const cardWithVid = cards.find((c: any) =>
+    c.video_hd_url || c.videoHdUrl || c.video_sd_url || c.videoSdUrl
+  );
+  const firstVid =
+    videos[0]?.videoHdUrl  || videos[0]?.video_hd_url  ||
+    videos[0]?.videoSdUrl  || videos[0]?.video_sd_url  ||
+    cardWithVid?.video_hd_url || cardWithVid?.videoHdUrl ||
+    cardWithVid?.video_sd_url || cardWithVid?.videoSdUrl || null;
   return {
     session_id:    sessionId,
     competitor_id: competitorId,
@@ -158,10 +170,10 @@ Deno.serve(async (req) => {
     // Recovery: if stuck in "analyzing" for more than 8 minutes with no result, reset
     if (session?.status === "analyzing") {
       const { data: fullSession } = await supa
-        .from("lm_sessions").select("created_at, ai_cross_analysis").eq("id", session_id).single();
-      const createdAt = fullSession?.created_at ? new Date(fullSession.created_at).getTime() : 0;
+        .from("lm_sessions").select("analyzing_started_at, ai_cross_analysis").eq("id", session_id).single();
+      const startedAt = fullSession?.analyzing_started_at ? new Date(fullSession.analyzing_started_at).getTime() : 0;
       const hasResult = fullSession?.ai_cross_analysis != null;
-      const stuckTooLong = !hasResult && (Date.now() - createdAt > 8 * 60 * 1000);
+      const stuckTooLong = !hasResult && startedAt > 0 && (Date.now() - startedAt > 8 * 60 * 1000);
       if (stuckTooLong) {
         console.warn(`Session ${session_id} stuck in analyzing with no result, resetting to processing`);
         await supa.from("lm_sessions").update({ status: "processing" }).eq("id", session_id);
@@ -189,7 +201,8 @@ Deno.serve(async (req) => {
 
     // If any competitor is still pending (Apify not yet started), report scraping
     if (comps.some(c => c.status === "pending")) {
-      return ok({ status: "scraping" });
+      const scraped = comps.filter(c => c.status === "scraped" || c.status === "scrape_failed").length;
+      return ok({ status: "scraping", scraped, total: comps.length });
     }
 
     const scraping = comps.filter(c => c.status === "scraping");
@@ -224,8 +237,10 @@ Deno.serve(async (req) => {
     const { data: freshComps } = await supa
       .from("lm_session_competitors").select("status").eq("session_id", session_id);
 
-    if ((freshComps ?? []).some(c => c.status === "scraping")) {
-      return ok({ status: "scraping" });
+    const fc = freshComps ?? [];
+    if (fc.some(c => c.status === "scraping" || c.status === "pending")) {
+      const scraped = fc.filter(c => c.status === "scraped" || c.status === "scrape_failed").length;
+      return ok({ status: "scraping", scraped, total: fc.length });
     }
 
     // All scraped → trigger AI (only once)
@@ -233,7 +248,7 @@ Deno.serve(async (req) => {
       .from("lm_sessions").select("status").eq("id", session_id).single();
 
     if (freshSession?.status === "processing") {
-      await supa.from("lm_sessions").update({ status: "analyzing" }).eq("id", session_id);
+      await supa.from("lm_sessions").update({ status: "analyzing", analyzing_started_at: new Date().toISOString() }).eq("id", session_id);
       const analyzeUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/analyze-lm-session`;
       await fetch(analyzeUrl, {
         method: "POST",
