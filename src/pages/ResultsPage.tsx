@@ -282,23 +282,73 @@ function ComparisonChart({ competitors }: { competitors: CompetitorResult[] }) {
   );
 }
 
-function PositioningRadar({ radar }: { radar: AiCrossAnalysis["pozice_zadavatele"]["radar"] }) {
-  const data = [
-    { subject: "Objem reklam", value: radar.objem_reklam },
-    { subject: "Kreativita", value: radar.kreativni_diverzita },
-    { subject: "Messaging", value: radar.messaging_jasnost },
-    { subject: "Brand", value: radar.brand_konzistence },
-    { subject: "Funnel", value: radar.funnel_pokryti },
-  ];
+const RADAR_AXES = ["Objem", "Kreativa", "Funnel", "Akvizice", "Brand", "Remarketing"] as const;
+const RADAR_KEYS = ["objem", "kreativa", "funnel", "akvizice", "brand", "remarketing"] as const;
+type RadarKey = typeof RADAR_KEYS[number];
+const PLAYER_COLORS = ["#6B46C1", "#3B82F6", "#F97316"] as const;
+
+function calcPlayerRadarValues(p: CompetitorResult, rawVolume: number, maxVolume: number): Record<RadarKey, number> {
+  const ai = p.ai_analysis;
+  const mix = p.ad_mix;
+  const total = mix.brand + mix.sales + mix.retargeting;
+
+  const objem = Math.round((rawVolume / maxVolume) * 100);
+
+  const fmeta = ai?.reklamni_mix.meta;
+  const formatCount = fmeta ? [fmeta.single_image, fmeta.carousel, fmeta.video].filter(v => v > 0).length : 0;
+  const kreativa = Math.round(formatCount * 100 / 3);
+
+  const funnelCount = [mix.brand > 0, mix.sales > 0, mix.retargeting > 0].filter(Boolean).length;
+  const funnel = Math.round(funnelCount * 100 / 3);
+
+  const akvizice = total ? Math.round((mix.sales / total) * 100) : 0;
+  const brand = total ? Math.round((mix.brand / total) * 100) : 0;
+  const remarketing = total ? Math.round((mix.retargeting / total) * 100) : 0;
+
+  return { objem, kreativa, funnel, akvizice, brand, remarketing };
+}
+
+function PositioningRadar({ eshopName, eshopCompetitor, competitors }: {
+  eshopName: string;
+  eshopCompetitor: CompetitorResult | null | undefined;
+  competitors: CompetitorResult[];
+}) {
+  const players = [
+    eshopCompetitor ? { comp: eshopCompetitor, name: eshopName } : null,
+    ...competitors.map(c => ({ comp: c, name: c.name })),
+  ].filter(Boolean) as Array<{ comp: CompetitorResult; name: string }>;
+
+  const volumes = players.map(p => p.comp.ai_analysis?.aktivita.pocet_aktivnich_reklam ?? p.comp.ads.filter(a => a.is_active).length);
+  const maxVol = Math.max(...volumes, 1);
+  const playerValues = players.map((p, i) => calcPlayerRadarValues(p.comp, volumes[i], maxVol));
+
+  const data = RADAR_AXES.map((subject, ai) => {
+    const entry: Record<string, unknown> = { subject };
+    playerValues.forEach((pv, pi) => { entry[`p${pi}`] = pv[RADAR_KEYS[ai]]; });
+    return entry;
+  });
+
   return (
-    <ResponsiveContainer width="100%" height={220}>
-      <RadarChart cx="50%" cy="50%" outerRadius="70%" data={data}>
-        <PolarGrid stroke="#e5e7eb" />
-        <PolarAngleAxis dataKey="subject" tick={{ fontSize: 11, fill: "#6b7280" }} />
-        <PolarRadiusAxis domain={[0, 10]} tick={false} axisLine={false} />
-        <Radar name="Váš e-shop" dataKey="value" stroke="#4f11ff" fill="#4f11ff" fillOpacity={0.15} strokeWidth={2} />
-      </RadarChart>
-    </ResponsiveContainer>
+    <div>
+      <div className="flex flex-wrap gap-4 mb-2 justify-center">
+        {players.map((p, i) => (
+          <div key={i} className="flex items-center gap-1.5 text-xs text-gray-600">
+            <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: PLAYER_COLORS[i] }} />
+            {p.name}
+          </div>
+        ))}
+      </div>
+      <ResponsiveContainer width="100%" height={240}>
+        <RadarChart cx="50%" cy="50%" outerRadius="68%" data={data}>
+          <PolarGrid stroke="#e5e7eb" />
+          <PolarAngleAxis dataKey="subject" tick={{ fontSize: 11, fill: "#6b7280" }} />
+          <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
+          {players.map((p, i) => (
+            <Radar key={i} name={p.name} dataKey={`p${i}`} stroke={PLAYER_COLORS[i]} fill={PLAYER_COLORS[i]} fillOpacity={0.25} strokeWidth={2} />
+          ))}
+        </RadarChart>
+      </ResponsiveContainer>
+    </div>
   );
 }
 
@@ -445,7 +495,12 @@ function CrossAnalysisHero({ cross, eshopName, competitors }: { cross: AiCrossAn
   );
 }
 
-function PositioningSection({ cross, eshopName }: { cross: AiCrossAnalysis; eshopName: string }) {
+function PositioningSection({ cross, eshopName, eshopCompetitor, competitors }: {
+  cross: AiCrossAnalysis;
+  eshopName: string;
+  eshopCompetitor: CompetitorResult | null | undefined;
+  competitors: CompetitorResult[];
+}) {
   const { pozice_zadavatele: pos, quick_wins: wins } = cross;
 
   const difficultyColor = (d: string) =>
@@ -471,7 +526,7 @@ function PositioningSection({ cross, eshopName }: { cross: AiCrossAnalysis; esho
       <div className="grid sm:grid-cols-2 gap-8">
         {/* Radar */}
         <div>
-          <PositioningRadar radar={pos.radar} />
+          <PositioningRadar eshopName={eshopName} eshopCompetitor={eshopCompetitor} competitors={competitors} />
           <div className="grid grid-cols-2 gap-2 mt-4">
             <div className="bg-[#4f11ff]/5 rounded-xl p-3">
               <p className="text-xs font-semibold text-[#4f11ff] uppercase tracking-wide mb-2">Silné stránky</p>
@@ -975,7 +1030,7 @@ export default function ResultsPage() {
 
         {/* Positioning radar + quick wins */}
         {cross?.pozice_zadavatele && cross?.quick_wins && (
-          <PositioningSection cross={cross} eshopName={results.eshop_name} />
+          <PositioningSection cross={cross} eshopName={results.eshop_name} eshopCompetitor={results.eshop_competitor} competitors={results.competitors} />
         )}
 
         {/* Ad mix comparison chart */}
