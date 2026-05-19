@@ -2,7 +2,7 @@ import { useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowRight, Eye, Zap, Target, TrendingUp, Clock, Check,
-  Gift, Globe, Database, Cpu, Shield, BarChart3, Layers,
+  Gift, Globe, Database, Brain, Shield, BarChart3, Layers,
 } from "lucide-react";
 import performindLogo from "@/assets/performind-logo-dark.svg";
 
