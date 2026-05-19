@@ -99,7 +99,7 @@ const PIPELINE = [
   { icon: Globe,     label: "Sběr dat",    sub: "Ad Library API" },
   { icon: Brain,     label: "AI analýza a syntéza",  sub: "Jazykové modely" },
   { icon: BarChart3, label: "Benchmarking", sub: "Porovnání na základě dat" },
-  { icon: Zap,       label: "Výsledky",    sub: "Výsledky" },
+  { icon: Zap,       label: "Výsledky",    sub: "Uvidíte hned" },
 ];
 
 /* ─── CTA button ────────────────────────────────────────────────────────────── */
