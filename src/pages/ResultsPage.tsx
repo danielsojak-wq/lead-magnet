@@ -760,11 +760,18 @@ function CompetitorSection({ competitor, index, isEshop }: { competitor: Competi
                 </div>
               )}
               <div className="flex-1 min-w-0 space-y-2">
-                {daysInRotation !== null && (
-                  <span className="inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full text-white" style={{ background: color }}>
-                    {daysInRotation} dní v rotaci
-                  </span>
-                )}
+                <div className="flex gap-1.5 flex-wrap">
+                  {topAd?.format && (
+                    <span className="inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: `${color}20`, color }}>
+                      {topAd.format === "single_image" ? "Single image" : topAd.format === "video" ? "Video" : topAd.format === "carousel" ? "Carousel" : topAd.format}
+                    </span>
+                  )}
+                  {daysInRotation !== null && (
+                    <span className="inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full text-white" style={{ background: color }}>
+                      {daysInRotation} dní v rotaci
+                    </span>
+                  )}
+                </div>
                 <p className="font-semibold text-gray-900 text-sm leading-snug">{ai!.kreativni_vzorce.top_reklama.popis}</p>
                 <p className="text-xs text-gray-500 leading-relaxed">{ai!.kreativni_vzorce.top_reklama.proc_funguje}</p>
                 <div className="flex gap-2 flex-wrap">
