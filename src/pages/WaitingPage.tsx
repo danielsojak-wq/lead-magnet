@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Search, BarChart2, FileText, Sparkles } from "lucide-react";
 import performindLogo from "@/assets/performind-logo-dark.svg";
@@ -20,6 +20,15 @@ const STATUS_TO_STEP: Record<string, number> = {
   analyzing: 2,
   ready: 3,
 };
+
+// scraping: competitor-driven 10→45%, analyzing: time-driven 45→85%
+const PHASE_RANGE: Record<string, [number, number]> = {
+  processing: [8, 10],
+  scraping:   [10, 45],
+  analyzing:  [45, 85],
+  ready:      [100, 100],
+};
+const ANALYZING_DURATION_MS = 4 * 60 * 1000;
 
 // ─── Blurred results preview ──────────────────────────────────────────────────
 
@@ -205,6 +214,10 @@ export default function WaitingPage() {
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(0);
   const [pipelineStatus, setPipelineStatus] = useState<string>("processing");
+  const [scrapedCount, setScrapedCount] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
+  const [progress, setProgress] = useState(8);
+  const analyzingStartRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!sessionId) return;
@@ -219,6 +232,11 @@ export default function WaitingPage() {
         const status: string = data?.status ?? "processing";
         setPipelineStatus(status);
         setCurrentStep(STATUS_TO_STEP[status] ?? 0);
+        if (data?.scraped != null) setScrapedCount(data.scraped);
+        if (data?.total != null) setTotalCount(data.total);
+        if (status === "analyzing" && analyzingStartRef.current === null) {
+          analyzingStartRef.current = Date.now();
+        }
         if (status === "ready") navigate(`/results/${sessionId}`);
       } catch (e) {
         console.error("poll error:", e);
@@ -229,6 +247,27 @@ export default function WaitingPage() {
     const interval = setInterval(poll, 3000);
     return () => { stopped = true; clearInterval(interval); };
   }, [sessionId, navigate]);
+
+  // Smooth progress animation — runs every 500 ms
+  useEffect(() => {
+    const tick = () => {
+      if (pipelineStatus === "ready") { setProgress(100); return; }
+      const [rangeMin, rangeMax] = PHASE_RANGE[pipelineStatus] ?? [2, 5];
+      let target: number;
+      if (pipelineStatus === "scraping" && totalCount > 0) {
+        target = rangeMin + (scrapedCount / totalCount) * (rangeMax - rangeMin);
+      } else if (pipelineStatus === "analyzing") {
+        const elapsed = analyzingStartRef.current ? Date.now() - analyzingStartRef.current : 0;
+        target = rangeMin + Math.min(0.95, elapsed / ANALYZING_DURATION_MS) * (rangeMax - rangeMin);
+      } else {
+        target = rangeMin;
+      }
+      setProgress(prev => Math.max(prev, target));
+    };
+    tick();
+    const id = setInterval(tick, 500);
+    return () => clearInterval(id);
+  }, [pipelineStatus, scrapedCount, totalCount]);
 
   return (
     <div className="relative min-h-screen bg-white text-gray-900 font-[family-name:var(--font-body)] flex flex-col overflow-hidden">
@@ -264,9 +303,25 @@ export default function WaitingPage() {
             <h1 className="font-[family-name:var(--font-heading)] text-2xl sm:text-3xl font-bold mb-3 text-gray-900">
               Analýza probíhá
             </h1>
-            <p className="text-gray-500 mb-10 text-sm">
+            <p className="text-gray-500 mb-6 text-sm">
               Trvá to přibližně 5–10 minut. Výsledky se zobrazí<br className="hidden sm:block" /> přímo zde, jakmile budou hotové.
             </p>
+
+            {/* Progress bar */}
+            <div className="mb-8">
+              <div className="flex justify-between items-baseline mb-2">
+                <span className="text-sm font-semibold text-[#4f11ff]">{Math.round(progress)} %</span>
+                {pipelineStatus === "scraping" && totalCount > 0 && (
+                  <span className="text-xs text-gray-400">{scrapedCount} z {totalCount} konkurentů hotovo</span>
+                )}
+              </div>
+              <div className="h-2.5 bg-gray-200 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-[#4f11ff] rounded-full transition-all duration-700 ease-out"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+            </div>
 
             {/* Pipeline steps card */}
             <div className="bg-white/90 border border-gray-100 rounded-2xl p-6 text-left space-y-4 shadow-sm backdrop-blur-sm">
