@@ -213,7 +213,7 @@ async function classifyAds(apiKey: string, supa: ReturnType<typeof admin>, sessi
           await supa.from("lm_session_ads").update({ ad_type: t }).eq("id", ad.id);
         }
       }));
-      if (i + BATCH < ads.length) await new Promise(r => setTimeout(r, 1000));
+      if (i + BATCH < ads.length) await new Promise(r => setTimeout(r, 150));
     } catch (e) {
       console.error(`classifyAds batch ${i} error:`, e);
     }
@@ -393,53 +393,32 @@ function l2ToMarkdown(l: any): string {
 export async function runAnalysis(sessionId: string, apiKey: string): Promise<void> {
   const supa = admin();
 
-  // Mark real competitors (position > 0) as processing
-  await supa
-    .from("lm_session_competitors")
-    .update({ status: "processing" })
-    .eq("session_id", sessionId)
-    .gt("position", 0);
+  // Mark all competitors as processing
+  await supa.from("lm_session_competitors").update({ status: "processing" }).eq("session_id", sessionId);
 
-  // Load session
-  const { data: session, error: sessErr } = await supa
-    .from("lm_sessions")
-    .select("*")
-    .eq("id", sessionId)
-    .single();
+  // Load session + competitors in parallel
+  const [{ data: session, error: sessErr }, { data: competitors }] = await Promise.all([
+    supa.from("lm_sessions").select("*").eq("id", sessionId).single(),
+    supa.from("lm_session_competitors").select("*").eq("session_id", sessionId).order("position"),
+  ]);
   if (sessErr || !session) throw new Error(`Session ${sessionId} not found`);
-
-  // Load competitors — position 0 = eshop, position 1+ = real competitors
-  const { data: competitors } = await supa
-    .from("lm_session_competitors")
-    .select("*")
-    .eq("session_id", sessionId)
-    .order("position");
 
   const allComps = competitors ?? [];
   const eshopComp = allComps.find((c: any) => c.position === 0);
   const comps = allComps.filter((c: any) => c.position > 0);
 
-  // Load all ads grouped by competitor
-  const { data: allAds } = await supa
-    .from("lm_session_ads")
-    .select("*")
-    .eq("session_id", sessionId);
+  // classifyAds and landing page fetches run in parallel — biggest time saver
+  const allUrls = [session.eshop_url || "", ...comps.map((c: any) => c.url)];
+  const [, webResults] = await Promise.all([
+    classifyAds(apiKey, supa, sessionId),
+    Promise.all(allUrls.map(url => url ? fetchWebsiteContent(url) : Promise.resolve({ content: "", rawTitle: "" }))),
+  ]);
+  const eshopWeb = webResults[0].content;
+  const compWebs = webResults.slice(1).map(r => r.content);
+  console.log(`classifyAds + ${allUrls.length} landing pages done`);
 
-  const adsMap = new Map<string, any[]>();
-  for (const ad of allAds ?? []) {
-    const list = adsMap.get(ad.competitor_id) ?? [];
-    list.push(ad);
-    adsMap.set(ad.competitor_id, list);
-  }
-
-  // Classify unclassified ads (brand/sales/retargeting) before L1 so AI gets typed data
-  await classifyAds(apiKey, supa, sessionId);
-
-  // Reload ads after classification — adsMap now has correct ad_type and format
-  const { data: classifiedAds } = await supa
-    .from("lm_session_ads")
-    .select("*")
-    .eq("session_id", sessionId);
+  // Reload ads after classification
+  const { data: classifiedAds } = await supa.from("lm_session_ads").select("*").eq("session_id", sessionId);
   const classifiedMap = new Map<string, any[]>();
   for (const ad of classifiedAds ?? []) {
     const list = classifiedMap.get(ad.competitor_id) ?? [];
@@ -447,20 +426,10 @@ export async function runAnalysis(sessionId: string, apiKey: string): Promise<vo
     classifiedMap.set(ad.competitor_id, list);
   }
 
-  // Prepare ads per competitor (filtered)
   const compAdsFiltered = comps.map((c: any) => filterAds(classifiedMap.get(c.id) ?? []));
-
-  // Eshop ads from position 0 row (if scraped)
   const eshopAds: any[] = eshopComp ? filterAds(classifiedMap.get(eshopComp.id) ?? []) : [];
 
-  // Fetch landing pages in parallel (before AI calls)
-  const allUrls = [session.eshop_url || "", ...comps.map((c: any) => c.url)];
-  const webResults = await Promise.all(allUrls.map(url => url ? fetchWebsiteContent(url) : Promise.resolve({ content: "", rawTitle: "" })));
-  const eshopWeb = webResults[0].content;
-  const compWebs = webResults.slice(1).map(r => r.content);
-  console.log(`Fetched ${allUrls.length} landing pages`);
-
-  // Auto-fill eshop_name from page title if not set
+  // Auto-fill eshop_name
   if (!session.eshop_name && webResults[0].rawTitle) {
     const detectedName = extractShopName(webResults[0].rawTitle, session.eshop_url || "");
     if (detectedName) {
@@ -470,14 +439,12 @@ export async function runAnalysis(sessionId: string, apiKey: string): Promise<vo
     }
   }
 
-  // Save L1 result immediately after each call — so partial results survive a timeout
   const saveL1 = async (id: string, analysis: unknown, ads: any[], errorMsg?: string) => {
     const l1AdMix = (analysis as any)?.ad_mix_pct;
     const adMix = (l1AdMix && typeof l1AdMix.brand === "number")
       ? { brand: l1AdMix.brand, sales: l1AdMix.sales, retargeting: l1AdMix.retargeting }
       : adMixFromAds(ads);
     if (errorMsg) console.error(`saveL1 error for ${id}: ${errorMsg}`);
-    // AI doesn't know today's date — always compute duration from real data
     if (analysis && (analysis as any).aktivita) {
       (analysis as any).aktivita.prumerna_delka_behu_dni = computeAvgDuration(ads);
     }
@@ -490,53 +457,30 @@ export async function runAnalysis(sessionId: string, apiKey: string): Promise<vo
     }).eq("id", id);
   };
 
-  // ── Sequential L1 calls with 2 s gap — avoids simultaneous rate-limit hits ──
-  // Skip competitors already marked "ready" — reuse saved ai_analysis for L2
+  // ── Parallel L1 calls — all players at once ───────────────────────────────
+  const eshopName = session.eshop_name || session.eshop_url || "Váš e-shop";
 
-  // Eshop (position 0)
-  let eshopL1: unknown = null;
-  if (eshopComp) {
-    if ((eshopComp as any).ai_analysis) {
-      console.log(`L1: skip eshop (already has analysis)`);
-      eshopL1 = (eshopComp as any).ai_analysis;
-      await supa.from("lm_session_competitors").update({ status: "ready" }).eq("id", eshopComp.id);
-    } else {
-      console.log(`L1: eshop (${eshopAds.length} ads)`);
-      eshopL1 = await callAI(apiKey, L1_SYSTEM, l1User(session.eshop_name || session.eshop_url || "Váš e-shop", session.eshop_url || "", eshopAds, eshopWeb))
-        .catch(async (e) => {
-          console.error("L1 failed for eshop:", e);
-          await saveL1(eshopComp.id, null, eshopAds, String(e));
-          return null;
-        });
-      if (eshopL1) await saveL1(eshopComp.id, eshopL1, eshopAds);
-      if (comps.length > 0) await new Promise(r => setTimeout(r, 2000));
-    }
-  }
+  const runEshopL1 = eshopComp
+    ? ((eshopComp as any).ai_analysis
+        ? (async () => { await supa.from("lm_session_competitors").update({ status: "ready" }).eq("id", eshopComp.id); return (eshopComp as any).ai_analysis; })()
+        : callAI(apiKey, L1_SYSTEM, l1User(eshopName, session.eshop_url || "", eshopAds, eshopWeb))
+            .then(async r => { if (r) await saveL1(eshopComp.id, r, eshopAds); return r; })
+            .catch(async e => { await saveL1(eshopComp.id, null, eshopAds, String(e)); return null; }))
+    : Promise.resolve(null);
 
-  // Competitors (position 1+) — one by one
-  const compL1s: unknown[] = [];
-  for (let i = 0; i < comps.length; i++) {
-    const c = comps[i] as any;
-    if (c.ai_analysis) {
-      console.log(`L1: skip ${c.url} (already has analysis)`);
-      compL1s.push(c.ai_analysis);
-      await supa.from("lm_session_competitors").update({ status: "ready" }).eq("id", c.id);
-      continue;
-    }
-    console.log(`L1: competitor ${i + 1}/${comps.length} — ${c.url} (${compAdsFiltered[i].length} ads)`);
-    const result = await callAI(apiKey, L1_SYSTEM, l1User(c.name || c.url, c.url, compAdsFiltered[i], compWebs[i]))
-      .catch(async (e) => {
-        console.error(`L1 failed for competitor ${c.id}:`, e);
-        await saveL1(c.id, null, classifiedMap.get(c.id) ?? [], String(e));
-        return null;
-      });
-    compL1s.push(result);
-    if (result) await saveL1(c.id, result, classifiedMap.get(c.id) ?? []);
-    if (i < comps.length - 1) await new Promise(r => setTimeout(r, 2000));
-  }
+  const runCompL1s = comps.map((c: any, i: number) =>
+    (c as any).ai_analysis
+      ? (async () => { await supa.from("lm_session_competitors").update({ status: "ready" }).eq("id", c.id); return (c as any).ai_analysis; })()
+      : callAI(apiKey, L1_SYSTEM, l1User(c.name || c.url, c.url, compAdsFiltered[i], compWebs[i]))
+          .then(async r => { if (r) await saveL1(c.id, r, classifiedMap.get(c.id) ?? []); return r; })
+          .catch(async e => { await saveL1(c.id, null, classifiedMap.get(c.id) ?? [], String(e)); return null; })
+  );
 
-  // L2: synthesis — wait 2 s after last L1 before firing
-  await new Promise(r => setTimeout(r, 2000));
+  console.log(`L1: firing ${1 + comps.length} calls in parallel`);
+  const [eshopL1, ...compL1s] = await Promise.all([runEshopL1, ...runCompL1s]);
+  console.log(`L1: all done`);
+
+  // ── L2 synthesis ─────────────────────────────────────────────────────────
   console.log("L2: cross-analysis synthesis");
   const compsForL2 = comps.map((c: any, i: number) => ({
     name: c.name || domainName(c.url),
@@ -547,16 +491,12 @@ export async function runAnalysis(sessionId: string, apiKey: string): Promise<vo
   const l2 = await callAI(apiKey, L2_SYSTEM, l2User(advertiserName, eshopL1, compsForL2), 8000)
     .catch(e => { console.error("L2 failed:", e); return null; });
 
-  // Save session result
-  await supa
-    .from("lm_sessions")
-    .update({
-      ai_cross_analysis: l2 ?? null,
-      cross_summary: l2 ? l2ToMarkdown(l2) : null,
-      status: "ready",
-      completed_at: new Date().toISOString(),
-    })
-    .eq("id", sessionId);
+  await supa.from("lm_sessions").update({
+    ai_cross_analysis: l2 ?? null,
+    cross_summary: l2 ? l2ToMarkdown(l2) : null,
+    status: "ready",
+    completed_at: new Date().toISOString(),
+  }).eq("id", sessionId);
 }
 
 // ─── Edge Function handler ────────────────────────────────────────────────────
