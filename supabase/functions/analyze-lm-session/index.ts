@@ -303,7 +303,7 @@ PRAVIDLA PRO KVALITU INSIGHTŮ:
 - quick_wins: Každá akce musí být specifická a přímo vycházet z analýzy, ne generické rady
 - Pokud data jsou slabá nebo chybí, zdůvodnění musí explicitně uvést "data chybí — doporučení vychází z obecných vzorců segmentu"
 - Vždy uveď aspoň 2 položky v každém poli
-- V textech VŽDY používej skutečné názvy hráčů (např. "zajo.com"), NIKDY "Hráč 1", "HRÁČ_1" ani žádné zástupné označení
+- V textech VŽDY používej skutečné názvy — hodnotu z ADVERTISER_NAME pro zadavatele, doménu ze závorek pro každého konkurenta. NIKDY nepoužívej slova "zadavatel", "Hráč 1", "HRÁČ_1" ani jiná zástupná označení
 - Vycházej VÝHRADNĚ z Meta Ads dat. NIKDY nezmiňuj Google Ads, Google kampaně, Google Search ani Display v analýze.
 - NIKDY nezmiňuj procenta rozpočtu, alokaci investic ani % výdajů. Místo toho vždy uváděj počty reklam: "X z Y reklam jsou retargetingové povahy"
 - quick_wins.obtiznost musí být správně klasifikována: "jednoduche" = lze udělat do 1 týdne bez velkých zdrojů; "stredni" = vyžaduje 1–2 týdny a koordinaci; "komplexni" = strategická změna vyžadující měsíc+. POVINNĚ musí být zastoupena aspoň 1 "jednoduche" a 1 "komplexni" obtiznost`;
@@ -312,7 +312,7 @@ function domainName(url: string): string {
   try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return url; }
 }
 
-function l2User(eshop: unknown, competitors: Array<{ name: string; l1: unknown; adsCount: number }>): string {
+function l2User(advertiserName: string, eshop: unknown, competitors: Array<{ name: string; l1: unknown; adsCount: number }>): string {
   const totalAds = competitors.reduce((s, c) => s + c.adsCount, 0);
   const dataWarning = totalAds < 5
     ? "\n\nUPOZORNĚNÍ: Málo reklamních dat. Kde chybí, explicitně uveď v zdůvodnění \"data chybí — odhad vychází z obecných vzorců\". Přesto poskytni konkrétní doporučení."
@@ -320,7 +320,8 @@ function l2User(eshop: unknown, competitors: Array<{ name: string; l1: unknown; 
   const competitorLines = competitors.map((c, i) =>
     `HRÁČ_${i + 1} (${c.name}, ${c.adsCount} reklam): ${JSON.stringify(c.l1)}`
   ).join("\n");
-  return `ZADAVATEL: ${JSON.stringify(eshop)}
+  return `ADVERTISER_NAME: "${advertiserName}"
+ZADAVATEL_DATA: ${JSON.stringify(eshop)}
 ${competitorLines}${dataWarning}
 
 Vrať JSON v přesně tomto formátu (min. 2 položky v každém poli):
@@ -542,7 +543,8 @@ export async function runAnalysis(sessionId: string, apiKey: string): Promise<vo
     l1: compL1s[i] ?? {},
     adsCount: compAdsFiltered[i]?.length ?? 0,
   }));
-  const l2 = await callAI(apiKey, L2_SYSTEM, l2User(eshopL1, compsForL2), 8000)
+  const advertiserName = session.eshop_name || domainName(session.eshop_url || "");
+  const l2 = await callAI(apiKey, L2_SYSTEM, l2User(advertiserName, eshopL1, compsForL2), 8000)
     .catch(e => { console.error("L2 failed:", e); return null; });
 
   // Save session result
