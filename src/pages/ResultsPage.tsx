@@ -1034,28 +1034,35 @@ export default function ResultsPage() {
         )}
 
         {/* Ad mix comparison chart */}
-        {results.competitors.length > 0 && (
-          <section className="bg-white rounded-3xl border border-gray-100 p-6 sm:p-8 shadow-sm">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-9 h-9 rounded-xl bg-[#4f11ff]/8 border border-[#4f11ff]/15 flex items-center justify-center shrink-0">
-                <Layers className="h-4 w-4 text-[#4f11ff]" />
+        {(results.competitors.length > 0 || results.eshop_competitor) && (() => {
+          const mixPlayers = [
+            ...(results.eshop_competitor ? [{ ...results.eshop_competitor, name: results.eshop_name }] : []),
+            ...results.competitors,
+          ];
+          const allEmpty = mixPlayers.every(c => c.ad_mix.brand === 0 && c.ad_mix.sales === 0 && c.ad_mix.retargeting === 0);
+          return (
+            <section className="bg-white rounded-3xl border border-gray-100 p-6 sm:p-8 shadow-sm">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-9 h-9 rounded-xl bg-[#4f11ff]/8 border border-[#4f11ff]/15 flex items-center justify-center shrink-0">
+                  <Layers className="h-4 w-4 text-[#4f11ff]" />
+                </div>
+                <div>
+                  <h2 className="font-[family-name:var(--font-heading)] font-bold text-gray-900">Reklamní mix</h2>
+                  <p className="text-xs text-gray-400 mt-0.5">Rozložení brand / akvizice / retargeting reklam na Meta</p>
+                </div>
               </div>
-              <div>
-                <h2 className="font-[family-name:var(--font-heading)] font-bold text-gray-900">Reklamní mix konkurence</h2>
-                <p className="text-xs text-gray-400 mt-0.5">Rozložení brand / akvizice / retargeting reklam na Meta</p>
-              </div>
-            </div>
-            {results.competitors.every(c => c.ad_mix.brand === 0 && c.ad_mix.sales === 0 && c.ad_mix.retargeting === 0) ? (
-              <p className="text-sm text-gray-400 text-center py-8">Data o reklamním mixu nejsou k dispozici.</p>
-            ) : (
-              <ComparisonChart competitors={results.competitors} />
-            )}
-            <p className="text-xs text-gray-400 mt-4 flex items-center gap-1.5">
-              <AlertCircle className="h-3 w-3 shrink-0" />
-              Google Ads analýza bude dostupná brzy.
-            </p>
-          </section>
-        )}
+              {allEmpty ? (
+                <p className="text-sm text-gray-400 text-center py-8">Data o reklamním mixu nejsou k dispozici.</p>
+              ) : (
+                <ComparisonChart competitors={mixPlayers} />
+              )}
+              <p className="text-xs text-gray-400 mt-4 flex items-center gap-1.5">
+                <AlertCircle className="h-3 w-3 shrink-0" />
+                Google Ads analýza bude dostupná brzy.
+              </p>
+            </section>
+          );
+        })()}
 
         {/* Eshop (Váš e-shop) */}
         {results.eshop_competitor && results.eshop_competitor.ads.length > 0 && (
