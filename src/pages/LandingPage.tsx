@@ -40,8 +40,8 @@ const BENEFITS = [
 const STEPS = [
   {
     num: "01",
-    title: "Vložte URL eshopu a 2 konkurentů",
-    body: "Přidáte odkaz na váš web a oba konkurenty spolu s jejich Meta Ads Library URL. Trvá to 2 minuty.",
+    title: "Výsledky přímo v prohlížeči",
+    body: "Proskenujeme  vaše Meta reklamy a reklamy konkurence, porovnáme je a vytvoříme analýzu s konkrétními doporučeními. Tu si poté můžete nechat poslat na mail nebo vyexporrtovat.",
   },
   {
     num: "02",
