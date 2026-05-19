@@ -89,7 +89,7 @@ const AI_FEATURES = [
     body: "AI hledá témata a segmenty, které konkurence přehlíží. Tyto mezery jsou vaší největší příležitostí.",
   },
   {
-    icon: Shield,
+    icon: LaptopMinimalCheck,
     title: "Ověřená metodika",
     body: "Každý výstup vychází z frameworku, který používáme při onboardingu klientů. Žádné dohady — jen praxí ověřené otázky.",
   },
@@ -97,9 +97,9 @@ const AI_FEATURES = [
 
 const PIPELINE = [
   { icon: Globe,     label: "Sběr dat",    sub: "Ad Library API" },
-  { icon: Brain,     label: "AI analýza",  sub: "Jazykové modely" },
-  { icon: BarChart3, label: "Benchmarking", sub: "Data z klientů" },
-  { icon: Zap,       label: "Výsledky",    sub: "Do 5 minut" },
+  { icon: Brain,     label: "AI analýza a syntéza",  sub: "Jazykové modely" },
+  { icon: BarChart3, label: "Benchmarking", sub: "Porovnání na základě dat" },
+  { icon: Zap,       label: "Výsledky",    sub: "Porovnání na základě dat" },
 ];
 
 /* ─── CTA button ────────────────────────────────────────────────────────────── */
