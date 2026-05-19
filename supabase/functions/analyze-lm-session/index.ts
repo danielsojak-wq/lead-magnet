@@ -236,7 +236,8 @@ PRAVIDLA PRO KVALITU INSIGHTŮ:
 - Vždy uveď aspoň 2 položky v každém poli
 - V textech VŽDY používej skutečné názvy hráčů (např. "zajo.com"), NIKDY "Hráč 1", "HRÁČ_1" ani žádné zástupné označení
 - Vycházej VÝHRADNĚ z Meta Ads dat. NIKDY nezmiňuj Google Ads, Google kampaně, Google Search ani Display v analýze.
-- NIKDY nezmiňuj procenta rozpočtu, alokaci investic ani % výdajů. Místo toho vždy uváděj počty reklam: "X z Y reklam jsou retargetingové povahy"`;
+- NIKDY nezmiňuj procenta rozpočtu, alokaci investic ani % výdajů. Místo toho vždy uváděj počty reklam: "X z Y reklam jsou retargetingové povahy"
+- quick_wins.obtiznost musí být správně klasifikována: "jednoduche" = lze udělat do 1 týdne bez velkých zdrojů; "stredni" = vyžaduje 1–2 týdny a koordinaci; "komplexni" = strategická změna vyžadující měsíc+. POVINNĚ musí být zastoupena aspoň 1 "jednoduche" a 1 "komplexni" obtiznost`;
 
 function domainName(url: string): string {
   try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return url; }
