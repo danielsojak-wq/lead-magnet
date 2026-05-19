@@ -311,8 +311,7 @@ export default function LandingPage() {
             </h2>
             <p className="text-white/55 max-w-2xl mx-auto text-lg leading-relaxed">
               Za každou analýzou stojí AI modely trénované na reálných kampaních,
-              benchmarky z eshopů v naší správě a strukturovaná data
-              z obou největších reklamních platforem.
+              benchmarky z eshopů v naší správě a strukturovaná data z reklamních knihoven
             </p>
           </div>
 
