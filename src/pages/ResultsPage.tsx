@@ -7,8 +7,8 @@ import {
   Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
 } from "recharts";
 import {
-  ExternalLink, Globe, Layers, Video, Image as ImageIcon, TrendingUp,
-  Megaphone, ShoppingBag, ArrowRight, RefreshCw, Mail, Printer, X, Check,
+  ExternalLink, Globe, Layers, Video, Image as ImageIcon,
+  ArrowRight, RefreshCw, Mail, Printer, X, Check,
   Zap, Target, MessageSquare, Activity, Lightbulb, AlertCircle,
 } from "lucide-react";
 import * as Dialog from "@radix-ui/react-dialog";
@@ -26,6 +26,7 @@ interface AdItem {
   ad_source: "meta" | "google";
   is_active: boolean;
   ad_start_date: string | null;
+  format?: string | null;
 }
 
 interface AiAnalysis {
@@ -40,6 +41,7 @@ interface AiAnalysis {
   };
   messaging: {
     hlavni_claim: string;
+    tema_komunikace?: string;
     dominantni_emocni_apel: string;
     funnel_faze: string;
     osloveni: string;
@@ -180,8 +182,6 @@ const MOCK: AnalysisResults = {
 
 const TYPE_COLORS = { brand: "#4f11ff", sales: "#b0f221", retargeting: "#f59e0b" } as const;
 const TYPE_LABELS = { brand: "Brand", sales: "Akvizice", retargeting: "Retargeting" };
-const COMP_COLORS = ["#3B82F6", "#F97316"] as const;
-
 function typeColor(t: string | null) {
   if (t === "brand") return TYPE_COLORS.brand;
   if (t === "sales") return TYPE_COLORS.sales;
@@ -240,38 +240,22 @@ function AdTypePill({ type }: { type: string | null }) {
   return <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${bg}`}>{label}</span>;
 }
 
-// ─── Charts ───────────────────────────────────────────────────────────────────
-
-function AdMixDonut({ mix }: { mix: { brand: number; sales: number; retargeting: number } }) {
-  const data = [
-    { name: "Brand", value: mix.brand, color: TYPE_COLORS.brand },
-    { name: "Akvizice", value: mix.sales, color: TYPE_COLORS.sales },
-    { name: "Retargeting", value: mix.retargeting, color: TYPE_COLORS.retargeting },
-  ].filter(d => d.value > 0);
-  const total = data.reduce((s, d) => s + d.value, 0);
-  return (
-    <div className="flex flex-col items-center gap-3">
-      <div className="relative w-28 h-28">
-        <PieChart width={112} height={112}>
-          <Pie data={data} cx={52} cy={52} innerRadius={32} outerRadius={52} dataKey="value" strokeWidth={0}>
-            {data.map((entry, i) => <Cell key={i} fill={entry.color} />)}
-          </Pie>
-        </PieChart>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-xs font-semibold text-gray-500">{total} reklam</span>
-        </div>
-      </div>
-      <div className="flex flex-wrap justify-center gap-x-3 gap-y-1">
-        {data.map(d => (
-          <div key={d.name} className="flex items-center gap-1.5 text-xs text-gray-600">
-            <span className="w-2 h-2 rounded-full" style={{ background: d.color }} />
-            {d.name} <span className="font-semibold text-gray-900">{Math.round((d.value / total) * 100)}%</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+function playerColor(isEshop: boolean, index: number): string {
+  if (isEshop) return "#6B46C1";
+  return index === 0 ? "#3B82F6" : "#F97316";
 }
+
+function extractDomain(url: string): string {
+  try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return url; }
+}
+
+const apeLabel = (a: string) => (({ strach: "Strach", touha: "Touha", logika: "Logika", humor: "Humor", komunita: "Komunita" } as Record<string, string>)[a] ?? a);
+const funnelLabel = (f: string) => (({ awareness: "Awareness", consideration: "Consideration", conversion: "Conversion", mix: "Celý funnel" } as Record<string, string>)[f] ?? f);
+const textLengthLabel = (t: string) => (({ kratky: "Krátký", stredni: "Střední", dlouhy: "Dlouhý" } as Record<string, string>)[t] ?? t);
+const freqLabel = (f: string) => (({ vysoka: "Vysoká", stredni: "Střední", nizka: "Nízká" } as Record<string, string>)[f] ?? f);
+const lpLabel = (t: string) => (({ dedicated_lp: "LP", homepage: "Homepage", category: "Kategorie", product: "Produkt", mix: "Mix" } as Record<string, string>)[t] ?? t);
+
+// ─── Charts ───────────────────────────────────────────────────────────────────
 
 function ComparisonChart({ competitors }: { competitors: CompetitorResult[] }) {
   const data = competitors.map(c => {
@@ -536,60 +520,6 @@ function PositioningSection({ cross, eshopName }: { cross: AiCrossAnalysis; esho
   );
 }
 
-function MessagingCard({ ai }: { ai: AiAnalysis }) {
-  const { messaging, aktivita, kreativni_vzorce } = ai;
-
-  const apeLabel = (a: string) => ({ strach: "⚠️ Strach", touha: "✨ Touha", logika: "🧠 Logika", humor: "😄 Humor", komunita: "👥 Komunita" }[a] || a);
-  const funnelLabel = (f: string) => ({ awareness: "Awareness", consideration: "Consideration", conversion: "Conversion", mix: "Celý funnel" }[f] || f);
-
-  return (
-    <div className="grid sm:grid-cols-3 gap-4 text-sm">
-      <div className="bg-gray-50 rounded-xl p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <MessageSquare className="h-3.5 w-3.5 text-[#4f11ff]" />
-          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Messaging</span>
-        </div>
-        <p className="font-semibold text-gray-900 mb-2 leading-snug">„{messaging.hlavni_claim}"</p>
-        <div className="space-y-1 text-xs text-gray-500">
-          <div className="flex justify-between"><span>Emoce</span><span className="font-medium text-gray-700">{apeLabel(messaging.dominantni_emocni_apel)}</span></div>
-          <div className="flex justify-between"><span>Funnel</span><span className="font-medium text-gray-700">{funnelLabel(messaging.funnel_faze)}</span></div>
-          <div className="flex justify-between"><span>Oslovení</span><span className="font-medium text-gray-700">{messaging.osloveni}</span></div>
-          {messaging.socialni_dukaz?.length > 0 && (
-            <div className="flex justify-between"><span>Soc. důkaz</span><span className="font-medium text-gray-700">{messaging.socialni_dukaz.join(", ")}</span></div>
-          )}
-        </div>
-      </div>
-
-      <div className="bg-gray-50 rounded-xl p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <Activity className="h-3.5 w-3.5 text-[#4f11ff]" />
-          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Aktivita</span>
-        </div>
-        <div className="space-y-2 text-xs text-gray-500">
-          <div>
-            <div className="font-[family-name:var(--font-heading)] text-2xl font-bold text-[#4f11ff]">{aktivita.pocet_aktivnich_reklam}</div>
-            <div>aktivních reklam</div>
-          </div>
-          <div className="flex justify-between"><span>Prům. délka</span><span className="font-medium text-gray-700">{aktivita.prumerna_delka_behu_dni > 0 ? `${aktivita.prumerna_delka_behu_dni} dní` : "Není k dispozici"}</span></div>
-          <div className="flex justify-between"><span>Frekvence</span><span className="font-medium text-gray-700">{aktivita.frekvence_novych_reklam}</span></div>
-        </div>
-      </div>
-
-      <div className="bg-gray-50 rounded-xl p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <Lightbulb className="h-3.5 w-3.5 text-[#4f11ff]" />
-          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Top reklama</span>
-        </div>
-        <p className="font-semibold text-gray-900 text-xs mb-1 leading-snug">{kreativni_vzorce.top_reklama.popis}</p>
-        <p className="text-xs text-gray-500 leading-relaxed">{kreativni_vzorce.top_reklama.proc_funguje}</p>
-        <div className="flex gap-2 mt-3 flex-wrap">
-          <span className="text-[10px] bg-[#4f11ff]/8 text-[#4f11ff] px-2 py-0.5 rounded-full font-medium">Hook: {kreativni_vzorce.nejcastejsi_hook}</span>
-          <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">Text: {kreativni_vzorce.prumerna_delka_textu}</span>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function AdModal({ ad, onClose }: { ad: AdItem; onClose: () => void }) {
   return (
@@ -626,37 +556,58 @@ function AdModal({ ad, onClose }: { ad: AdItem; onClose: () => void }) {
 
 function CompetitorSection({ competitor, index, isEshop }: { competitor: CompetitorResult; index: number; isEshop?: boolean }) {
   const [selectedAd, setSelectedAd] = useState<AdItem | null>(null);
+  const color = playerColor(!!isEshop, index);
+  const label = isEshop ? "Vy" : String(index + 1);
+  const ai = competitor.ai_analysis;
   const sections = competitor.summary ? parseMarkdown(competitor.summary) : [];
-  const typeIcon = (t: string) => t === "brand" ? Megaphone : t === "sales" ? ShoppingBag : TrendingUp;
+
+  const activeCount = ai?.aktivita.pocet_aktivnich_reklam
+    ?? competitor.ads.filter(a => a.is_active).length;
+
+  const topAd = [...competitor.ads]
+    .filter(a => a.ad_start_date)
+    .sort((a, b) => (a.ad_start_date! < b.ad_start_date! ? -1 : 1))[0]
+    ?? competitor.ads[0]
+    ?? null;
+
+  const daysInRotation = topAd?.ad_start_date
+    ? Math.floor((Date.now() - new Date(topAd.ad_start_date).getTime()) / 86400000)
+    : null;
+
+  const fmeta = ai?.reklamni_mix.meta;
+  const formatStr = fmeta
+    ? ([
+        fmeta.single_image > 0 ? `${fmeta.single_image} obr.` : null,
+        fmeta.video > 0 ? `${fmeta.video} video` : null,
+        fmeta.carousel > 0 ? `${fmeta.carousel} karusel` : null,
+      ] as (string | null)[]).filter(Boolean).join(" · ")
+    : null;
+
+  const showTopReklama = ai
+    && ai.kreativni_vzorce.top_reklama.popis
+    && ai.kreativni_vzorce.top_reklama.popis !== "Bez dat";
 
   return (
     <section className="rounded-3xl border border-gray-100 bg-white overflow-hidden shadow-sm">
       {/* Header */}
-      <div className="px-6 sm:px-8 py-5 border-b border-gray-100 flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-3">
-          {isEshop ? (
-            <span className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-sm font-bold text-emerald-600 font-[family-name:var(--font-heading)]">Vy</span>
-          ) : (
-            <span
-              className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold font-[family-name:var(--font-heading)]"
-              style={{
-                background: `${COMP_COLORS[index % COMP_COLORS.length]}18`,
-                border: `1px solid ${COMP_COLORS[index % COMP_COLORS.length]}40`,
-                color: COMP_COLORS[index % COMP_COLORS.length],
-              }}
-            >
-              {index + 1}
-            </span>
-          )}
+      <div className="px-6 sm:px-8 py-5 flex items-center justify-between gap-4" style={{ borderBottom: `2px solid ${color}30` }}>
+        <div className="flex items-center gap-4">
+          <div
+            className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg shrink-0 font-[family-name:var(--font-heading)]"
+            style={{ background: color }}
+          >
+            {label}
+          </div>
           <div>
-            <h2 className="font-[family-name:var(--font-heading)] font-bold text-gray-900 text-lg">{competitor.name}</h2>
+            <h2 className="font-[family-name:var(--font-heading)] font-bold text-gray-900 text-xl leading-tight">{competitor.name}</h2>
             {competitor.website_url && (
               <div className="flex items-center gap-3 mt-0.5">
-                <a href={competitor.website_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-[#4f11ff] transition-colors">
+                <a href={competitor.website_url} target="_blank" rel="noreferrer"
+                  className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-[#4f11ff] transition-colors">
                   <Globe className="h-3 w-3" />{competitor.website_url.replace(/^https?:\/\//, "")}<ExternalLink className="h-2.5 w-2.5" />
                 </a>
                 <a
-                  href={`https://adstransparency.google.com/?region=CZ&domain=${new URL(competitor.website_url).hostname.replace(/^www\./, "")}`}
+                  href={`https://adstransparency.google.com/?region=CZ&domain=${extractDomain(competitor.website_url)}`}
                   target="_blank" rel="noreferrer"
                   className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-[#4285f4] transition-colors"
                   title="Google Ads Transparency"
@@ -668,68 +619,209 @@ function CompetitorSection({ competitor, index, isEshop }: { competitor: Competi
             )}
           </div>
         </div>
-        <span className="text-sm text-gray-500">{competitor.ads_count} reklam</span>
+        <div className="text-right shrink-0">
+          <div className="font-[family-name:var(--font-heading)] text-3xl font-bold leading-none" style={{ color }}>{activeCount}</div>
+          <div className="text-xs text-gray-400 mt-0.5">aktivních reklam</div>
+        </div>
       </div>
 
-      <div className="p-6 sm:p-8 space-y-8">
-        {/* AI messaging & activity */}
-        <div className="space-y-5">
-            {competitor.status === "processing" && (
-              <div className="flex items-center gap-3 text-sm text-gray-500 bg-gray-50 rounded-xl p-4">
-                <RefreshCw className="h-4 w-4 animate-spin text-[#4f11ff]" /> Generuji analýzu…
-              </div>
-            )}
-            {competitor.status === "failed" && (
-              <div className="text-sm text-red-500 bg-red-50 rounded-xl p-4">Analýza selhala.</div>
-            )}
-            {competitor.status === "scrape_failed" && (
-              <div className="flex items-start gap-3 text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-xl p-4">
-                <AlertCircle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-semibold">Scrapování Meta Ads Library selhalo</p>
-                  <p className="text-amber-700 text-xs mt-0.5">Zkontrolujte, zda je zadaný odkaz na Meta Ads Library správný a veřejně dostupný. Analýza proběhla bez reklamních dat tohoto konkurenta.</p>
-                </div>
-              </div>
-            )}
-            {competitor.ai_analysis ? (
-              <MessagingCard ai={competitor.ai_analysis} />
-            ) : sections.length > 0 ? (
-              sections.map((s, i) => (
-                <div key={i}>
-                  {s.title && <h3 className="text-xs font-bold uppercase tracking-wider text-[#4f11ff] mb-3">{s.title}</h3>}
-                  <MarkdownBullets text={s.body} />
-                </div>
-              ))
-            ) : (competitor.status === "ready" || competitor.status === "empty") ? (
-              <p className="text-sm text-gray-400">Žádná data k zobrazení.</p>
-            ) : null}
-        </div>
+      <div className="p-6 sm:p-8 space-y-6">
+        {competitor.status === "processing" && (
+          <div className="flex items-center gap-3 text-sm text-gray-500 bg-gray-50 rounded-xl p-4">
+            <RefreshCw className="h-4 w-4 animate-spin text-[#4f11ff]" /> Generuji analýzu…
+          </div>
+        )}
+        {competitor.status === "failed" && (
+          <div className="text-sm text-red-500 bg-red-50 rounded-xl p-4">Analýza selhala.</div>
+        )}
+        {competitor.status === "scrape_failed" && (
+          <div className="flex items-start gap-3 text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-xl p-4">
+            <AlertCircle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold">Scrapování Meta Ads Library selhalo</p>
+              <p className="text-amber-700 text-xs mt-0.5">Zkontrolujte, zda je zadaný odkaz na Meta Ads Library správný a veřejně dostupný. Analýza proběhla bez reklamních dat tohoto konkurenta.</p>
+            </div>
+          </div>
+        )}
 
-        {/* Ads grid */}
+        {/* 3-block grid: Strategie / Kreativa / Aktivita */}
+        {ai && (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="bg-gray-50 rounded-2xl p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <MessageSquare className="h-3.5 w-3.5" style={{ color }} />
+                <span className="text-xs font-bold uppercase tracking-wide text-gray-500">Strategie</span>
+              </div>
+              <p className="font-semibold text-gray-900 text-sm leading-snug">„{ai.messaging.hlavni_claim}"</p>
+              {ai.messaging.tema_komunikace && (
+                <p className="text-xs text-gray-500 italic leading-relaxed">{ai.messaging.tema_komunikace}</p>
+              )}
+              <div className="space-y-1.5 text-xs text-gray-500">
+                <div className="flex justify-between gap-2">
+                  <span>Emoce</span><span className="font-medium text-gray-700 text-right">{apeLabel(ai.messaging.dominantni_emocni_apel)}</span>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <span>Funnel</span><span className="font-medium text-gray-700 text-right">{funnelLabel(ai.messaging.funnel_faze)}</span>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <span>Oslovení</span><span className="font-medium text-gray-700 text-right">{ai.messaging.osloveni}</span>
+                </div>
+                {ai.messaging.socialni_dukaz?.length > 0 && (
+                  <div className="flex justify-between gap-2">
+                    <span>Soc. důkaz</span><span className="font-medium text-gray-700 text-right">{ai.messaging.socialni_dukaz.join(", ")}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="bg-gray-50 rounded-2xl p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Layers className="h-3.5 w-3.5" style={{ color }} />
+                <span className="text-xs font-bold uppercase tracking-wide text-gray-500">Kreativa</span>
+              </div>
+              {formatStr && (
+                <p className="text-sm font-semibold text-gray-800">{formatStr}</p>
+              )}
+              <div className="space-y-1.5 text-xs text-gray-500">
+                <div className="flex justify-between gap-2">
+                  <span>Hook</span><span className="font-medium text-gray-700 text-right capitalize">{ai.kreativni_vzorce.nejcastejsi_hook}</span>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <span>Délka textu</span><span className="font-medium text-gray-700 text-right">{textLengthLabel(ai.kreativni_vzorce.prumerna_delka_textu)}</span>
+                </div>
+                {ai.landing_pages && (
+                  <>
+                    <div className="flex justify-between gap-2">
+                      <span>Landing page</span><span className="font-medium text-gray-700 text-right">{lpLabel(ai.landing_pages.typ)}</span>
+                    </div>
+                    {ai.landing_pages.pouziva_slevy && (
+                      <div className="flex justify-between gap-2">
+                        <span>Slevy</span><span className="font-medium text-[#4f11ff]">Ano</span>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+
+            <div className="bg-gray-50 rounded-2xl p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Activity className="h-3.5 w-3.5" style={{ color }} />
+                <span className="text-xs font-bold uppercase tracking-wide text-gray-500">Aktivita</span>
+              </div>
+              <div>
+                <div className="font-[family-name:var(--font-heading)] text-3xl font-bold leading-none" style={{ color }}>
+                  {ai.aktivita.pocet_aktivnich_reklam}
+                </div>
+                <div className="text-xs text-gray-500 mt-0.5">aktivních reklam</div>
+              </div>
+              <div className="space-y-1.5 text-xs text-gray-500">
+                <div className="flex justify-between gap-2">
+                  <span>Prům. délka</span>
+                  <span className="font-medium text-gray-700">{ai.aktivita.prumerna_delka_behu_dni > 0 ? `${ai.aktivita.prumerna_delka_behu_dni} dní` : "—"}</span>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <span>Frekvence</span><span className="font-medium text-gray-700">{freqLabel(ai.aktivita.frekvence_novych_reklam)}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Top reklama */}
+        {showTopReklama && (
+          <div className="bg-gray-50 rounded-2xl p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Lightbulb className="h-3.5 w-3.5" style={{ color }} />
+              <span className="text-xs font-bold uppercase tracking-wide text-gray-500">Top reklama</span>
+            </div>
+            <div className="flex gap-4 items-start">
+              {topAd && (topAd.image_url || topAd.video_url) ? (
+                <button
+                  onClick={() => setSelectedAd(topAd)}
+                  className="shrink-0 w-[100px] h-[100px] rounded-xl overflow-hidden bg-gray-200 border border-gray-200 hover:border-[#4f11ff]/40 hover:shadow-md transition-all"
+                >
+                  {topAd.video_url
+                    ? <video src={topAd.video_url} poster={topAd.image_url || undefined} muted playsInline preload="metadata" className="w-full h-full object-cover" />
+                    : <img src={topAd.image_url!} alt="" className="w-full h-full object-cover" loading="lazy" />
+                  }
+                </button>
+              ) : (
+                <div className="shrink-0 w-[100px] h-[100px] rounded-xl flex items-center justify-center" style={{ background: `${color}15` }}>
+                  <ImageIcon className="h-8 w-8" style={{ color: `${color}60` }} />
+                </div>
+              )}
+              <div className="flex-1 min-w-0 space-y-2">
+                {daysInRotation !== null && (
+                  <span className="inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full text-white" style={{ background: color }}>
+                    {daysInRotation} dní v rotaci
+                  </span>
+                )}
+                <p className="font-semibold text-gray-900 text-sm leading-snug">{ai!.kreativni_vzorce.top_reklama.popis}</p>
+                <p className="text-xs text-gray-500 leading-relaxed">{ai!.kreativni_vzorce.top_reklama.proc_funguje}</p>
+                <div className="flex gap-2 flex-wrap">
+                  <span className="text-[10px] px-2 py-0.5 rounded-full font-medium" style={{ background: `${color}15`, color }}>
+                    Hook: {ai!.kreativni_vzorce.nejcastejsi_hook}
+                  </span>
+                  <span className="text-[10px] bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full">
+                    Text: {textLengthLabel(ai!.kreativni_vzorce.prumerna_delka_textu)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Legacy summary fallback */}
+        {!ai && sections.length > 0 && (
+          <div className="space-y-5">
+            {sections.map((s, i) => (
+              <div key={i}>
+                {s.title && <h3 className="text-xs font-bold uppercase tracking-wider text-[#4f11ff] mb-3">{s.title}</h3>}
+                <MarkdownBullets text={s.body} />
+              </div>
+            ))}
+          </div>
+        )}
+        {!ai && !sections.length && (competitor.status === "ready" || competitor.status === "empty") && (
+          <p className="text-sm text-gray-400">Žádná data k zobrazení.</p>
+        )}
+
+        {/* Ads gallery */}
         {competitor.ads.length > 0 && (
           <div className="border-t border-gray-100 pt-6">
-            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">Ukázka reklam ({competitor.ads.length})</h3>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">
+              Všechny reklamy ({competitor.ads.length})
+            </h3>
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
               {competitor.ads.map(ad => (
-                <button key={ad.id} onClick={() => setSelectedAd(ad)} className="group relative rounded-xl overflow-hidden bg-gray-100 aspect-square border border-gray-200 hover:border-[#4f11ff]/40 hover:shadow-md transition-all text-left">
+                <button
+                  key={ad.id}
+                  onClick={() => setSelectedAd(ad)}
+                  className="group relative rounded-xl overflow-hidden bg-gray-100 aspect-square border border-gray-200 hover:border-[#4f11ff]/40 hover:shadow-md transition-all text-left"
+                >
                   {ad.video_url
                     ? <video src={ad.video_url} poster={ad.image_url || undefined} muted playsInline preload="metadata" className="w-full h-full object-cover" />
                     : ad.image_url
                       ? <img src={ad.image_url} alt="" className="w-full h-full object-cover" loading="lazy" />
-                      : <div className="w-full h-full flex items-center justify-center"><ImageIcon className="h-6 w-6 text-gray-300" /></div>}
-                  {ad.video_url && <div className="absolute top-2 right-2 bg-black/50 rounded-full p-1"><Video className="h-3 w-3 text-white" /></div>}
-                  <AdSourceBadge source={ad.ad_source} />
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-all flex flex-col justify-end p-2 opacity-0 group-hover:opacity-100">
+                      : <div className="w-full h-full flex items-center justify-center"><ImageIcon className="h-5 w-5 text-gray-300" /></div>}
+                  {ad.video_url && (
+                    <div className="absolute bottom-1.5 right-1.5 bg-black/60 rounded-full p-0.5">
+                      <Video className="h-2.5 w-2.5 text-white" />
+                    </div>
+                  )}
+                  {ad.is_active && <div className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#b0f221] shadow-sm" />}
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-all flex flex-col justify-end p-1.5 opacity-0 group-hover:opacity-100">
                     <AdTypePill type={ad.ad_type} />
-                    {ad.primary_text && <p className="text-white text-[10px] mt-1 line-clamp-3 leading-tight">{ad.primary_text}</p>}
+                    {ad.primary_text && <p className="text-white text-[9px] mt-0.5 line-clamp-2 leading-tight">{ad.primary_text}</p>}
                   </div>
-                  {ad.is_active && <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-[#b0f221] shadow" />}
                 </button>
               ))}
             </div>
           </div>
         )}
       </div>
+
       {selectedAd && <AdModal ad={selectedAd} onClose={() => setSelectedAd(null)} />}
     </section>
   );

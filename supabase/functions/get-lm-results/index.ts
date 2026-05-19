@@ -91,7 +91,7 @@ Deno.serve(async (req) => {
         status: c.status as "ready" | "processing" | "failed" | "empty" | "scrape_failed",
         ads_count: c.ads_count,
         ad_mix: c.ad_mix ?? { brand: 0, sales: 0, retargeting: 0 },
-        ads: (adsByCompetitor.get(c.id) ?? []).slice(0, 18).map((a: any) => ({
+        ads: (adsByCompetitor.get(c.id) ?? []).map((a: any) => ({
           id: a.id,
           image_url: a.image_url ?? null,
           video_url: a.video_url ?? null,
@@ -100,6 +100,7 @@ Deno.serve(async (req) => {
           ad_source: a.ad_source as "meta" | "google",
           is_active: a.is_active,
           ad_start_date: a.ad_start_date ?? null,
+          format: a.format ?? null,
         })),
       };
     }

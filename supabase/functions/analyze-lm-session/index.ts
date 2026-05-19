@@ -234,6 +234,7 @@ PRAVIDLA:
 - Analyzuj VÝHRADNĚ Meta reklamy — máme data pouze z Meta Ads Library. Google Ads data NEMÁME. V poli reklamni_mix.google vyplň všechna čísla nulami.
 - reklamni_mix.meta: POČÍTEJ PŘESNĚ z pole "format" každé reklamy v datech. "video" → přičti k video, "carousel" → přičti k carousel, "single_image" → přičti k single_image. Nikdy neodhaduj ani nedoplňuj formát, který v datech není. stories vždy 0. Čísla jsou absolutní počty reklam, ne procenta.
 - NIKDY nezmiňuj procenta rozpočtu, alokaci investic ani % výdajů — tato data nemáme. Místo toho vždy uváděj počty reklam: "X z Y reklam jsou retargetingové povahy"
+- messaging.tema_komunikace: Jedno krátké téma komunikace v max. 10 slovech (např. "Outdoorové vybavení pro náročné turisty"), vycházej výhradně z reklam a landing page dat
 - Nikdy nevymýšlej strategie, claimy ani vzorce bez datové opory`;
 
 function l1User(playerName: string, playerUrl: string, ads: any[], websiteContent = ""): string {
@@ -271,6 +272,7 @@ Vrať JSON v přesně tomto formátu (ad_mix_pct: odhadni % rozdělení reklam n
   },
   "messaging": {
     "hlavni_claim": "",
+    "tema_komunikace": "",
     "dominantni_emocni_apel": "logika",
     "funnel_faze": "mix",
     "osloveni": "tykani",
