@@ -371,13 +371,6 @@ export default function LandingPage() {
             <CtaButton size="sm" />
           </div>
 
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-6 text-white/50 text-sm">
-            {["\n", "1× na email"].map((t) => (
-              <span key={t} className="flex items-center gap-1.5">
-                <Check className="h-3.5 w-3.5 text-[#b0f221]" /> {t}
-              </span>
-            ))}
-          </div>
         </div>
       </section>
 
