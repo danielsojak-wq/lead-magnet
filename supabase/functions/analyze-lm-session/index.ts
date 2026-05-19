@@ -231,7 +231,8 @@ PRAVIDLA PRO KVALITU INSIGHTŮ:
 - mezery_prilezitosti: Konkrétní témata, formáty nebo segmenty, které NIKDO nepoužívá — přímé obchodní příležitosti
 - quick_wins: Každá akce musí být specifická a přímo vycházet z analýzy, ne generické rady
 - Pokud data jsou slabá nebo chybí, zdůvodnění musí explicitně uvést "data chybí — doporučení vychází z obecných vzorců segmentu"
-- Vždy uveď aspoň 2 položky v každém poli`;
+- Vždy uveď aspoň 2 položky v každém poli
+- V textech VŽDY používej skutečné názvy hráčů (např. "zajo.com"), NIKDY "Hráč 1", "HRÁČ_1" ani žádné zástupné označení`;
 
 function domainName(url: string): string {
   try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return url; }
@@ -243,7 +244,7 @@ function l2User(eshop: unknown, competitors: Array<{ name: string; l1: unknown; 
     ? "\n\nUPOZORNĚNÍ: Málo reklamních dat. Kde chybí, explicitně uveď v zdůvodnění \"data chybí — odhad vychází z obecných vzorců\". Přesto poskytni konkrétní doporučení."
     : "";
   const competitorLines = competitors.map((c, i) =>
-    `KONKURENT_${String.fromCharCode(65 + i)} — ${c.name} (${c.adsCount} reklam): ${JSON.stringify(c.l1)}`
+    `HRÁČ_${i + 1} (${c.name}, ${c.adsCount} reklam): ${JSON.stringify(c.l1)}`
   ).join("\n");
   return `ZADAVATEL: ${JSON.stringify(eshop)}
 ${competitorLines}${dataWarning}
