@@ -276,10 +276,10 @@ export default function LandingPage() {
           <div className="text-center mb-14">
             <p className="text-[#4f11ff] text-sm font-semibold tracking-wide uppercase mb-3">Co dostanete</p>
             <h2 className="font-[family-name:var(--font-heading)] text-3xl sm:text-4xl font-bold text-gray-900 mb-3">
-              Kompletní přehled o reklamní strategii konkurence
+              Přehled marketingové strategie konkurence zdarma 🔥
             </h2>
             <p className="text-gray-500 max-w-xl mx-auto whitespace-pre-line">
-              Za komplexní analýzu si agentury běžně účtují 20 000 Kč.{"\n\n"}
+              Za podobné analýzy si agentury běžně účtují 10 000 Kč a více{"\n\n"}
             </p>
           </div>
 
