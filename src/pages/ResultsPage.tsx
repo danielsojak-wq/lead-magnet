@@ -40,6 +40,7 @@ interface AiAnalysis {
     frekvence_novych_reklam: "vysoka" | "stredni" | "nizka";
   };
   messaging: {
+    strategie_uctu?: string;
     hlavni_claim: string;
     tema_komunikace?: string;
     dominantni_emocni_apel: string;
@@ -652,9 +653,16 @@ function CompetitorSection({ competitor, index, isEshop }: { competitor: Competi
                 <MessageSquare className="h-3.5 w-3.5" style={{ color }} />
                 <span className="text-xs font-bold uppercase tracking-wide text-gray-500">Strategie</span>
               </div>
-              <p className="font-semibold text-gray-900 text-sm leading-snug">„{ai.messaging.hlavni_claim}"</p>
+              {ai.messaging.strategie_uctu ? (
+                <p className="text-sm text-gray-700 leading-snug">{ai.messaging.strategie_uctu}</p>
+              ) : (
+                <p className="font-semibold text-gray-900 text-sm leading-snug">„{ai.messaging.hlavni_claim}"</p>
+              )}
               {ai.messaging.tema_komunikace && (
-                <p className="text-xs text-gray-500 italic leading-relaxed">{ai.messaging.tema_komunikace}</p>
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Téma: </span>
+                  <span className="text-xs text-gray-500 italic">{ai.messaging.tema_komunikace}</span>
+                </div>
               )}
               <div className="space-y-1.5 text-xs text-gray-500">
                 <div className="flex justify-between gap-2">

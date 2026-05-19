@@ -235,6 +235,7 @@ PRAVIDLA:
 - reklamni_mix.meta: POČÍTEJ PŘESNĚ z pole "format" každé reklamy v datech. "video" → přičti k video, "carousel" → přičti k carousel, "single_image" → přičti k single_image. Nikdy neodhaduj ani nedoplňuj formát, který v datech není. stories vždy 0. Čísla jsou absolutní počty reklam, ne procenta.
 - NIKDY nezmiňuj procenta rozpočtu, alokaci investic ani % výdajů — tato data nemáme. Místo toho vždy uváděj počty reklam: "X z Y reklam jsou retargetingové povahy"
 - messaging.tema_komunikace: Jedno krátké téma komunikace v max. 10 slovech (např. "Outdoorové vybavení pro náročné turisty"), vycházej výhradně z reklam a landing page dat
+- messaging.strategie_uctu: 1-2 věty popisující JAK účet přemýšlí o Meta reklamě. ODVOZUJ VÝHRADNĚ Z CHOVÁNÍ V DATECH: mix formátů (kolik video/carousel/single_image), mix ad_type (kolik brand/sales/retargeting), frekvence nových reklam, délka rotace, přítomnost slev. Příklady: "Brand-first launch: 70% video, žádný retargeting, žádné slevy, dlouhá rotace." / "Performance akvizice: 100% single image, slevy v každé reklamě, krátká rotace pod 30 dní." NESMÍ citovat copy z reklam, parafrázovat USP ani fabulovat motivy bez datové opory.
 - Nikdy nevymýšlej strategie, claimy ani vzorce bez datové opory`;
 
 function l1User(playerName: string, playerUrl: string, ads: any[], websiteContent = ""): string {
@@ -271,6 +272,7 @@ Vrať JSON v přesně tomto formátu (ad_mix_pct: odhadni % rozdělení reklam n
     "frekvence_novych_reklam": "stredni"
   },
   "messaging": {
+    "strategie_uctu": "",
     "hlavni_claim": "",
     "tema_komunikace": "",
     "dominantni_emocni_apel": "logika",
