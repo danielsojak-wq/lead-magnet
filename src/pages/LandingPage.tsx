@@ -330,7 +330,7 @@ export default function LandingPage() {
 
           {/* Pipeline */}
           <div className="bg-white/5 border border-white/10 rounded-2xl p-6 sm:p-8">
-            <p className="text-white/35 text-xs font-semibold tracking-widest uppercase mb-6">Jak analýza probíhá</p>
+            <p className="text-white/35 text-xs font-semibold tracking-widest uppercase mb-6">JAK TO PROBÍHÁ</p>
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5 sm:gap-3">
               {PIPELINE.map((step, i) => (
                 <div key={step.label} className="flex sm:flex-1 items-center gap-3 sm:gap-3">
