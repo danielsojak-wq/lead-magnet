@@ -2,7 +2,7 @@ import { useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowRight, Eye, Zap, Target, TrendingUp, Clock, Check,
-  Gift, Globe, Database, Brain, Shield, BarChart3, Layers,
+  Gift, Globe, Database, Brain, LaptopMinimalCheck, BarChart3, Layers,
 } from "lucide-react";
 import performindLogo from "@/assets/performind-logo-dark.svg";
 
@@ -76,7 +76,7 @@ const AI_FEATURES = [
   {
     icon: BarChart3,
     title: "Benchmarky z praxe",
-    body: "Výsledky porovnáváme s daty ze 15+ eshopů v naší aktivní správě. Víme, co je průměr a co je skutečná konkurenční výhoda.",
+    body: "Najdeme témata a segmenty, které konkurence přehlíží. Tyto mezery jsou vaší největší příležitostí.",
   },
   {
     icon: Layers,
@@ -89,7 +89,7 @@ const AI_FEATURES = [
     body: "AI hledá témata a segmenty, které konkurence přehlíží. Tyto mezery jsou vaší největší příležitostí.",
   },
   {
-    icon: Shield,
+    icon: LaptopMinimalCheck,
     title: "Ověřená metodika",
     body: "Každý výstup vychází z frameworku, který používáme při onboardingu klientů. Žádné dohady — jen praxí ověřené otázky.",
   },
@@ -97,9 +97,9 @@ const AI_FEATURES = [
 
 const PIPELINE = [
   { icon: Globe,     label: "Sběr dat",    sub: "Ad Library API" },
-  { icon: Brain,     label: "AI analýza",  sub: "Jazykové modely" },
-  { icon: BarChart3, label: "Benchmarking", sub: "Data z klientů" },
-  { icon: Zap,       label: "Výsledky",    sub: "Do 5 minut" },
+  { icon: Brain,     label: "AI analýza a syntéza",  sub: "Jazykové modely" },
+  { icon: BarChart3, label: "Benchmarking", sub: "Porovnání na základě dat" },
+  { icon: Zap,       label: "Výsledky",    sub: "Uvidíte hned" },
 ];
 
 /* ─── CTA button ────────────────────────────────────────────────────────────── */
@@ -311,8 +311,7 @@ export default function LandingPage() {
             </h2>
             <p className="text-white/55 max-w-2xl mx-auto text-lg leading-relaxed">
               Za každou analýzou stojí AI modely trénované na reálných kampaních,
-              benchmarky z eshopů v naší správě a strukturovaná data
-              z obou největších reklamních platforem.
+              benchmarky z eshopů v naší správě a strukturovaná data z reklamních knihoven
             </p>
           </div>
 
@@ -331,7 +330,7 @@ export default function LandingPage() {
 
           {/* Pipeline */}
           <div className="bg-white/5 border border-white/10 rounded-2xl p-6 sm:p-8">
-            <p className="text-white/35 text-xs font-semibold tracking-widest uppercase mb-6">Jak analýza probíhá</p>
+            <p className="text-white/35 text-xs font-semibold tracking-widest uppercase mb-6">JAK TO PROBÍHÁ</p>
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5 sm:gap-3">
               {PIPELINE.map((step, i) => (
                 <div key={step.label} className="flex sm:flex-1 items-center gap-3 sm:gap-3">
