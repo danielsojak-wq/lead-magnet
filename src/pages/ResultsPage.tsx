@@ -180,6 +180,7 @@ const MOCK: AnalysisResults = {
 
 const TYPE_COLORS = { brand: "#4f11ff", sales: "#b0f221", retargeting: "#f59e0b" } as const;
 const TYPE_LABELS = { brand: "Brand", sales: "Akvizice", retargeting: "Retargeting" };
+const COMP_COLORS = ["#3B82F6", "#F97316"] as const;
 
 function typeColor(t: string | null) {
   if (t === "brand") return TYPE_COLORS.brand;
@@ -313,6 +314,71 @@ function PositioningRadar({ radar }: { radar: AiCrossAnalysis["pozice_zadavatele
         <Radar name="Váš e-shop" dataKey="value" stroke="#4f11ff" fill="#4f11ff" fillOpacity={0.15} strokeWidth={2} />
       </RadarChart>
     </ResponsiveContainer>
+  );
+}
+
+function WowNumber({ eshopName, eshopCompetitor, competitors }: {
+  eshopName: string;
+  eshopCompetitor: CompetitorResult | null | undefined;
+  competitors: CompetitorResult[];
+}) {
+  const eshopActive = eshopCompetitor?.ai_analysis?.aktivita.pocet_aktivnich_reklam
+    ?? (eshopCompetitor ? eshopCompetitor.ads.filter(a => a.is_active).length : null);
+
+  const compActives = competitors
+    .map(c => c.ai_analysis?.aktivita.pocet_aktivnich_reklam)
+    .filter((n): n is number => n != null);
+  const compAvg = compActives.length
+    ? Math.round(compActives.reduce((s, n) => s + n, 0) / compActives.length)
+    : 0;
+
+  if (eshopActive != null && eshopActive > 0 && compAvg > 0) {
+    const diff = (compAvg - eshopActive) / compAvg;
+    if (Math.abs(diff) > 0.2) {
+      const isLess = diff > 0;
+      const ratio = isLess
+        ? (compAvg / eshopActive).toFixed(1)
+        : (eshopActive / compAvg).toFixed(1);
+      return (
+        <div className="rounded-3xl bg-white border border-gray-100 shadow-sm p-6 sm:p-8 flex flex-col sm:flex-row items-start sm:items-center gap-6">
+          <div className="shrink-0">
+            <div className="font-[family-name:var(--font-heading)] text-5xl sm:text-6xl font-bold text-[#4f11ff] leading-none">{ratio}×</div>
+            <div className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mt-1">Wow číslo</div>
+          </div>
+          <div className="hidden sm:block h-16 w-px bg-gray-100 shrink-0" />
+          <p className="text-sm sm:text-base text-gray-700 leading-relaxed">
+            {isLess ? (
+              <><strong className="text-gray-900">{eshopName}</strong> má {eshopActive} aktivních reklam. Konkurence průměrně {compAvg}. To je <strong className="text-[#4f11ff]">{ratio}× méně</strong> kreativního testování.</>
+            ) : (
+              <><strong className="text-gray-900">{eshopName}</strong> testuje <strong className="text-[#4f11ff]">{ratio}× více kreativy</strong> než průměr konkurence ({eshopActive} vs. {compAvg} aktivních reklam).</>
+            )}
+          </p>
+        </div>
+      );
+    }
+  }
+
+  const durations = competitors
+    .map(c => c.ai_analysis?.aktivita.prumerna_delka_behu_dni)
+    .filter((n): n is number => n != null && n > 0);
+  const avgDuration = durations.length
+    ? Math.round(durations.reduce((s, n) => s + n, 0) / durations.length)
+    : 0;
+
+  if (!avgDuration) return null;
+
+  return (
+    <div className="rounded-3xl bg-white border border-gray-100 shadow-sm p-6 sm:p-8 flex flex-col sm:flex-row items-start sm:items-center gap-6">
+      <div className="shrink-0">
+        <div className="font-[family-name:var(--font-heading)] text-5xl sm:text-6xl font-bold text-[#4f11ff] leading-none">{avgDuration}</div>
+        <div className="text-xs font-medium text-gray-500 mt-0.5">dní průměrně</div>
+        <div className="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Wow číslo</div>
+      </div>
+      <div className="hidden sm:block h-16 w-px bg-gray-100 shrink-0" />
+      <p className="text-sm sm:text-base text-gray-700 leading-relaxed">
+        Průměrná délka aktivní reklamy u vaší konkurence. Reklamy, které běží déle, zpravidla přinášejí lepší výsledky — nejde o počet, ale o výdrž.
+      </p>
+    </div>
   );
 }
 
@@ -504,7 +570,7 @@ function MessagingCard({ ai }: { ai: AiAnalysis }) {
             <div className="font-[family-name:var(--font-heading)] text-2xl font-bold text-[#4f11ff]">{aktivita.pocet_aktivnich_reklam}</div>
             <div>aktivních reklam</div>
           </div>
-          <div className="flex justify-between"><span>Prům. délka</span><span className="font-medium text-gray-700">{aktivita.prumerna_delka_behu_dni} dní</span></div>
+          <div className="flex justify-between"><span>Prům. délka</span><span className="font-medium text-gray-700">{aktivita.prumerna_delka_behu_dni > 0 ? `${aktivita.prumerna_delka_behu_dni} dní` : "Není k dispozici"}</span></div>
           <div className="flex justify-between"><span>Frekvence</span><span className="font-medium text-gray-700">{aktivita.frekvence_novych_reklam}</span></div>
         </div>
       </div>
@@ -571,7 +637,14 @@ function CompetitorSection({ competitor, index, isEshop }: { competitor: Competi
           {isEshop ? (
             <span className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-sm font-bold text-emerald-600 font-[family-name:var(--font-heading)]">Vy</span>
           ) : (
-            <span className="w-9 h-9 rounded-xl bg-[#4f11ff]/8 border border-[#4f11ff]/15 flex items-center justify-center text-sm font-bold text-[#4f11ff] font-[family-name:var(--font-heading)]">
+            <span
+              className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold font-[family-name:var(--font-heading)]"
+              style={{
+                background: `${COMP_COLORS[index % COMP_COLORS.length]}18`,
+                border: `1px solid ${COMP_COLORS[index % COMP_COLORS.length]}40`,
+                color: COMP_COLORS[index % COMP_COLORS.length],
+              }}
+            >
               {index + 1}
             </span>
           )}
@@ -787,6 +860,9 @@ export default function ResultsPage() {
           </div>
         )}
 
+        {/* Wow number */}
+        <WowNumber eshopName={results.eshop_name} eshopCompetitor={results.eshop_competitor} competitors={results.competitors} />
+
         {/* Cross synthesis */}
         <CrossAnalysisHero cross={cross ?? null} eshopName={results.eshop_name} competitors={results.competitors} />
 
@@ -795,6 +871,29 @@ export default function ResultsPage() {
           <PositioningSection cross={cross} eshopName={results.eshop_name} />
         )}
 
+        {/* Ad mix comparison chart */}
+        {results.competitors.length > 0 && (
+          <section className="bg-white rounded-3xl border border-gray-100 p-6 sm:p-8 shadow-sm">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-9 h-9 rounded-xl bg-[#4f11ff]/8 border border-[#4f11ff]/15 flex items-center justify-center shrink-0">
+                <Layers className="h-4 w-4 text-[#4f11ff]" />
+              </div>
+              <div>
+                <h2 className="font-[family-name:var(--font-heading)] font-bold text-gray-900">Reklamní mix konkurence</h2>
+                <p className="text-xs text-gray-400 mt-0.5">Rozložení brand / akvizice / retargeting reklam na Meta</p>
+              </div>
+            </div>
+            {results.competitors.every(c => c.ad_mix.brand === 0 && c.ad_mix.sales === 0 && c.ad_mix.retargeting === 0) ? (
+              <p className="text-sm text-gray-400 text-center py-8">Data o reklamním mixu nejsou k dispozici.</p>
+            ) : (
+              <ComparisonChart competitors={results.competitors} />
+            )}
+            <p className="text-xs text-gray-400 mt-4 flex items-center gap-1.5">
+              <AlertCircle className="h-3 w-3 shrink-0" />
+              Google Ads analýza bude dostupná brzy.
+            </p>
+          </section>
+        )}
 
         {/* Eshop (Váš e-shop) */}
         {results.eshop_competitor && results.eshop_competitor.ads.length > 0 && (
