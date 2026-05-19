@@ -76,7 +76,7 @@ const AI_FEATURES = [
   {
     icon: BarChart3,
     title: "Benchmarky z praxe",
-    body: "Výsledky porovnáváme s daty ze 15+ eshopů v naší aktivní správě. Víme, co je průměr a co je skutečná konkurenční výhoda.",
+    body: "Najdeme témata a segmenty, které konkurence přehlíží. Tyto mezery jsou vaší největší příležitostí.",
   },
   {
     icon: Layers,
