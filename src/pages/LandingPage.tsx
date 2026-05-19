@@ -65,11 +65,11 @@ const STATS = [
 const AI_FEATURES = [
   {
     icon: Database,
-    title: "Data z obou platforem",
-    body: "Napojujeme se na Meta Ad Library a Google Ads Transparency Center. Vidíme každou aktivní reklamu, její délku běhu i formát.",
+    title: "Data přímo z platforem",
+    body: "Napojujeme se na Meta Ads Library. Vidíme každou aktivní reklamu, její délku běhu i formát.",
   },
   {
-    icon: Cpu,
+    icon: Brain,
     title: "Pokročilé AI modely",
     body: "Analýzu zpracovávají jazykové modely nejnovější generace. Nespoléháme na pravidla — AI interpretuje kontext, sdělení a záměr za každou reklamou.",
   },
