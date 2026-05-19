@@ -116,7 +116,7 @@ function CtaButton({ size = "lg" }: { size?: "lg" | "sm" }) {
       >
         Získat analýzu zdarma <ArrowRight className="h-4 w-4" />
       </button>
-      <p className="text-xs text-gray-400">Bez platební karty. Bez spamu. 1× na e-mailovou adresu.</p>
+      <p className="text-xs text-gray-400">{"\n"}</p>
     </div>
   );
 }
