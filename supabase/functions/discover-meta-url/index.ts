@@ -6,27 +6,45 @@ const EXCLUDED = new Set([
   "help", "l", "n", "hashtag", "privacy", "policies", "terms",
   "about", "legal", "settings", "watches", "gaming", "marketplace",
   "fundraisers", "bookmarks", "saved", "people", "stories",
+  "pages", "watch", "messages", "search", "photo", "video", "reel",
+  "notifications", "live", "story", "reels", "profile",
 ]);
 
 function extractFbPage(html: string): { pageName: string | null; pageId: string | null } {
-  // 1. profile.php?id=NUMERIC_ID
+  // 1. Numeric profile ID anywhere in HTML
   const numericMatch = html.match(/facebook\.com\/profile\.php\?id=(\d{8,})/);
   if (numericMatch) return { pageName: null, pageId: numericMatch[1] };
 
-  // 2. Collect all /pageslug hrefs (exclude known non-page paths)
-  const hrefRe = /(?:href|content)=["']https?:\/\/(?:www\.)?facebook\.com\/([a-zA-Z0-9._-]{3,60})\/?(?:[?"']|$)/g;
+  // 2. JSON-LD sameAs — highest confidence, always server-rendered
+  const jsonLdBlocks = html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
+  for (const block of jsonLdBlocks) {
+    try {
+      const obj = JSON.parse(block[1]);
+      const sameAs: string[] = Array.isArray(obj?.sameAs) ? obj.sameAs
+        : typeof obj?.sameAs === "string" ? [obj.sameAs] : [];
+      for (const u of sameAs) {
+        const fbM = String(u).match(/(?:https?:)?\/\/(?:www\.)?facebook\.com\/([a-zA-Z0-9._-]{3,60})/);
+        if (fbM) {
+          const slug = fbM[1].toLowerCase();
+          if (!EXCLUDED.has(slug) && !/^\d+$/.test(slug)) return { pageName: slug, pageId: null };
+        }
+      }
+    } catch { /* skip malformed JSON */ }
+  }
+
+  // 3. Broad regex — catches href, data-href, og tags, script vars, //protocol-relative
+  // Lookahead ensures slug ends at /, ?, #, quote, whitespace, < or &
+  const fbRe = /(?:https?:)?\/\/(?:www\.)?facebook\.com\/([a-zA-Z0-9._-]{3,60})(?=[/?#"'\s<&\\]|$)/g;
   const counts = new Map<string, number>();
   let m;
-  while ((m = hrefRe.exec(html)) !== null) {
+  while ((m = fbRe.exec(html)) !== null) {
     const slug = m[1].toLowerCase();
-    if (!EXCLUDED.has(slug) && !slug.startsWith("pg/") && !/^\d+$/.test(slug)) {
-      counts.set(slug, (counts.get(slug) ?? 0) + 1);
-    }
+    if (EXCLUDED.has(slug) || slug.startsWith("pg/") || /^\d+$/.test(slug)) continue;
+    counts.set(slug, (counts.get(slug) ?? 0) + 1);
   }
 
   if (!counts.size) return { pageName: null, pageId: null };
 
-  // Return most-frequent slug (footer/header links appear multiple times → likely official page)
   const best = [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
   return { pageName: best, pageId: null };
 }
@@ -52,8 +70,12 @@ Deno.serve(async (req) => {
     let html = "";
     try {
       const res = await fetch(String(url), {
-        headers: { "User-Agent": "Mozilla/5.0 (compatible; Performind-Bot/1.0)" },
-        signal: AbortSignal.timeout(8000),
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          "Accept-Language": "cs,en-US;q=0.7,en;q=0.3",
+        },
+        signal: AbortSignal.timeout(10000),
       });
       if (!res.ok) return empty;
       html = await res.text();
