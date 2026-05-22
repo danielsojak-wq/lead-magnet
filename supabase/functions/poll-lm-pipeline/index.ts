@@ -130,22 +130,25 @@ async function downloadApifyDataset(token: string, datasetId: string): Promise<a
 async function checkAndProcessRun(
   token: string,
   runId: string,
-): Promise<{ done: boolean; succeeded: boolean; datasetId: string; items: any[] }> {
+): Promise<{ done: boolean; succeeded: boolean; datasetId: string; items: any[]; creditExhausted: boolean }> {
   const statusRes = await fetch(`https://api.apify.com/v2/actor-runs/${runId}?token=${token}`);
   const statusData = await statusRes.json();
-  const apifyStatus: string = statusData?.data?.status ?? "";
-  const datasetId: string   = statusData?.data?.defaultDatasetId ?? "";
+  const apifyStatus: string  = statusData?.data?.status ?? "";
+  const statusMessage: string = (statusData?.data?.statusMessage ?? "").toLowerCase();
+  const datasetId: string    = statusData?.data?.defaultDatasetId ?? "";
 
-  console.log(`Apify run ${runId}: ${apifyStatus}`);
+  const creditExhausted = statusMessage.includes("maximum charged") || statusMessage.includes("charged results");
+
+  console.log(`Apify run ${runId}: ${apifyStatus} — ${statusData?.data?.statusMessage ?? ""}`);
 
   if (apifyStatus === "RUNNING" || apifyStatus === "READY" || apifyStatus === "STARTING") {
-    return { done: false, succeeded: false, datasetId, items: [] };
+    return { done: false, succeeded: false, datasetId, items: [], creditExhausted: false };
   }
   if (apifyStatus !== "SUCCEEDED") {
-    return { done: true, succeeded: false, datasetId, items: [] };
+    return { done: true, succeeded: false, datasetId, items: [], creditExhausted };
   }
   const items = await downloadApifyDataset(token, datasetId);
-  return { done: true, succeeded: true, datasetId, items };
+  return { done: true, succeeded: true, datasetId, items, creditExhausted };
 }
 
 // ─── Handler ──────────────────────────────────────────────────────────────────
@@ -165,10 +168,10 @@ Deno.serve(async (req) => {
 
     // Fast-path: check session status
     const { data: session } = await supa
-      .from("lm_sessions").select("status").eq("id", session_id).single();
+      .from("lm_sessions").select("status, error_message").eq("id", session_id).single();
 
     if (session?.status === "ready" || session?.status === "completed") return ok({ status: "ready" });
-    if (session?.status === "failed")    return ok({ status: "failed" });
+    if (session?.status === "failed") return ok({ status: "failed", error_message: session.error_message ?? null });
 
     // Recovery: if stuck in "analyzing" for more than 8 minutes with no result, reset
     if (session?.status === "analyzing") {
@@ -216,8 +219,16 @@ Deno.serve(async (req) => {
 
       // Check Meta run
       if (comp.apify_run_id) {
-        const { done, succeeded, items } = await checkAndProcessRun(APIFY_TOKEN, comp.apify_run_id);
+        const { done, succeeded, items, creditExhausted } = await checkAndProcessRun(APIFY_TOKEN, comp.apify_run_id);
         if (!done) continue;
+        if (creditExhausted) {
+          console.error(`Competitor ${comp.id}: Apify credit exhausted`);
+          await supa.from("lm_sessions").update({
+            status: "failed",
+            error_message: "apify_credit_exhausted",
+          }).eq("id", session_id);
+          return ok({ status: "failed", error_message: "apify_credit_exhausted" });
+        }
         if (succeeded) {
           if (items.length) {
             const rows = items.map(it => mapMetaItem(it, session_id, comp.id));

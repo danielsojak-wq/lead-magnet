@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Search, BarChart2, FileText, Sparkles } from "lucide-react";
+import { Search, BarChart2, FileText, Sparkles, AlertTriangle } from "lucide-react";
 import performindLogo from "@/assets/performind-logo-dark.svg";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -217,6 +217,7 @@ export default function WaitingPage() {
   const [scrapedCount, setScrapedCount] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
   const [progress, setProgress] = useState(8);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const analyzingStartRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -234,6 +235,7 @@ export default function WaitingPage() {
         setCurrentStep(STATUS_TO_STEP[status] ?? 0);
         if (data?.scraped != null) setScrapedCount(data.scraped);
         if (data?.total != null) setTotalCount(data.total);
+        if (data?.error_message) setErrorMessage(data.error_message);
         if (status === "analyzing" && analyzingStartRef.current === null) {
           analyzingStartRef.current = Date.now();
         }
@@ -362,9 +364,23 @@ export default function WaitingPage() {
             </div>
 
             {pipelineStatus === "failed" && (
-              <p className="text-red-400 text-sm mt-6">
-                Analýza selhala. Zkuste to prosím znovu.
-              </p>
+              <div className="mt-6 bg-amber-50 border border-amber-200 rounded-2xl px-5 py-4 flex gap-3 items-start text-left">
+                <AlertTriangle className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                {errorMessage === "apify_credit_exhausted" ? (
+                  <div>
+                    <p className="text-sm font-semibold text-amber-800">Technické problémy</p>
+                    <p className="text-sm text-amber-700 mt-0.5">
+                      Analýzu se momentálně nepodařilo spustit kvůli technickému výpadku na naší straně.
+                      Pracujeme na nápravě — zkuste to prosím za chvíli.
+                    </p>
+                  </div>
+                ) : (
+                  <div>
+                    <p className="text-sm font-semibold text-amber-800">Analýza selhala</p>
+                    <p className="text-sm text-amber-700 mt-0.5">Zkuste to prosím znovu.</p>
+                  </div>
+                )}
+              </div>
             )}
 
             <p className="text-gray-400 text-xs mt-6">
