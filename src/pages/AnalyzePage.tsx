@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ArrowRight, Globe, Search, ShieldCheck, Info, X, Play, Maximize2, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import * as Dialog from "@radix-ui/react-dialog";
 import performindLogo from "@/assets/performind-logo-dark.svg";
+import { supabase } from "@/integrations/supabase/client";
 
 // ─── URL helpers ──────────────────────────────────────────────────────────────
 
@@ -65,6 +66,51 @@ function useMetaUrlCheck(raw: string): UrlStatus {
   } catch {
     return "invalid";
   }
+}
+
+type DiscoveryStatus = "idle" | "searching" | "found" | "not_found";
+
+function useDiscoverMeta(urlStatus: UrlStatus, normalizedUrl: string | null): {
+  status: DiscoveryStatus;
+  pageName: string | null;
+  metaUrl: string | null;
+} {
+  const [status, setStatus] = useState<DiscoveryStatus>("idle");
+  const [pageName, setPageName] = useState<string | null>(null);
+  const [metaUrl, setMetaUrl] = useState<string | null>(null);
+  const lastUrl = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (urlStatus !== "valid" || !normalizedUrl) {
+      if (urlStatus === "idle" || urlStatus === "checking") {
+        setStatus("idle");
+        setPageName(null);
+        setMetaUrl(null);
+        lastUrl.current = null;
+      }
+      return;
+    }
+    if (normalizedUrl === lastUrl.current) return;
+    lastUrl.current = normalizedUrl;
+
+    setStatus("searching");
+    setPageName(null);
+    setMetaUrl(null);
+
+    supabase.functions.invoke("discover-meta-url", { body: { url: normalizedUrl } })
+      .then(({ data }) => {
+        if (data?.meta_url) {
+          setMetaUrl(data.meta_url);
+          setPageName(data.page_name ?? null);
+          setStatus("found");
+        } else {
+          setStatus("not_found");
+        }
+      })
+      .catch(() => setStatus("not_found"));
+  }, [urlStatus, normalizedUrl]);
+
+  return { status, pageName, metaUrl };
 }
 
 const VIDEO_CONFIG = {
@@ -160,11 +206,12 @@ function VideoHelpModal({ type, onClose }: { type: VideoType; onClose: () => voi
 
 // ─── Input components ─────────────────────────────────────────────────────────
 
-function UrlInput({ label, placeholder, value, onChange, required, error }: {
+function UrlInput({ label, placeholder, value, onChange, required, error, urlStatus: externalStatus }: {
   label: string; placeholder: string; value: string; onChange: (v: string) => void;
-  required?: boolean; error?: string;
+  required?: boolean; error?: string; urlStatus?: UrlStatus;
 }) {
-  const urlStatus = useUrlCheck(value);
+  const internalStatus = useUrlCheck(externalStatus !== undefined ? "" : value);
+  const urlStatus = externalStatus ?? internalStatus;
 
   const borderClass = error
     ? "border-red-300 focus:ring-red-200 focus:border-red-400"
@@ -271,14 +318,40 @@ function ShopSection({ title, badge, fields, onChange, required, onHelp, errors 
   onChange: (key: "url" | "meta", v: string) => void;
   required?: boolean; onHelp: (type: VideoType) => void; errors?: ShopErrors;
 }) {
+  const urlStatus = useUrlCheck(fields.url);
+  const normalizedUrl = normalizeWebUrl(fields.url);
+  const discovery = useDiscoverMeta(urlStatus, normalizedUrl);
+
+  // Auto-fill meta field when discovered and currently empty
+  useEffect(() => {
+    if (discovery.status === "found" && discovery.metaUrl && !fields.meta.trim()) {
+      onChange("meta", discovery.metaUrl);
+    }
+  }, [discovery.status, discovery.metaUrl]);
+
   return (
     <div className={`rounded-2xl border p-5 space-y-4 bg-gray-50/40 transition-colors ${errors?.url || errors?.meta ? "border-red-200" : "border-gray-100"}`}>
       <div className="flex items-center gap-2">
         <span className="font-[family-name:var(--font-heading)] font-semibold text-gray-900 text-sm">{title}</span>
         {badge && <span className="text-xs bg-[#b0f221]/30 text-gray-700 px-2 py-0.5 rounded-full font-medium">{badge}</span>}
       </div>
-      <UrlInput label="URL webu" placeholder="eshop.cz nebo https://eshop.cz" value={fields.url} onChange={(v) => onChange("url", v)} required={required} error={errors?.url} />
-      <LibraryInput label="Meta Ads Library" placeholder="https://facebook.com/ads/library/?..." value={fields.meta} onChange={(v) => onChange("meta", v)} onHelp={() => onHelp("meta")} icon={<MetaIcon />} error={errors?.meta} />
+      <UrlInput label="URL webu" placeholder="eshop.cz nebo https://eshop.cz" value={fields.url} onChange={(v) => onChange("url", v)} required={required} error={errors?.url} urlStatus={urlStatus} />
+      <div className="space-y-1.5">
+        <LibraryInput label="Meta Ads Library" placeholder="https://facebook.com/ads/library/?..." value={fields.meta} onChange={(v) => onChange("meta", v)} onHelp={() => onHelp("meta")} icon={<MetaIcon />} error={errors?.meta} />
+        {!errors?.meta && (
+          <>
+            {discovery.status === "searching" && (
+              <p className="text-xs text-gray-500 flex items-center gap-1.5"><Loader2 className="h-3 w-3 animate-spin" /> Hledám Facebook stránku...</p>
+            )}
+            {discovery.status === "found" && (
+              <p className="text-xs text-green-600 flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3" /> Nalezena Facebook stránka: <span className="font-medium">{discovery.pageName}</span></p>
+            )}
+            {discovery.status === "not_found" && !fields.meta.trim() && (
+              <p className="text-xs text-amber-600 flex items-center gap-1.5"><AlertCircle className="h-3 w-3" /> Facebook stránka nenalezena — zadejte URL Meta Ads Library ručně</p>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }
