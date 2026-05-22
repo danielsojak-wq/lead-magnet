@@ -16,16 +16,44 @@ const BROWSER_HEADERS = {
   "Accept-Language": "cs,en-US;q=0.7,en;q=0.3",
 };
 
-function domainBase(url: string): string {
+// ─── Domain helpers ────────────────────────────────────────────────────────────
+
+function parseDomain(url: string): { host: string; base: string } {
   try {
-    return new URL(url).hostname.replace(/^www\./, "").replace(/\.[^.]+$/, "").toLowerCase();
-  } catch { return ""; }
+    const host = new URL(url).hostname.replace(/^www\./, ""); // e.g. vetyszoo.cz
+    const base = host.replace(/\.[^.]+$/, "");               // e.g. vetyszoo
+    return { host, base };
+  } catch { return { host: "", base: "" }; }
 }
 
-function extractFbSlugs(html: string): Map<string, number> {
+// Generate slug candidates to try on Facebook (ordered by likelihood)
+function slugCandidates(siteUrl: string, htmlSlugs: string[]): string[] {
+  const { host, base } = parseDomain(siteUrl);
+  const seen = new Set<string>();
+  const result: string[] = [];
+
+  const push = (s: string) => {
+    const n = s.toLowerCase().trim();
+    if (n && !seen.has(n)) { seen.add(n); result.push(n); }
+  };
+
+  // Domain-based: most Czech e-shops use domain as FB slug
+  push(base);           // vetyszoo
+  push(host);           // vetyszoo.cz
+  push(base.replace(/-/g, ""));        // remove hyphens
+
+  // Slugs found in website HTML (lower priority — may be legal entity page)
+  for (const s of htmlSlugs) push(s);
+
+  return result.filter(s => s.length >= 3);
+}
+
+// ─── HTML slug extraction ──────────────────────────────────────────────────────
+
+function extractFbSlugs(html: string): string[] {
   const counts = new Map<string, number>();
 
-  // 1. JSON-LD sameAs (highest confidence)
+  // JSON-LD sameAs (highest per-entry confidence)
   const jsonLdBlocks = html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
   for (const block of jsonLdBlocks) {
     try {
@@ -36,72 +64,68 @@ function extractFbSlugs(html: string): Map<string, number> {
         const m = String(u).match(/(?:https?:)?\/\/(?:www\.)?facebook\.com\/([a-zA-Z0-9._-]{3,60})/);
         if (m) {
           const slug = m[1].toLowerCase();
-          if (!EXCLUDED.has(slug) && !/^\d+$/.test(slug)) {
-            // Boost JSON-LD entries so they rank higher
+          if (!EXCLUDED.has(slug) && !/^\d+$/.test(slug))
             counts.set(slug, (counts.get(slug) ?? 0) + 5);
-          }
         }
       }
     } catch { /* skip */ }
   }
 
-  // 2. Broad regex — href, data-href, og tags, script vars, protocol-relative
+  // Broad regex — href, data-href, script vars, protocol-relative
   const fbRe = /(?:https?:)?\/\/(?:www\.)?facebook\.com\/([a-zA-Z0-9._-]{3,60})(?=[/?#"'\s<&\\]|$)/g;
   let m;
   while ((m = fbRe.exec(html)) !== null) {
     const slug = m[1].toLowerCase();
-    if (EXCLUDED.has(slug) || slug.startsWith("pg/") || /^\d+$/.test(slug)) continue;
-    counts.set(slug, (counts.get(slug) ?? 0) + 1);
+    if (!EXCLUDED.has(slug) && !slug.startsWith("pg/") && !/^\d+$/.test(slug))
+      counts.set(slug, (counts.get(slug) ?? 0) + 1);
   }
 
-  return counts;
+  return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([s]) => s);
 }
 
-function pickBestSlug(counts: Map<string, number>, siteUrl: string): string | null {
-  if (!counts.size) return null;
+// ─── Facebook page ID resolution ───────────────────────────────────────────────
 
-  const base = domainBase(siteUrl);
-  const baseNorm = base.replace(/[^a-z0-9]/g, "");
-
-  // Prefer slug that closely matches the domain (e.g. vetyszoo.cz → vetyszoo)
-  if (baseNorm.length >= 4) {
-    for (const [slug] of [...counts.entries()].sort((a, b) => b[1] - a[1])) {
-      const slugNorm = slug.replace(/[^a-z0-9]/g, "");
-      if (slugNorm === baseNorm || slugNorm.startsWith(baseNorm) || baseNorm.startsWith(slugNorm)) {
-        return slug;
-      }
-    }
-  }
-
-  // Fall back to most frequent
-  return [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
-}
-
-// Try to resolve numeric Facebook page ID from the slug (enables view_all_page_id= URL)
-async function resolveFbPageId(slug: string): Promise<string | null> {
+// Returns { pageId } if we can extract it, or { found: true } if page exists but ID not found
+async function probeFbSlug(slug: string): Promise<{ pageId: string | null; found: boolean }> {
   try {
     const res = await fetch(`https://www.facebook.com/${encodeURIComponent(slug)}`, {
       headers: BROWSER_HEADERS,
-      signal: AbortSignal.timeout(4000),
+      redirect: "follow",
+      signal: AbortSignal.timeout(5000),
     });
-    if (!res.ok) return null;
+
+    // 404 = slug doesn't exist
+    if (res.status === 404) return { pageId: null, found: false };
+
     const html = await res.text();
 
-    // Patterns for numeric page ID in Facebook HTML
+    // If redirected to login — page might exist behind auth wall
+    const finalUrl = res.url ?? "";
+    if (finalUrl.includes("/login") || html.includes("id=\"loginbutton\"") || html.length < 3000) {
+      return { pageId: null, found: false };
+    }
+
+    // Try to extract numeric page ID
     const patterns = [
       /fb:\/\/profile\/(\d{8,})/,
       /"page_id":"(\d{8,})"/,
       /"entity_id":"(\d{8,})"/,
       /profile_id=(\d{8,})/,
       /"userID":"(\d{8,})"/,
+      /"pageID":"(\d{8,})"/,
     ];
     for (const p of patterns) {
-      const m = html.match(p);
-      if (m) return m[1];
+      const pm = html.match(p);
+      if (pm) return { pageId: pm[1], found: true };
     }
-  } catch { /* Facebook blocked or timed out — use slug fallback */ }
-  return null;
+
+    return { pageId: null, found: true };
+  } catch {
+    return { pageId: null, found: false };
+  }
 }
+
+// ─── Build URL ─────────────────────────────────────────────────────────────────
 
 function buildMetaUrl(pageName: string | null, pageId: string | null): string | null {
   const base = "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=CZ&is_targeted_country=false&media_type=all";
@@ -109,6 +133,8 @@ function buildMetaUrl(pageName: string | null, pageId: string | null): string | 
   if (pageName) return `${base}&search_type=page&q=${encodeURIComponent(pageName)}`;
   return null;
 }
+
+// ─── Handler ───────────────────────────────────────────────────────────────────
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -120,40 +146,61 @@ Deno.serve(async (req) => {
   try {
     const { url } = await req.json().catch(() => ({}));
     if (!url) return empty;
+    const siteUrl = String(url);
 
-    // 1. Fetch website HTML
-    let html = "";
+    // 1. Fetch website HTML (for slug hints)
+    let htmlSlugs: string[] = [];
+    let htmlNumericId: string | null = null;
+
     try {
-      const res = await fetch(String(url), {
+      const res = await fetch(siteUrl, {
         headers: BROWSER_HEADERS,
-        signal: AbortSignal.timeout(10000),
+        signal: AbortSignal.timeout(8000),
       });
-      if (!res.ok) return empty;
-      html = await res.text();
-    } catch { return empty; }
+      if (res.ok) {
+        const html = await res.text();
+        const numericMatch = html.match(/facebook\.com\/profile\.php\?id=(\d{8,})/);
+        if (numericMatch) htmlNumericId = numericMatch[1];
+        else htmlSlugs = extractFbSlugs(html);
+      }
+    } catch { /* website unreachable — proceed with domain guesses */ }
 
-    // 2. Check for numeric profile ID
-    const numericMatch = html.match(/facebook\.com\/profile\.php\?id=(\d{8,})/);
-    if (numericMatch) {
-      const pageId = numericMatch[1];
-      return new Response(JSON.stringify({ meta_url: buildMetaUrl(null, pageId), page_name: pageId }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    // 2. Shortcut: numeric profile ID found directly in HTML
+    if (htmlNumericId) {
+      return new Response(JSON.stringify({
+        meta_url: buildMetaUrl(null, htmlNumericId),
+        page_name: htmlNumericId,
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // 3. Extract slug candidates and pick best
-    const counts = extractFbSlugs(html);
-    const pageName = pickBestSlug(counts, String(url));
-    if (!pageName) return empty;
+    // 3. Build ordered candidate list and probe all in parallel
+    const candidates = slugCandidates(siteUrl, htmlSlugs);
+    if (!candidates.length) return empty;
 
-    // 4. Try to get numeric page ID for a precise Ads Library URL
-    const pageId = await resolveFbPageId(pageName);
+    const probeResults = await Promise.allSettled(
+      candidates.map(slug => probeFbSlug(slug).then(r => ({ slug, ...r })))
+    );
 
-    const metaUrl = buildMetaUrl(pageId ? null : pageName, pageId);
+    // 4. Pick best: prefer result with page ID, then result where page was found
+    let bestSlug: string | null = null;
+    let bestPageId: string | null = null;
 
-    return new Response(JSON.stringify({ meta_url: metaUrl, page_name: pageName }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    for (const r of probeResults) {
+      if (r.status !== "fulfilled") continue;
+      const { slug, pageId, found } = r.value;
+      if (pageId) { bestSlug = slug; bestPageId = pageId; break; }
+      if (found && !bestSlug) bestSlug = slug;
+    }
+
+    // 5. If no FB probe succeeded, fall back to top HTML slug
+    if (!bestSlug && htmlSlugs.length) bestSlug = htmlSlugs[0];
+    if (!bestSlug) return empty;
+
+    return new Response(JSON.stringify({
+      meta_url: buildMetaUrl(bestPageId ? null : bestSlug, bestPageId),
+      page_name: bestSlug,
+    }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
   } catch (e) {
     console.error("discover-meta-url error:", e);
     return empty;
