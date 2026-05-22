@@ -257,7 +257,23 @@ Deno.serve(async (req) => {
       return ok({ status: "scraping", scraped, total: fc.length });
     }
 
-    // All scraped → trigger AI (only once)
+    // All scraped → guard: require at least 1 ad with real content before running AI
+    const { count: meaningfulAds } = await supa
+      .from("lm_session_ads")
+      .select("id", { count: "exact", head: true })
+      .eq("session_id", session_id)
+      .not("primary_text", "is", null);
+
+    if (!meaningfulAds) {
+      console.error(`Session ${session_id}: 0 meaningful ads — failing before AI`);
+      await supa.from("lm_sessions").update({
+        status: "failed",
+        error_message: "no_ads_scraped",
+      }).eq("id", session_id);
+      return ok({ status: "failed", error_message: "no_ads_scraped" });
+    }
+
+    // Trigger AI (only once)
     const { data: freshSession } = await supa
       .from("lm_sessions").select("status").eq("id", session_id).single();
 

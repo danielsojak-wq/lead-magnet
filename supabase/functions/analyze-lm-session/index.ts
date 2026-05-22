@@ -426,6 +426,17 @@ export async function runAnalysis(sessionId: string, apiKey: string): Promise<vo
     classifiedMap.set(ad.competitor_id, list);
   }
 
+  // Guard: if there are no ads with real content, fail instead of hallucinating
+  const meaningfulAds = (classifiedAds ?? []).filter(a => a.primary_text || a.image_url);
+  if (meaningfulAds.length === 0) {
+    console.error(`Session ${sessionId}: 0 meaningful ads — aborting analysis`);
+    await supa.from("lm_sessions").update({
+      status: "failed",
+      error_message: "no_ads_scraped",
+    }).eq("id", sessionId);
+    return;
+  }
+
   const compAdsFiltered = comps.map((c: any) => filterAds(classifiedMap.get(c.id) ?? []));
   const eshopAds: any[] = eshopComp ? filterAds(classifiedMap.get(eshopComp.id) ?? []) : [];
 

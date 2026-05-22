@@ -374,6 +374,13 @@ export default function WaitingPage() {
                       Pracujeme na nápravě — zkuste to prosím za chvíli.
                     </p>
                   </div>
+                ) : errorMessage === "no_ads_scraped" ? (
+                  <div>
+                    <p className="text-sm font-semibold text-amber-800">Nepodařilo se načíst reklamy</p>
+                    <p className="text-sm text-amber-700 mt-0.5">
+                      Z Meta Ads Library se nepodařilo získat žádná reklamní data. Zkontrolujte, zda jsou URL adresy Meta Ad Library správně zadané, a zkuste analýzu spustit znovu.
+                    </p>
+                  </div>
                 ) : (
                   <div>
                     <p className="text-sm font-semibold text-amber-800">Analýza selhala</p>
