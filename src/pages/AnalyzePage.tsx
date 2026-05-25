@@ -312,11 +312,11 @@ export interface UrlFormData {
 
 interface ShopErrors { url?: string; meta?: string; }
 
-function ShopSection({ title, badge, fields, onChange, required, onHelp, errors }: {
+function ShopSection({ title, badge, fields, onChange, required, highlight, onHelp, errors }: {
   title: string; badge?: string;
   fields: { url: string; meta: string };
   onChange: (key: "url" | "meta", v: string) => void;
-  required?: boolean; onHelp: (type: VideoType) => void; errors?: ShopErrors;
+  required?: boolean; highlight?: boolean; onHelp: (type: VideoType) => void; errors?: ShopErrors;
 }) {
   const urlStatus = useUrlCheck(fields.url);
   const normalizedUrl = normalizeWebUrl(fields.url);
@@ -345,7 +345,7 @@ function ShopSection({ title, badge, fields, onChange, required, onHelp, errors 
   const showMetaInput = discovery.status === "not_found" || metaEnteredManually;
 
   return (
-    <div className={`rounded-2xl border p-5 space-y-4 bg-gray-50/40 transition-colors ${errors?.url || errors?.meta ? "border-red-200" : "border-gray-100"}`}>
+    <div className={`rounded-2xl border p-5 space-y-4 transition-colors ${errors?.url || errors?.meta ? "border-red-200 bg-gray-50/40" : highlight ? "border-[#6B46C1]/25 bg-[#6B46C1]/[0.04]" : "border-gray-100 bg-gray-50/40"}`}>
       <div className="flex items-center gap-2">
         <span className="font-[family-name:var(--font-heading)] font-semibold text-gray-900 text-sm">{title}</span>
         {badge && <span className="text-xs bg-[#b0f221]/30 text-gray-700 px-2 py-0.5 rounded-full font-medium">{badge}</span>}
@@ -445,7 +445,7 @@ export default function AnalyzePage() {
             <p className="text-gray-500 text-sm mb-8 ml-[52px]">Zadejte URL e-shopu a konkurentů — Meta Ads Library URL dohledáme automaticky.</p>
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              <ShopSection title="Váš e-shop" badge="vy" fields={eshop}
+              <ShopSection title="Váš e-shop" badge="vy" highlight fields={eshop}
                 onChange={(k, v) => { setEshop(s => ({ ...s, [k]: v })); setFieldErrors(e => ({ ...e, eshop: { ...e.eshop, [k]: undefined } })); }}
                 required onHelp={setVideoOpen} errors={fieldErrors.eshop} />
 
