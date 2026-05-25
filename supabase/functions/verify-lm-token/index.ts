@@ -1,5 +1,12 @@
 import { corsHeaders } from "../_shared/cors.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  normalizeEmail,
+  normalizeDomain,
+  extractIp,
+  insertRateLimitAttempts,
+  logRateEvent,
+} from "../_shared/rate-limits.ts";
 
 const SITE_URL = Deno.env.get("SITE_URL") ?? "https://analyza.performind.cz";
 
@@ -19,7 +26,7 @@ function err(msg: string, status = 400) {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
-  // GET: email link click — hand off to React app which handles UI + POST verification
+  // GET: email link click — redirect to React app
   if (req.method === "GET") {
     const token = new URL(req.url).searchParams.get("token") ?? "";
     return new Response(null, {
@@ -38,7 +45,7 @@ Deno.serve(async (req) => {
 
     const { data: session, error: sessErr } = await supa
       .from("lm_sessions")
-      .select("id, status, token_expires_at, email_verified_at")
+      .select("id, status, token_expires_at, email_verified_at, email, eshop_url")
       .eq("verification_token", token)
       .maybeSingle();
 
@@ -55,6 +62,21 @@ Deno.serve(async (req) => {
         .update({ email_verified_at: new Date().toISOString(), status: "urls_pending" })
         .eq("id", session.id);
       if (updateErr) return err(updateErr.message, 500);
+
+      // Fire-and-forget: record this verified attempt for rate limiting.
+      // Non-blocking — a failure here must not kill the lead.
+      const ip = extractIp(req);
+      const email = normalizeEmail(session.email ?? "");
+      const domain = normalizeDomain(session.eshop_url ?? "");
+
+      insertRateLimitAttempts(supa, { ip, email, domain }, session.id).catch((e: unknown) => {
+        logRateEvent({
+          level: "error",
+          message: "rate_limit_insert_failed",
+          session_id: session.id,
+          error: String(e),
+        });
+      });
     }
 
     return ok({ session_id: session.id });

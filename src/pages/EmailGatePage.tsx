@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { ArrowRight, Mail, ShieldCheck, Check, BarChart3 } from "lucide-react";
 import performindLogo from "@/assets/performind-logo-dark.svg";
@@ -245,6 +245,7 @@ export default function EmailGatePage() {
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const honeypotRef = useRef<HTMLInputElement>(null);
 
   const { display: countdown, remaining, total, expired } = useCountdown(12 * 60);
 
@@ -279,12 +280,31 @@ export default function EmailGatePage() {
         eshop_url: urlData.eshop.url,
         eshop_meta_url: urlData.eshop.meta || undefined,
         competitors,
+        website: honeypotRef.current?.value ?? "",
       },
     });
 
     setSubmitting(false);
 
-    if (fnErr || !data?.session_id) {
+    if (fnErr) {
+      // Try to extract rate limit message from 429 response body
+      try {
+        const ctx = (fnErr as unknown as { context?: Response }).context;
+        if (ctx) {
+          const body = await ctx.json() as { error?: string; message?: string };
+          if (body?.error === "rate_limit") {
+            setError(body.message ?? "Překročen limit analýz.");
+            return;
+          }
+        }
+      } catch {
+        // context parse failed — fall through to generic error
+      }
+      setError("Nepodařilo se odeslat email. Zkuste to prosím znovu.");
+      return;
+    }
+
+    if (!data?.session_id) {
       setError("Nepodařilo se odeslat email. Zkuste to prosím znovu.");
       return;
     }
@@ -367,6 +387,16 @@ export default function EmailGatePage() {
 
                   {/* Email form */}
                   <form onSubmit={handleSubmit} className="space-y-4">
+                    {/* Honeypot — hidden from humans, filled by bots */}
+                    <input
+                      ref={honeypotRef}
+                      type="text"
+                      name="website"
+                      tabIndex={-1}
+                      autoComplete="off"
+                      aria-hidden="true"
+                      style={{ position: "absolute", left: "-9999px", opacity: 0 }}
+                    />
                     <div className="space-y-1.5">
                       <div className="relative">
                         <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />

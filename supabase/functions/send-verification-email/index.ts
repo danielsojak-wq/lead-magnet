@@ -1,7 +1,16 @@
 import { corsHeaders } from "../_shared/cors.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  normalizeEmail,
+  normalizeDomain,
+  extractIp,
+  checkRateLimit,
+  buildRateLimitResponse,
+  logRateEvent,
+} from "../_shared/rate-limits.ts";
 
 const SITE_URL = Deno.env.get("SITE_URL") ?? "https://analyza.performind.cz";
+const TEST_EMAILS = ["daniel.sojak@performind.cz"];
 
 function admin() {
   return createClient(
@@ -14,6 +23,12 @@ function ok(d: unknown) {
 }
 function err(msg: string, status = 400) {
   return new Response(JSON.stringify({ error: msg }), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+}
+function rateLimited(message: string, retry_after_hours: number) {
+  return new Response(
+    JSON.stringify({ error: "rate_limit", message, retry_after_hours }),
+    { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+  );
 }
 
 function buildEmailHtml(verifyUrl: string): string {
@@ -80,11 +95,37 @@ Deno.serve(async (req) => {
     const email = (body.email as string | undefined)?.trim().toLowerCase();
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return err("Neplatný email");
 
+    // ── Honeypot — silent fake success so bots don't know they were detected ──
+    if ((body.website as string | undefined)?.trim()) {
+      return ok({ ok: true, session_id: crypto.randomUUID() });
+    }
+
     const eshop_url: string | undefined = body.eshop_url;
     const eshop_meta_url: string | undefined = body.eshop_meta_url;
     const competitors: Array<{ url: string; meta_url?: string; position: number }> = body.competitors ?? [];
 
     const supa = admin();
+
+    // ── Rate limit CHECK (skip for test emails) ────────────────────────────────
+    if (!TEST_EMAILS.includes(email)) {
+      const ip = extractIp(req);
+      const domain = normalizeDomain(eshop_url ?? "");
+
+      const hit = await checkRateLimit(supa, { ip, email, domain });
+      if (hit) {
+        const { message, retry_after_hours } = buildRateLimitResponse(hit);
+        logRateEvent({
+          level: "warn",
+          message: "rate_limit_blocked",
+          identifier_type: hit.layer,
+          identifier_value: hit.layer === "email" ? email : hit.layer === "ip" ? ip : domain,
+          limit_hit: true,
+        });
+        return rateLimited(message, retry_after_hours);
+      }
+    }
+
+    // ── Existing session logic ─────────────────────────────────────────────────
 
     const { data: existing } = await supa
       .from("lm_sessions")
@@ -95,21 +136,16 @@ Deno.serve(async (req) => {
     let sessionId: string;
     let token: string;
 
-    const TEST_EMAILS = ["daniel.sojak@performind.cz"];
-
-    // Block re-submission once analysis is underway or complete
     const nonResettableStatuses = ["urls_pending", "processing", "ready", "failed"];
     if (existing && nonResettableStatuses.includes(existing.status) && !TEST_EMAILS.includes(email)) {
       return ok({ ok: true, already_verified: true });
     }
 
-    // Test email — always reset
     if (existing && TEST_EMAILS.includes(email)) {
       await supa.from("lm_sessions").delete().eq("id", existing.id);
     }
 
     if (existing && !TEST_EMAILS.includes(email)) {
-      // Refresh token for existing email_pending session
       const newToken = crypto.randomUUID();
       await supa
         .from("lm_sessions")
@@ -123,10 +159,8 @@ Deno.serve(async (req) => {
       sessionId = existing.id;
       token = newToken;
 
-      // Replace competitors
       await supa.from("lm_session_competitors").delete().eq("session_id", sessionId);
     } else {
-      // New session
       const { data: created, error: insertErr } = await supa
         .from("lm_sessions")
         .insert({
@@ -141,7 +175,6 @@ Deno.serve(async (req) => {
       token = created.verification_token;
     }
 
-    // Store competitors
     if (competitors.length > 0) {
       await supa.from("lm_session_competitors").insert(
         competitors.map((c) => ({
