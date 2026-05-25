@@ -388,6 +388,56 @@ function l2ToMarkdown(l: any): string {
   return lines.join("\n\n");
 }
 
+// ─── Ecomail sync ────────────────────────────────────────────────────────────
+
+const SITE_URL = Deno.env.get("SITE_URL") ?? "https://analyza.performind.cz";
+
+async function syncToEcomail(
+  sessionId: string,
+  email: string,
+  eshopUrl: string,
+  allComps: Array<{ position: number; url: string }>,
+): Promise<void> {
+  const apiKey = Deno.env.get("ECOMAIL_API_KEY");
+  if (!apiKey) {
+    console.log(JSON.stringify({ level: "warn", message: "ecomail_skip", reason: "ECOMAIL_API_KEY not set", session_id: sessionId }));
+    return;
+  }
+
+  const comp1 = allComps.find(c => c.position === 1);
+  const comp2 = allComps.find(c => c.position === 2);
+
+  const payload = {
+    subscriber_data: {
+      email,
+      custom_fields: {
+        lm_analysis_analyzed_domain: domainName(eshopUrl),
+        lm_analysis_results_url: `${SITE_URL}/results/${sessionId}`,
+        lm_analysis_competitor_1: comp1 ? domainName(comp1.url) : "",
+        lm_analysis_competitor_2: comp2 ? domainName(comp2.url) : "",
+      },
+      tags: ["lead-magnet-analyza"],
+    },
+    trigger_autoresponders: false,
+    update_existing: true,
+    resubscribe: false,
+  };
+
+  const res = await fetch("https://api2.ecomailapp.cz/lists/1/subscribe", {
+    method: "POST",
+    headers: { "key": apiKey, "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const detail = await res.text();
+    console.log(JSON.stringify({ level: "error", message: "ecomail_sync_failed", session_id: sessionId, status: res.status, detail: detail.slice(0, 200) }));
+  } else {
+    const masked = email.slice(0, 2) + "***" + email.slice(email.indexOf("@"));
+    console.log(JSON.stringify({ level: "info", message: "ecomail_sync_ok", session_id: sessionId, email_masked: masked }));
+  }
+}
+
 // ─── Core analysis logic (exported so start-lm-analysis can import) ──────────
 
 export async function runAnalysis(sessionId: string, apiKey: string): Promise<void> {
@@ -508,6 +558,11 @@ export async function runAnalysis(sessionId: string, apiKey: string): Promise<vo
     status: "ready",
     completed_at: new Date().toISOString(),
   }).eq("id", sessionId);
+
+  // Fire-and-forget — must never block or fail the pipeline
+  syncToEcomail(sessionId, session.email ?? "", session.eshop_url ?? "", allComps).catch((e: unknown) => {
+    console.log(JSON.stringify({ level: "error", message: "ecomail_sync_error", session_id: sessionId, error: String(e) }));
+  });
 }
 
 // ─── Edge Function handler ────────────────────────────────────────────────────

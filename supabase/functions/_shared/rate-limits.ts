@@ -168,34 +168,33 @@ export function buildRateLimitResponse(hit: RateLimitHit): { message: string; re
 
   if (layer === "email") {
     if (period === "daily") return {
-      message: "Tato e-mailová adresa už dnes spustila 2 analýzy. Vraťte se zítra, nebo nám napište na daniel@performind.cz pokud potřebujete víc.",
+      message: "Z tohoto e-mailu už dnes byly spuštěny 2 analýzy. Vraťte se zítra, nebo nám napište na daniel.sojak@performind.cz.",
       retry_after_hours: 24,
     };
     return {
-      message: "Tato e-mailová adresa už tento týden spustila 3 analýzy. Další analýzu můžete spustit za pár dní, nebo nám napište na daniel@performind.cz.",
+      message: "Z tohoto e-mailu už tento týden byly spuštěny 3 analýzy. Další analýzu můžete spustit za pár dní, nebo nám napište na daniel.sojak@performind.cz.",
       retry_after_hours: 72,
     };
   }
 
   if (layer === "ip") {
     if (period === "daily") return {
-      message: "Z této sítě už dnes proběhly 2 analýzy. Pokud nejste vy, ale váš kolega, zkuste se přihlásit z jiné sítě. Jinak se vraťte zítra, nebo nám napište na daniel@performind.cz.",
+      message: "Z této IP adresy už dnes proběhly 2 analýzy. Vraťte se zítra, nebo nám napište na daniel.sojak@performind.cz.",
       retry_after_hours: 24,
     };
     return {
-      message: "Z této sítě už tento týden proběhly 3 analýzy. Vraťte se za pár dní, nebo nám napište na daniel@performind.cz.",
+      message: "Z této IP adresy už tento týden proběhly 3 analýzy. Vraťte se za pár dní, nebo nám napište na daniel.sojak@performind.cz.",
       retry_after_hours: 72,
     };
   }
 
-  // domain
-  const d = domain || "tato doména";
+  // domain — substituce reálné normalizované domény (přichází z checkRateLimit jako normalizeDomain(eshop_url))
   if (period === "daily") return {
-    message: `Doména ${d} už byla dnes analyzována 3×. Reanalýzu doporučujeme ne dříve než za 24 hodin pro smysluplné porovnání.`,
+    message: `Doména ${domain} už byla dnes analyzována 3×. Pokud potřebujete další analýzu, vraťte se zítra, nebo nám napište na daniel.sojak@performind.cz.`,
     retry_after_hours: 24,
   };
   return {
-    message: `Doména ${d} už tento týden byla analyzována 5×. Pro reanalýzu nám napište na daniel@performind.cz.`,
+    message: `Doména ${domain} už tento týden byla analyzována 5×. Pokud potřebujete další analýzu, vraťte se za pár dní, nebo nám napište na daniel.sojak@performind.cz.`,
     retry_after_hours: 120,
   };
 }

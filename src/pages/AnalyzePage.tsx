@@ -321,13 +321,28 @@ function ShopSection({ title, badge, fields, onChange, required, onHelp, errors 
   const urlStatus = useUrlCheck(fields.url);
   const normalizedUrl = normalizeWebUrl(fields.url);
   const discovery = useDiscoverMeta(urlStatus, normalizedUrl);
+  const [metaEnteredManually, setMetaEnteredManually] = useState(false);
 
-  // Auto-fill meta field when discovered and currently empty
+  // Auto-fill meta when discovery succeeds (only if user hasn't manually entered)
   useEffect(() => {
-    if (discovery.status === "found" && discovery.metaUrl && !fields.meta.trim()) {
+    if (discovery.status === "found" && discovery.metaUrl && !metaEnteredManually) {
       onChange("meta", discovery.metaUrl);
     }
-  }, [discovery.status, discovery.metaUrl]);
+  }, [discovery.status, discovery.metaUrl, metaEnteredManually]);
+
+  const handleUrlChange = (v: string) => {
+    if (fields.meta.trim() && !metaEnteredManually) {
+      onChange("meta", "");
+    }
+    onChange("url", v);
+  };
+
+  const handleMetaChange = (v: string) => {
+    setMetaEnteredManually(v.trim() !== "");
+    onChange("meta", v);
+  };
+
+  const showMetaInput = discovery.status === "not_found" || metaEnteredManually;
 
   return (
     <div className={`rounded-2xl border p-5 space-y-4 bg-gray-50/40 transition-colors ${errors?.url || errors?.meta ? "border-red-200" : "border-gray-100"}`}>
@@ -335,9 +350,9 @@ function ShopSection({ title, badge, fields, onChange, required, onHelp, errors 
         <span className="font-[family-name:var(--font-heading)] font-semibold text-gray-900 text-sm">{title}</span>
         {badge && <span className="text-xs bg-[#b0f221]/30 text-gray-700 px-2 py-0.5 rounded-full font-medium">{badge}</span>}
       </div>
-      <UrlInput label="URL webu" placeholder="eshop.cz nebo https://eshop.cz" value={fields.url} onChange={(v) => onChange("url", v)} required={required} error={errors?.url} urlStatus={urlStatus} />
+
       <div className="space-y-1.5">
-        <LibraryInput label="Meta Ads Library" placeholder="https://facebook.com/ads/library/?..." value={fields.meta} onChange={(v) => onChange("meta", v)} onHelp={() => onHelp("meta")} icon={<MetaIcon />} error={errors?.meta} />
+        <UrlInput label="URL webu" placeholder="eshop.cz nebo https://eshop.cz" value={fields.url} onChange={handleUrlChange} required={required} error={errors?.url} urlStatus={urlStatus} />
         {!errors?.meta && (
           <>
             {discovery.status === "searching" && (
@@ -352,6 +367,10 @@ function ShopSection({ title, badge, fields, onChange, required, onHelp, errors 
           </>
         )}
       </div>
+
+      {showMetaInput && (
+        <LibraryInput label="Meta Ads Library URL" placeholder="https://facebook.com/ads/library/?..." value={fields.meta} onChange={handleMetaChange} onHelp={() => onHelp("meta")} icon={<MetaIcon />} error={errors?.meta} />
+      )}
     </div>
   );
 }
@@ -423,7 +442,7 @@ export default function AnalyzePage() {
               </div>
               <h1 className="font-[family-name:var(--font-heading)] text-xl sm:text-2xl font-bold text-gray-900">Zadejte URL adresy</h1>
             </div>
-            <p className="text-gray-500 text-sm mb-8 ml-[52px]">Čím více dat zadáte, tím přesnější analýza. Ads Library URL jsou nepovinné.</p>
+            <p className="text-gray-500 text-sm mb-8 ml-[52px]">Zadejte URL e-shopu a konkurentů — Meta Ads Library URL dohledáme automaticky.</p>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <ShopSection title="Váš e-shop" badge="vy" fields={eshop}
@@ -440,7 +459,7 @@ export default function AnalyzePage() {
 
               <div className="bg-gray-50 border border-gray-100 rounded-2xl p-4 flex gap-3">
                 <Info className="h-4 w-4 text-gray-400 flex-shrink-0 mt-0.5" />
-                <p className="text-gray-500 text-xs leading-relaxed">Meta Ads Library URL zpřesní analýzu reklamního sdělení. Google Ads analýza probíhá automaticky z URL e-shopu.</p>
+                <p className="text-gray-500 text-xs leading-relaxed">Meta Ads Library URL dohledáme automaticky. Pokud stránku nenajdeme, budete vyzváni k ručnímu zadání.</p>
               </div>
 
               <button type="submit" disabled={!isValid}
