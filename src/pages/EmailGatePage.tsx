@@ -275,6 +275,8 @@ export default function EmailGatePage() {
         : []),
     ];
 
+    trackEvent({ event: "email_submitted", session_id: null, ...(getUtmData() ?? {}) });
+
     const { data, error: fnErr } = await supabase.functions.invoke("send-verification-email", {
       body: {
         email: trimmed,
