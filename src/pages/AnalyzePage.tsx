@@ -4,6 +4,7 @@ import { ArrowRight, Globe, Search, ShieldCheck, Info, X, Play, Maximize2, Check
 import * as Dialog from "@radix-ui/react-dialog";
 import performindLogo from "@/assets/performind-logo-dark.svg";
 import { supabase } from "@/integrations/supabase/client";
+import { trackEvent, getUtmData } from "@/lib/analytics";
 
 // ─── URL helpers ──────────────────────────────────────────────────────────────
 
@@ -312,16 +313,27 @@ export interface UrlFormData {
 
 interface ShopErrors { url?: string; meta?: string; }
 
-function ShopSection({ title, badge, fields, onChange, required, highlight, onHelp, errors }: {
+function ShopSection({ title, badge, fields, onChange, required, highlight, playerIndex, onHelp, errors }: {
   title: string; badge?: string;
   fields: { url: string; meta: string };
   onChange: (key: "url" | "meta", v: string) => void;
-  required?: boolean; highlight?: boolean; onHelp: (type: VideoType) => void; errors?: ShopErrors;
+  required?: boolean; highlight?: boolean; playerIndex: number; onHelp: (type: VideoType) => void; errors?: ShopErrors;
 }) {
   const urlStatus = useUrlCheck(fields.url);
   const normalizedUrl = normalizeWebUrl(fields.url);
   const discovery = useDiscoverMeta(urlStatus, normalizedUrl);
   const [metaEnteredManually, setMetaEnteredManually] = useState(false);
+  const discoverFailedRef = useRef(false);
+
+  useEffect(() => {
+    if (discovery.status === "not_found" && !discoverFailedRef.current && normalizedUrl) {
+      discoverFailedRef.current = true;
+      const domain = (() => { try { return new URL(normalizedUrl).hostname.replace(/^www\./, ""); } catch { return normalizedUrl; } })();
+      trackEvent({ event: "discover_failed", failed_competitor_index: playerIndex, domain });
+    } else if (discovery.status !== "not_found") {
+      discoverFailedRef.current = false;
+    }
+  }, [discovery.status, normalizedUrl, playerIndex]);
 
   // Auto-fill meta when discovery succeeds (only if user hasn't manually entered)
   useEffect(() => {
@@ -388,6 +400,15 @@ export default function AnalyzePage() {
   const [videoOpen, setVideoOpen] = useState<VideoType>(null);
   const [fieldErrors, setFieldErrors] = useState<{ eshop: ShopErrors; comp1: ShopErrors; comp2: ShopErrors }>({ eshop: {}, comp1: {}, comp2: {} });
 
+  const formStartedRef = useRef(false);
+  const handleFirstInput = () => {
+    if (formStartedRef.current) return;
+    if (sessionStorage.getItem("form_started_fired")) { formStartedRef.current = true; return; }
+    formStartedRef.current = true;
+    sessionStorage.setItem("form_started_fired", "1");
+    trackEvent({ event: "form_started", ...(getUtmData() ?? {}) });
+  };
+
   const isValid = eshop.url.trim() !== "" && competitor1.url.trim() !== "";
 
   const validate = (): boolean => {
@@ -413,6 +434,15 @@ export default function AnalyzePage() {
     if (!validate()) return;
 
     const norm = (url: string) => normalizeWebUrl(url) ?? url.trim();
+
+    const normalizedEshop = norm(eshop.url);
+    const analyzedDomain = (() => { try { return new URL(normalizedEshop).hostname.replace(/^www\./, ""); } catch { return normalizedEshop; } })();
+    trackEvent({
+      event: "form_submitted",
+      analyzed_domain: analyzedDomain,
+      competitors_count: competitor2.url.trim() ? 2 : 1,
+      ...(getUtmData() ?? {}),
+    });
 
     const data: UrlFormData = {
       eshop:       { url: norm(eshop.url),       meta: eshop.meta.trim() },
@@ -445,16 +475,16 @@ export default function AnalyzePage() {
             <p className="text-gray-500 text-sm mb-8 ml-[52px]">Zadejte URL e-shopu a konkurentů — Meta Ads Library URL dohledáme automaticky.</p>
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              <ShopSection title="Váš e-shop" badge="vy" highlight fields={eshop}
-                onChange={(k, v) => { setEshop(s => ({ ...s, [k]: v })); setFieldErrors(e => ({ ...e, eshop: { ...e.eshop, [k]: undefined } })); }}
+              <ShopSection title="Váš e-shop" badge="vy" highlight playerIndex={0} fields={eshop}
+                onChange={(k, v) => { handleFirstInput(); setEshop(s => ({ ...s, [k]: v })); setFieldErrors(e => ({ ...e, eshop: { ...e.eshop, [k]: undefined } })); }}
                 required onHelp={setVideoOpen} errors={fieldErrors.eshop} />
 
-              <ShopSection title="Konkurent 1" fields={competitor1}
-                onChange={(k, v) => { setCompetitor1(s => ({ ...s, [k]: v })); setFieldErrors(e => ({ ...e, comp1: { ...e.comp1, [k]: undefined } })); }}
+              <ShopSection title="Konkurent 1" playerIndex={1} fields={competitor1}
+                onChange={(k, v) => { handleFirstInput(); setCompetitor1(s => ({ ...s, [k]: v })); setFieldErrors(e => ({ ...e, comp1: { ...e.comp1, [k]: undefined } })); }}
                 required onHelp={setVideoOpen} errors={fieldErrors.comp1} />
 
-              <ShopSection title="Konkurent 2" fields={competitor2}
-                onChange={(k, v) => { setCompetitor2(s => ({ ...s, [k]: v })); setFieldErrors(e => ({ ...e, comp2: { ...e.comp2, [k]: undefined } })); }}
+              <ShopSection title="Konkurent 2" playerIndex={2} fields={competitor2}
+                onChange={(k, v) => { handleFirstInput(); setCompetitor2(s => ({ ...s, [k]: v })); setFieldErrors(e => ({ ...e, comp2: { ...e.comp2, [k]: undefined } })); }}
                 onHelp={setVideoOpen} errors={fieldErrors.comp2} />
 
               <div className="bg-gray-50 border border-gray-100 rounded-2xl p-4 flex gap-3">

@@ -1,7 +1,9 @@
+import { useEffect } from "react";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { captureUtm } from "@/lib/analytics";
 import LandingPage from "@/pages/LandingPage";
 import CheckEmailPage from "@/pages/CheckEmailPage";
 import VerifyPage from "@/pages/VerifyPage";
@@ -15,11 +17,17 @@ import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
 
+function AnalyticsInit() {
+  useEffect(() => { captureUtm(); }, []);
+  return null;
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Sonner />
       <BrowserRouter>
+        <AnalyticsInit />
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/check-email" element={<CheckEmailPage />} />

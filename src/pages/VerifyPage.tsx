@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { CheckCircle2, XCircle, Loader2, ArrowRight } from "lucide-react";
 import performindLogo from "@/assets/performind-logo-dark.svg";
 import { supabase } from "@/integrations/supabase/client";
+import { trackEvent, getUtmData } from "@/lib/analytics";
 
 type State = "verifying" | "starting" | "success" | "expired" | "error";
 
@@ -55,6 +56,7 @@ export default function VerifyPage() {
 
   useEffect(() => {
     if (state === "success" && sessionId) {
+      trackEvent({ event: "email_verified", session_id: sessionId, ...(getUtmData() ?? {}) });
       const t = setTimeout(() => navigate(`/waiting/${sessionId}`), 1500);
       return () => clearTimeout(t);
     }

@@ -4,6 +4,7 @@ import { ArrowRight, Mail, ShieldCheck, Check, BarChart3 } from "lucide-react";
 import performindLogo from "@/assets/performind-logo-dark.svg";
 import { supabase } from "@/integrations/supabase/client";
 import type { UrlFormData } from "./AnalyzePage";
+import { trackEvent, getUtmData } from "@/lib/analytics";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -291,8 +292,14 @@ export default function EmailGatePage() {
       try {
         const ctx = (fnErr as unknown as { context?: Response }).context;
         if (ctx) {
-          const body = await ctx.json() as { error?: string; message?: string };
+          const body = await ctx.json() as { error?: string; message?: string; limit_type?: string; period?: string };
           if (body?.error === "rate_limit") {
+            trackEvent({
+              event: "rate_limit_hit",
+              limit_type: body.limit_type ?? null,
+              period: body.period ?? null,
+              ...(getUtmData() ?? {}),
+            });
             setError(body.message ?? "Překročen limit analýz.");
             return;
           }

@@ -24,9 +24,9 @@ function ok(d: unknown) {
 function err(msg: string, status = 400) {
   return new Response(JSON.stringify({ error: msg }), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 }
-function rateLimited(message: string, retry_after_hours: number) {
+function rateLimited(message: string, retry_after_hours: number, limit_type: string, period: string) {
   return new Response(
-    JSON.stringify({ error: "rate_limit", message, retry_after_hours }),
+    JSON.stringify({ error: "rate_limit", message, retry_after_hours, limit_type, period }),
     { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
   );
 }
@@ -121,7 +121,7 @@ Deno.serve(async (req) => {
           identifier_value: hit.layer === "email" ? email : hit.layer === "ip" ? ip : domain,
           limit_hit: true,
         });
-        return rateLimited(message, retry_after_hours);
+        return rateLimited(message, retry_after_hours, hit.layer, hit.period);
       }
     }
 

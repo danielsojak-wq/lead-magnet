@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { trackEvent, getUtmData } from "@/lib/analytics";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell,
@@ -959,8 +960,9 @@ function SendReportDialog({ sessionId, open, onClose }: { sessionId: string; ope
 export default function ResultsPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
+  const completedFiredRef = useRef(false);
 
-  const { data, isLoading, isError } = useQuery<AnalysisResults>({
+  const { data, isLoading, isError, isSuccess } = useQuery<AnalysisResults>({
     queryKey: ["lm-results", sessionId],
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke("get-lm-results", { body: { session_id: sessionId } });
@@ -972,6 +974,15 @@ export default function ResultsPage() {
     refetchInterval: q => q.state.data?.status === "processing" ? 6000 : false,
     placeholderData: MOCK,
   });
+
+  useEffect(() => {
+    if (completedFiredRef.current) return;
+    if (!isSuccess || !data || data === MOCK) return;
+    if (data.status === "processing") return;
+    completedFiredRef.current = true;
+    const totalAds = data.competitors.reduce((s, c) => s + c.ads_count, 0);
+    trackEvent({ event: "analysis_completed", session_id: sessionId ?? null, ads_count_total: totalAds, ...(getUtmData() ?? {}) });
+  }, [isSuccess, data, sessionId]);
 
   const results = data ?? MOCK;
   const cross = results.ai_cross_analysis;
@@ -1091,10 +1102,14 @@ export default function ResultsPage() {
             Naši stratégové přeloží tato data do konkrétního kreativního briefu a mediálního plánu přímo pro váš e-shop.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
-            <a href="https://performind.cz" target="_blank" rel="noreferrer" className="inline-flex items-center justify-center gap-2 bg-[#b0f221] text-black font-semibold px-6 py-3.5 rounded-xl hover:bg-[#9de01a] transition-colors text-sm">
+            <a href="https://performind.cz" target="_blank" rel="noreferrer"
+              onClick={() => trackEvent({ event: "cta_clicked", cta_label: "chci_strategii", session_id: sessionId ?? null })}
+              className="inline-flex items-center justify-center gap-2 bg-[#b0f221] text-black font-semibold px-6 py-3.5 rounded-xl hover:bg-[#9de01a] transition-colors text-sm">
               Chci strategii pro svůj e-shop <ArrowRight className="h-4 w-4" />
             </a>
-            <a href="mailto:hello@performind.cz" className="inline-flex items-center justify-center gap-2 bg-white/10 text-white font-semibold px-6 py-3.5 rounded-xl hover:bg-white/20 transition-colors text-sm">
+            <a href="mailto:hello@performind.cz"
+              onClick={() => trackEvent({ event: "cta_clicked", cta_label: "napsat_nam", session_id: sessionId ?? null })}
+              className="inline-flex items-center justify-center gap-2 bg-white/10 text-white font-semibold px-6 py-3.5 rounded-xl hover:bg-white/20 transition-colors text-sm">
               Napsat nám
             </a>
           </div>
