@@ -26,8 +26,8 @@ export function AuthorBio() {
           {/* Photo */}
           <div className="flex justify-center">
             <img
-              src="/images/daniel-sojak.jpg"
-              alt="Daniel Soják, Founder Performind Marketing"
+              src="/daniel-sojak.jpg"
+              alt="Daniel Soják, Zakladatel a konzultant, Performind Marketing s.r.o."
               className="w-full max-w-sm rounded-2xl object-cover aspect-square shadow-md"
             />
           </div>
@@ -35,17 +35,17 @@ export function AuthorBio() {
           {/* Bio */}
           <div>
             <h3 className="font-[family-name:var(--font-heading)] text-2xl font-bold text-gray-900">Daniel Soják</h3>
-            <p className="text-[#4f11ff] text-sm font-semibold mb-6">Founder, Performind Marketing</p>
+            <p className="text-[#4f11ff] text-sm font-semibold mb-6">Zakladatel a konzultant, Performind Marketing s.r.o.</p>
 
             <p className="text-gray-600 leading-relaxed mb-4">
-              Vedu výkonnostní agenturu, která pomáhá CZ e-shopům růst. Komplexně, předvídatelně
+              Vedu výkonnostní agenturu Performind, kde pomáháme e-shopům růst. Komplexně, předvídatelně
               a bez stresu. Spravujeme reklamní rozpočty v desítkách milionů ročně — a konkurenční
-              analýzu děláme každý den.
+              analýzy děláme na denní bázi.
             </p>
 
             <p className="text-gray-600 leading-relaxed mb-6">
               Tuto analýzu jsem zpřístupnil, protože vidím, jak zásadní rozdíl dělá v rozhodování
-              o reklamních kampaních. Premium e-shopy si zaslouží vědět, co konkurence dělá lépe —
+              o reklamních kampaních. Eshopaři si zaslouží vědět, co konkurence dělá lépe —
               nebo hůř.
             </p>
 

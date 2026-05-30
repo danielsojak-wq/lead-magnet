@@ -46,7 +46,7 @@ const STEPS = [
   },
   {
     num: "03",
-    title: "Výsledky během 5-10 minut",
+    title: "Výsledky do 3 minut",
     body: "Systém proskenuje reklamy konkurence, porovná je s vašimi a vrátí konkrétní doporučení přímo v prohlížeči. Můžete si je nechat poslat na email.",
   },
 ];
@@ -61,12 +61,12 @@ const AI_FEATURES = [
   {
     icon: Layers,
     title: "Vícevrstvá analýza",
-    body: "Layer 1 — deep dive každého hráče (co dělají, co funguje). Layer 2 — cross-competitor syntéza (kde jsou mezery, kde můžete zaútočit). Hodnotíme copy, kreativy, formáty i konzistenci sdělení.",
+    body: "Layer 1 — deep dive každého konkurenta (co dělají, co funguje). Layer 2 — cross-competitor syntéza (kde jsou mezery, kde můžete vyniknout). Hodnotíme copy, kreativy, formáty i konzistenci sdělení.",
   },
   {
     icon: Target,
     title: "Framework z reálné praxe",
-    body: "Stejnou metodiku používáme při onboardingu klientů Performind. Praxí ověřeno na desítkách kampaní ročně. Žádné dohady — jen otázky, které vedou k akci.",
+    body: "Stejnou praxí ověřeno metodiku používáme při onboardingu klientů Performind.",
   },
 ];
 
@@ -145,7 +145,7 @@ export default function LandingPage() {
           {/* ICP eyebrow */}
           <div className="inline-flex items-center gap-2 bg-white/6 border border-white/10 rounded-full px-4 py-2 text-sm text-white/60 mb-10">
             <span className="w-2 h-2 rounded-full bg-[#b0f221] animate-pulse shrink-0" />
-            Pro CZ e-shopy s obratem 10–50 M Kč
+            Pro CZ a SK e-shopy s obratem 5–50 M Kč
           </div>
 
           <h1 className="font-[family-name:var(--font-heading)] text-4xl sm:text-5xl lg:text-[3.25rem] font-bold leading-[1.12] tracking-tight mb-4 text-white">
@@ -155,7 +155,7 @@ export default function LandingPage() {
           </h1>
 
           <p className="font-[family-name:var(--font-heading)] text-2xl sm:text-3xl font-semibold text-white/70 mb-8 leading-snug">
-            Za 5-10 minut uvidíte přesně co —
+            Za 3 minuty zjistíte strategii konkurentů
             <br />
             a kde máte největší příležitost zaútočit.
           </p>
@@ -222,7 +222,7 @@ export default function LandingPage() {
           <div className="text-center mb-14">
             <p className="text-[#4f11ff] text-sm font-semibold tracking-wide uppercase mb-3">JAK TO FUNGUJE</p>
             <h2 className="font-[family-name:var(--font-heading)] text-3xl sm:text-4xl font-bold text-gray-900">
-              Od URL k výsledkům za 5-10 minut ⚡️
+              Od URL k výsledkům za 3 minuty ⚡️
             </h2>
           </div>
 
