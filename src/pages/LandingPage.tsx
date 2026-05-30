@@ -2,17 +2,12 @@ import { useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowRight, Eye, Zap, Target, TrendingUp, Clock, Check,
-  Gift, Globe, Database, Brain, BarChart3, Layers,
+  Globe, Database, Brain, BarChart3, Layers,
 } from "lucide-react";
 import performindLogo from "@/assets/performind-logo-dark.svg";
 
 /* ─── Data ─────────────────────────────────────────────────────────────────── */
 
-const USP_CHIPS = [
-  { icon: Gift,  label: "První analýza zdarma",  className: "bg-[#4f11ff]/8 text-[#4f11ff] border border-[#4f11ff]/20" },
-  { icon: Globe, label: "Nejen pro e-shopy",      className: "bg-gray-50 text-gray-700 border border-gray-200" },
-  { icon: Clock, label: "Výsledky za 5 minut",    className: "bg-[#b0f221]/15 text-gray-800 border border-[#b0f221]/40" },
-];
 
 const BENEFITS = [
   {
@@ -55,12 +50,6 @@ const STEPS = [
   },
 ];
 
-const STATS = [
-  { value: "78 %", label: "levnější poptávky pro naše klienty" },
-  { value: "30 %", label: "průměrný růst obratu za 6 měsíců" },
-  { value: "15+",  label: "e-shopů v naší aktivní správě" },
-  { value: "5-10 min", label: "a víte, co dělá konkurence" },
-];
 
 const AI_FEATURES = [
   {
@@ -201,17 +190,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Stats bar ──────────────────────────────────────────────────────── */}
-      <section className="py-12 border-y border-gray-100 bg-gray-50 mt-16">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 grid grid-cols-2 sm:grid-cols-4 gap-8">
-          {STATS.map((s) => (
-            <div key={s.label} className="text-center">
-              <div className="font-[family-name:var(--font-heading)] text-3xl font-bold text-[#4f11ff]">{s.value}</div>
-              <div className="text-gray-500 text-sm mt-1 leading-snug">{s.label}</div>
-            </div>
-          ))}
-        </div>
-      </section>
 
       {/* ── Why it matters ─────────────────────────────────────────────────── */}
       <section className="py-20 sm:py-28 bg-white">
