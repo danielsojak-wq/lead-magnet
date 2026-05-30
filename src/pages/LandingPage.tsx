@@ -152,26 +152,32 @@ export default function LandingPage() {
         <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: "radial-gradient(circle, #ffffff 1px, transparent 1px)", backgroundSize: "28px 28px" }} />
 
         <div className="relative max-w-4xl mx-auto px-4 sm:px-6 text-center">
-          {/* Badge */}
+          {/* ICP eyebrow */}
           <div className="inline-flex items-center gap-2 bg-white/6 border border-white/10 rounded-full px-4 py-2 text-sm text-white/60 mb-10">
             <span className="w-2 h-2 rounded-full bg-[#b0f221] animate-pulse shrink-0" />
-            Získejte konkrétní doporučení za 5-10 minut
+            Pro CZ e-shopy s obratem 10–50 M Kč
           </div>
 
-          <h1 className="font-[family-name:var(--font-heading)] text-4xl sm:text-5xl lg:text-[3.25rem] font-bold leading-[1.12] tracking-tight mb-6 text-white whitespace-pre-line">
-            Víte, jak vaše konkurence dělá reklamu na Metě?{"\n\n"}
-            Za komplexní analýzu si agentury účtují 10 000 Kč a více.{"\n\n"}
-            <span className="text-[#b0f221]">Teď ji získáte zdarma.</span>
+          <h1 className="font-[family-name:var(--font-heading)] text-4xl sm:text-5xl lg:text-[3.25rem] font-bold leading-[1.12] tracking-tight mb-4 text-white">
+            Vaše konkurence dělá na Metě věci,
+            <br />
+            o kterých nevíte.
           </h1>
 
-          <p className="text-white/50 text-lg max-w-xl mx-auto mb-10 leading-relaxed whitespace-pre-line">
-            Proskenujeme aktivní reklamy vaší konkurence, zhodnotíme strategii{"\n"}
-            a najdeme potenciál.
+          <p className="font-[family-name:var(--font-heading)] text-2xl sm:text-3xl font-semibold text-white/70 mb-8 leading-snug">
+            Za 5-10 minut uvidíte přesně co —
+            <br />
+            a kde máte největší příležitost zaútočit.
+          </p>
+
+          <p className="text-white/50 text-lg max-w-xl mx-auto mb-10 leading-relaxed">
+            Proskenujeme každou aktivní reklamu vašich 2 hlavních konkurentů,
+            vyhodnotíme strategii a najdeme mezery, které můžete využít.
           </p>
 
           {/* CTA */}
           <div ref={ctaRef} className="flex justify-center mb-14">
-            <CtaButton size="lg" />
+            <CtaButton size="lg" label="Spustit analýzu" subText="Zdarma. Bez registrace. 1× na firmu." />
           </div>
 
           {/* Feature cards strip */}
