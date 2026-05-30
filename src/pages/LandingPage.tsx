@@ -5,6 +5,7 @@ import {
   Globe, Database, Brain, BarChart3, Layers,
 } from "lucide-react";
 import performindLogo from "@/assets/performind-logo-dark.svg";
+import { AuthorBio } from "@/components/landing/AuthorBio";
 
 /* ─── Data ─────────────────────────────────────────────────────────────────── */
 
@@ -274,6 +275,9 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* ── Author Bio ─────────────────────────────────────────────────────── */}
+      <AuthorBio />
 
       {/* ── AI Methodology ─────────────────────────────────────────────────── */}
       <section className="py-20 sm:py-28 bg-[#0c0a1e]">
