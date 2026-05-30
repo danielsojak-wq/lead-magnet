@@ -1,7 +1,7 @@
 import { useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  ArrowRight, Eye, Zap, Target, TrendingUp, Clock, Check,
+  ArrowRight, Eye, Zap, Target, TrendingUp, Clock, Check, X,
   Globe, Database, Brain, BarChart3, Layers,
 } from "lucide-react";
 import performindLogo from "@/assets/performind-logo-dark.svg";
@@ -328,6 +328,58 @@ export default function LandingPage() {
             </div>
           </div>
 
+        </div>
+      </section>
+
+      {/* ── Dis-qualifier ──────────────────────────────────────────────────── */}
+      <section className="py-20 sm:py-28 bg-white border-y border-gray-100">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6">
+          <div className="text-center mb-12">
+            <p className="text-[#4f11ff] text-sm font-semibold tracking-wide uppercase mb-3">PRO KOHO TO JE</p>
+            <h2 className="font-[family-name:var(--font-heading)] text-3xl sm:text-4xl font-bold text-gray-900">
+              Tato analýza je premium nástroj.
+              <br />
+              Pro každého nemá smysl.
+            </h2>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-8">
+            {/* For whom */}
+            <div className="rounded-2xl border border-gray-100 p-7 bg-white">
+              <h3 className="font-[family-name:var(--font-heading)] font-bold text-lg text-gray-900 mb-5">Pro koho TO JE</h3>
+              <ul className="space-y-3">
+                {[
+                  "CZ e-shopy s obratem 10–50 M Kč",
+                  "Aktivní reklamní rozpočet 50 000 Kč+ měsíčně",
+                  "Vlastní značka, vlastní produkty",
+                  "Konkurence s aktivními reklamami na Metě",
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-3">
+                    <Check className="h-4 w-4 text-[#4f11ff] mt-0.5 shrink-0" />
+                    <span className="text-gray-700 text-sm leading-relaxed">{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Not for whom */}
+            <div className="rounded-2xl border border-gray-100 p-7 bg-gray-50">
+              <h3 className="font-[family-name:var(--font-heading)] font-bold text-lg text-gray-900 mb-5">Pro koho TO NENÍ</h3>
+              <ul className="space-y-3">
+                {[
+                  "E-shopy pod 5 M Kč ročního obratu (málo dat)",
+                  "B2B firmy (cílíme B2C e-commerce)",
+                  "Dropshipping a affiliate projekty",
+                  "Brandy bez aktivního Meta reklamního rozpočtu",
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-3">
+                    <X className="h-4 w-4 text-gray-400 mt-0.5 shrink-0" />
+                    <span className="text-gray-400 text-sm leading-relaxed">{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
         </div>
       </section>
 
