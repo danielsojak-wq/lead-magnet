@@ -71,7 +71,7 @@ const AI_FEATURES = [
 
 const PIPELINE = [
   { icon: Globe,     label: "Sběr dat",    sub: "Ad Library API" },
-  { icon: Brain,     label: "AI analýza a syntéza",  sub: "Jazykové modely" },
+  { icon: Brain,     label: "Analýza a syntéza",  sub: "Jazykové modely Gemini" },
   { icon: BarChart3, label: "Benchmarking", sub: "Porovnání na základě dat" },
   { icon: Zap,       label: "Výsledky",    sub: "Uvidíte hned" },
 ];
@@ -262,7 +262,7 @@ export default function LandingPage() {
           <div className="grid sm:grid-cols-3 gap-5">
             {[
               { icon: "🎯", title: "Aktivní reklamy konkurence", desc: "Vidíte všechny jejich spuštěné reklamy na Metě — kreativy, texty, CTA." },
-              { icon: "🧠", title: "AI shrnutí strategie", desc: "Co komunikují, komu cílí, jaké formáty udržují nejdéle. V čem jsou dobří a kde slábnou." },
+              { icon: "🧠", title: "Strategic breakdown", desc: "Co komunikují, komu cílí, jaké formáty udržují nejdéle. V čem jsou dobří a kde slábnou." },
               { icon: "🚀", title: "Konkrétní doporučení", desc: "Co udělat jinak, kde zaútočit, co testovat jako první. Žádná teorie — jen akce." },
             ].map((item) => (
               <div key={item.title} className="border border-gray-100 rounded-2xl p-6 bg-white hover:shadow-md transition-all">
@@ -287,8 +287,8 @@ export default function LandingPage() {
               <span className="text-[#b0f221]">Inteligentní analýza s daty z praxe.</span>
             </h2>
             <p className="text-white/55 max-w-2xl mx-auto text-lg leading-relaxed">
-              Za každou analýzou stojí AI modely trénované na reálných kampaních,
-              benchmarky z eshopů v naší správě a strukturovaná data z reklamních knihoven
+              Za každou analýzou stojí jazykové modely Gemini, vlastní prompt framework
+              a strukturovaná data přímo z Meta Ads Library
             </p>
           </div>
 
