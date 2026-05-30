@@ -59,7 +59,7 @@ const STATS = [
   { value: "78 %", label: "levnější poptávky pro naše klienty" },
   { value: "30 %", label: "průměrný růst obratu za 6 měsíců" },
   { value: "15+",  label: "e-shopů v naší aktivní správě" },
-  { value: "3 min", label: "a víte, co dělá konkurence" },
+  { value: "5-10 min", label: "a víte, co dělá konkurence" },
 ];
 
 const AI_FEATURES = [
@@ -147,7 +147,7 @@ export default function LandingPage() {
           {/* Badge */}
           <div className="inline-flex items-center gap-2 bg-white/6 border border-white/10 rounded-full px-4 py-2 text-sm text-white/60 mb-10">
             <span className="w-2 h-2 rounded-full bg-[#b0f221] animate-pulse shrink-0" />
-            Získejte konkrétní doporučení do 10 minut
+            Získejte konkrétní doporučení za 5-10 minut
           </div>
 
           <h1 className="font-[family-name:var(--font-heading)] text-4xl sm:text-5xl lg:text-[3.25rem] font-bold leading-[1.12] tracking-tight mb-6 text-white whitespace-pre-line">
