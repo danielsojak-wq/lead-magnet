@@ -2,7 +2,7 @@ import { useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowRight, Eye, Zap, Target, TrendingUp, Clock, Check,
-  Gift, Globe, Database, Brain, LaptopMinimalCheck, BarChart3, Layers,
+  Gift, Globe, Database, Brain, BarChart3, Layers,
 } from "lucide-react";
 import performindLogo from "@/assets/performind-logo-dark.svg";
 
@@ -65,33 +65,18 @@ const STATS = [
 const AI_FEATURES = [
   {
     icon: Database,
-    title: "Data přímo z platforem",
-    body: "Napojujeme se na Meta Ads Library. Vidíme každou aktivní reklamu, její délku běhu i formát.",
-  },
-  {
-    icon: Brain,
-    title: "Pokročilé AI modely",
-    body: "Analýzu zpracovávají jazykové modely nejnovější generace. Nespoléháme na pravidla — AI interpretuje kontext, sdělení a záměr za každou reklamou.",
-  },
-  {
-    icon: BarChart3,
-    title: "Benchmarky z praxe",
-    body: "Najdeme témata a segmenty, které konkurence přehlíží. Tyto mezery jsou vaší největší příležitostí.",
+    title: "Real-time data z Meta Ads Library",
+    body: "Napojujeme se přímo na Meta Ads Library API. Vidíme každou aktivní reklamu, délku jejího běhu, formát i frekvenci změn. Žádný cached snapshot — vždy aktuální stav.",
   },
   {
     icon: Layers,
     title: "Vícevrstvá analýza",
-    body: "Hodnotíme copy, kreativy, délku nasazení, frekvenci změn i konzistenci sdělení. Každá vrstva vypovídá o strategii jinak.",
+    body: "Layer 1 — deep dive každého hráče (co dělají, co funguje). Layer 2 — cross-competitor syntéza (kde jsou mezery, kde můžete zaútočit). Hodnotíme copy, kreativy, formáty i konzistenci sdělení.",
   },
   {
     icon: Target,
-    title: "Identifikace příležitostí",
-    body: "AI hledá témata a segmenty, které konkurence přehlíží. Tyto mezery jsou vaší největší příležitostí.",
-  },
-  {
-    icon: LaptopMinimalCheck,
-    title: "Ověřená metodika",
-    body: "Každý výstup vychází z frameworku, který používáme při onboardingu klientů. Žádné dohady — jen praxí ověřené otázky.",
+    title: "Framework z reálné praxe",
+    body: "Stejnou metodiku používáme při onboardingu klientů Performind. Praxí ověřeno na desítkách kampaní ročně. Žádné dohady — jen otázky, které vedou k akci.",
   },
 ];
 
