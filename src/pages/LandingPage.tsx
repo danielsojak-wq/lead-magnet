@@ -40,18 +40,18 @@ const BENEFITS = [
 const STEPS = [
   {
     num: "01",
-    title: "Výsledky přímo v prohlížeči",
-    body: "Proskenujeme  vaše Meta reklamy a reklamy konkurence, porovnáme je a vytvoříme analýzu s konkrétními doporučeními. Tu si poté můžete nechat poslat na mail nebo vyexporrtovat.",
+    title: "Zadejte vaši URL + 2 konkurenty",
+    body: "Vyplníte krátký formulář — váš web a 2 hlavní konkurenty. Systém najde jejich Meta Ads Library profily automaticky.",
   },
   {
     num: "02",
     title: "Ověřte svůj email",
-    body: "Zašleme vám ověřovací odkaz. Po kliknutí se automaticky spustí analýza.",
+    body: "Zašleme vám ověřovací odkaz. 30 sekund práce, chrání systém před boty.",
   },
   {
     num: "03",
-    title: "Výsledky uvidíte přímo v prohlížeči",
-    body: "Naše AI proskenuuje reklamy na Metě, porovná je a zobrazí výsledky okamžitě. Analýzu si pak zašlete na email.",
+    title: "Výsledky během 5-10 minut",
+    body: "Systém proskenuje reklamy konkurence, porovná je s vašimi a vrátí konkrétní doporučení přímo v prohlížeči. Můžete si je nechat poslat na email.",
   },
 ];
 
