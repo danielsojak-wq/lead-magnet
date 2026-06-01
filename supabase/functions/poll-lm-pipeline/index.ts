@@ -21,6 +21,24 @@ function buildPageUrl(pageId: string): string {
     `&is_targeted_country=false&media_type=all&search_type=page&view_all_page_id=${pageId}`;
 }
 
+// Heuristic: page_name looks like a brand if short, no comma, max 3 words
+function looksLikeBrand(s: string | null): boolean {
+  if (!s) return false;
+  return !s.includes(",") && s.trim().split(/\s+/).length <= 3 && s.length <= 25;
+}
+
+// Derive display name: use scraped page_name when brand-like, else capitalize SLD
+function deriveDisplayName(pageName: string | null, competitorUrl: string): string {
+  if (looksLikeBrand(pageName)) return pageName!;
+  try {
+    const host = new URL(competitorUrl).hostname.replace(/^www\./, "");
+    const sld = host.replace(/\.[^.]+$/, ""); // "terasvet.cz" → "terasvet"
+    return sld.charAt(0).toUpperCase() + sld.slice(1);
+  } catch {
+    return pageName ?? competitorUrl;
+  }
+}
+
 function normStr(s: string): string {
   return s.normalize("NFD")
     .replace(/\p{Diacritic}/gu, "")
@@ -340,12 +358,13 @@ Deno.serve(async (req) => {
                 distinct_pages: [...new Set(items.map((i: any) => i?.page_id))].length }));
             } else {
               const winnerUrl = buildPageUrl(match.pageId);
+              const displayName = deriveDisplayName(match.pageName, comp.url);
               const rows = match.filtered.map(it => mapMetaItem(it, session_id, comp.id));
               await supa.from("lm_session_ads").upsert(rows, { onConflict: "session_id,ad_archive_id", ignoreDuplicates: false });
               totalAds = rows.length;
               scrapeStatus = "scraped";
               await supa.from("lm_session_competitors")
-                .update({ status: scrapeStatus, ads_count: totalAds, meta_library_url: winnerUrl })
+                .update({ status: scrapeStatus, ads_count: totalAds, meta_library_url: winnerUrl, name: displayName })
                 .eq("id", comp.id);
               console.log(JSON.stringify({ level: "info", message: "page_validated",
                 session_id, competitor_id: comp.id, page_id: match.pageId,
