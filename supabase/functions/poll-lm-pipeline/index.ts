@@ -14,6 +14,86 @@ function err(msg: string, status = 400) {
   return new Response(JSON.stringify({ error: msg }), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 }
 
+// ─── Page validation helpers ──────────────────────────────────────────────────
+
+function buildPageUrl(pageId: string): string {
+  return `https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=CZ` +
+    `&is_targeted_country=false&media_type=all&search_type=page&view_all_page_id=${pageId}`;
+}
+
+function normStr(s: string): string {
+  return s.normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function brandFromUrl(metaUrl: string | null): string | null {
+  try { return new URL(metaUrl!).searchParams.get("q"); } catch { return null; }
+}
+
+function vanityFromUri(pageProfileUri: string | null | undefined): string | null {
+  if (!pageProfileUri) return null;
+  try {
+    const seg = new URL(pageProfileUri).pathname.replace(/^\//, "").split("/")[0];
+    return seg || null;
+  } catch {
+    return pageProfileUri.replace(/^\//, "").split("/")[0].split("?")[0] || null;
+  }
+}
+
+type MatchPath = "vanity_exact" | "brand_exact" | "containment";
+
+function pickDominantPage(
+  items: any[],
+  brandName: string | null,
+  fbSlug: string | null,
+): { filtered: any[]; pageId: string; pageName: string; matchPath: MatchPath } | null {
+  const groups: Record<string, { name: string; vanity: string | null; items: any[] }> = {};
+  for (const it of items) {
+    const pid = String(it?.page_id || it?.snapshot?.page_id || "").replace(/\D/g, "");
+    if (!pid) continue;
+    const pname = it?.page_name || it?.snapshot?.page_name || "";
+    const puri  = it?.snapshot?.page_profile_uri ?? null;
+    if (!groups[pid]) groups[pid] = { name: pname, vanity: vanityFromUri(puri), items: [] };
+    groups[pid].items.push(it);
+  }
+
+  const pick = (pid: string, matchPath: MatchPath) => ({
+    filtered: groups[pid].items,
+    pageId: pid,
+    pageName: groups[pid].name,
+    matchPath,
+  });
+
+  // Kolo 1: VANITY EXACT — fb_slug ze sameAs === slug z snapshot.page_profile_uri
+  if (fbSlug) {
+    const normFb = normStr(fbSlug);
+    const hits = Object.keys(groups)
+      .filter(pid => groups[pid].vanity && normStr(groups[pid].vanity!) === normFb);
+    if (hits.length === 1) return pick(hits[0], "vanity_exact");
+    if (hits.length > 1)  return null;
+  }
+
+  if (!brandName) return null;
+  const normBrand = normStr(brandName);
+
+  // Kolo 2: BRAND EXACT
+  const exactHits = Object.keys(groups)
+    .filter(pid => normStr(groups[pid].name) === normBrand);
+  if (exactHits.length === 1) return pick(exactHits[0], "brand_exact");
+  if (exactHits.length > 1)  return null;
+
+  // Kolo 3: CONTAINMENT (min délka 4, právě 1 kandidát)
+  const containHits = Object.keys(groups).filter(pid => {
+    const normPage = normStr(groups[pid].name);
+    const minLen = Math.min(normPage.length, normBrand.length);
+    return minLen >= 4 && (normPage.includes(normBrand) || normBrand.includes(normPage));
+  });
+  if (containHits.length === 1) return pick(containHits[0], "containment");
+  return null;
+}
+
 // ─── Ad mappers ───────────────────────────────────────────────────────────────
 
 function mapMetaItem(it: any, sessionId: string, competitorId: string) {
@@ -58,6 +138,8 @@ function mapMetaItem(it: any, sessionId: string, competitorId: string) {
     is_active:     it?.is_active ?? true,
     ad_start_date: toDate(it?.start_date || it?.startDate || snapshot?.creation_time),
     ad_type:       null,
+    page_id:       String(it?.page_id || snapshot?.page_id || "").replace(/\D/g, "") || null,
+    page_name:     it?.page_name || snapshot?.page_name || null,
   };
 }
 
@@ -192,7 +274,7 @@ Deno.serve(async (req) => {
     // Load all competitors
     const { data: competitors } = await supa
       .from("lm_session_competitors")
-      .select("id, url, apify_run_id, apify_google_run_id, status")
+      .select("id, url, apify_run_id, apify_google_run_id, status, meta_library_url, fb_slug")
       .eq("session_id", session_id);
 
     const comps = competitors ?? [];
@@ -231,10 +313,28 @@ Deno.serve(async (req) => {
         }
         if (succeeded) {
           if (items.length) {
-            const rows = items.map(it => mapMetaItem(it, session_id, comp.id));
-            await supa.from("lm_session_ads").upsert(rows, { onConflict: "session_id,ad_archive_id", ignoreDuplicates: false });
-            totalAds = items.length;
-            console.log(`Competitor ${comp.id}: saved ${items.length} Meta ads`);
+            const brandName = brandFromUrl(comp.meta_library_url ?? null);
+            const fbSlug    = comp.fb_slug ?? null;
+            const match = pickDominantPage(items, brandName, fbSlug);
+
+            if (!match) {
+              console.log(JSON.stringify({ level: "warn", message: "page_validation_no_match",
+                session_id, competitor_id: comp.id, brand: brandName, fb_slug: fbSlug,
+                distinct_pages: [...new Set(items.map((i: any) => i?.page_id))].length }));
+            } else {
+              const winnerUrl = buildPageUrl(match.pageId);
+              const rows = match.filtered.map(it => mapMetaItem(it, session_id, comp.id));
+              await supa.from("lm_session_ads").upsert(rows, { onConflict: "session_id,ad_archive_id", ignoreDuplicates: false });
+              totalAds = rows.length;
+              scrapeStatus = "scraped";
+              await supa.from("lm_session_competitors")
+                .update({ status: scrapeStatus, ads_count: totalAds, meta_library_url: winnerUrl })
+                .eq("id", comp.id);
+              console.log(JSON.stringify({ level: "info", message: "page_validated",
+                session_id, competitor_id: comp.id, page_id: match.pageId,
+                page_name: match.pageName, ads: totalAds, match_path: match.matchPath }));
+              continue;
+            }
           }
         } else {
           scrapeStatus = "scrape_failed";

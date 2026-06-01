@@ -75,10 +75,12 @@ function useDiscoverMeta(urlStatus: UrlStatus, normalizedUrl: string | null): {
   status: DiscoveryStatus;
   pageName: string | null;
   metaUrl: string | null;
+  fbSlug: string | null;
 } {
   const [status, setStatus] = useState<DiscoveryStatus>("idle");
   const [pageName, setPageName] = useState<string | null>(null);
   const [metaUrl, setMetaUrl] = useState<string | null>(null);
+  const [fbSlug, setFbSlug] = useState<string | null>(null);
   const lastUrl = useRef<string | null>(null);
 
   useEffect(() => {
@@ -87,6 +89,7 @@ function useDiscoverMeta(urlStatus: UrlStatus, normalizedUrl: string | null): {
         setStatus("idle");
         setPageName(null);
         setMetaUrl(null);
+        setFbSlug(null);
         lastUrl.current = null;
       }
       return;
@@ -97,12 +100,14 @@ function useDiscoverMeta(urlStatus: UrlStatus, normalizedUrl: string | null): {
     setStatus("searching");
     setPageName(null);
     setMetaUrl(null);
+    setFbSlug(null);
 
     supabase.functions.invoke("discover-meta-url", { body: { url: normalizedUrl } })
       .then(({ data }) => {
         if (data?.meta_url) {
           setMetaUrl(data.meta_url);
           setPageName(data.page_name ?? null);
+          setFbSlug(data.fb_slug ?? null);
           setStatus("found");
         } else {
           setStatus("not_found");
@@ -111,7 +116,7 @@ function useDiscoverMeta(urlStatus: UrlStatus, normalizedUrl: string | null): {
       .catch(() => setStatus("not_found"));
   }, [urlStatus, normalizedUrl]);
 
-  return { status, pageName, metaUrl };
+  return { status, pageName, metaUrl, fbSlug };
 }
 
 const VIDEO_CONFIG = {
@@ -306,17 +311,17 @@ const MetaIcon = () => (
 );
 
 export interface UrlFormData {
-  eshop: { url: string; meta: string };
-  competitor1: { url: string; meta: string };
-  competitor2: { url: string; meta: string };
+  eshop: { url: string; meta: string; fbSlug?: string };
+  competitor1: { url: string; meta: string; fbSlug?: string };
+  competitor2: { url: string; meta: string; fbSlug?: string };
 }
 
 interface ShopErrors { url?: string; meta?: string; }
 
 function ShopSection({ title, badge, fields, onChange, required, highlight, playerIndex, onHelp, errors }: {
   title: string; badge?: string;
-  fields: { url: string; meta: string };
-  onChange: (key: "url" | "meta", v: string) => void;
+  fields: { url: string; meta: string; fbSlug?: string };
+  onChange: (key: "url" | "meta" | "fbSlug", v: string) => void;
   required?: boolean; highlight?: boolean; playerIndex: number; onHelp: (type: VideoType) => void; errors?: ShopErrors;
 }) {
   const urlStatus = useUrlCheck(fields.url);
@@ -335,12 +340,13 @@ function ShopSection({ title, badge, fields, onChange, required, highlight, play
     }
   }, [discovery.status, normalizedUrl, playerIndex]);
 
-  // Auto-fill meta when discovery succeeds (only if user hasn't manually entered)
+  // Auto-fill meta + fbSlug when discovery succeeds (only if user hasn't manually entered)
   useEffect(() => {
     if (discovery.status === "found" && discovery.metaUrl && !metaEnteredManually) {
       onChange("meta", discovery.metaUrl);
+      onChange("fbSlug", discovery.fbSlug ?? "");
     }
-  }, [discovery.status, discovery.metaUrl, metaEnteredManually]);
+  }, [discovery.status, discovery.metaUrl, discovery.fbSlug, metaEnteredManually]);
 
   const handleUrlChange = (v: string) => {
     if (fields.meta.trim() && !metaEnteredManually) {
@@ -389,7 +395,7 @@ function ShopSection({ title, badge, fields, onChange, required, highlight, play
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-const empty = () => ({ url: "", meta: "" });
+const empty = () => ({ url: "", meta: "", fbSlug: "" });
 
 export default function AnalyzePage() {
   const navigate = useNavigate();
@@ -445,9 +451,9 @@ export default function AnalyzePage() {
     });
 
     const data: UrlFormData = {
-      eshop:       { url: norm(eshop.url),       meta: eshop.meta.trim() },
-      competitor1: { url: norm(competitor1.url), meta: competitor1.meta.trim() },
-      competitor2: { url: norm(competitor2.url), meta: competitor2.meta.trim() },
+      eshop:       { url: norm(eshop.url),       meta: eshop.meta.trim(),       fbSlug: eshop.fbSlug || undefined },
+      competitor1: { url: norm(competitor1.url), meta: competitor1.meta.trim(), fbSlug: competitor1.fbSlug || undefined },
+      competitor2: { url: norm(competitor2.url), meta: competitor2.meta.trim(), fbSlug: competitor2.fbSlug || undefined },
     };
 
     navigate("/get-email", { state: data });

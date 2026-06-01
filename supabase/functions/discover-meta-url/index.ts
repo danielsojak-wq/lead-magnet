@@ -88,7 +88,7 @@ function buildMetaUrl(q: string | null, pageId: string | null): string | null {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
-  const empty = new Response(JSON.stringify({ meta_url: null, page_name: null }), {
+  const empty = new Response(JSON.stringify({ meta_url: null, page_name: null, fb_slug: null }), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 
@@ -126,31 +126,36 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({
         meta_url: buildMetaUrl(null, htmlNumericId),
         page_name: htmlNumericId,
+        fb_slug: sameAsSlugs[0] ?? null,
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     const candidates = slugCandidates(siteUrl, [...sameAsSlugs, ...otherSlugs], brandName);
 
-    // ── Step 2: Graph API lookup (reliable, requires FB_APP_ID + FB_APP_SECRET) ─
+    // ── Step 2: Graph API lookup (dormant — requires pages_read_engagement review) ─
     if (fbToken && candidates.length) {
       const hit = await resolveViaGraphApi(candidates, fbToken);
       if (hit) {
         return new Response(JSON.stringify({
           meta_url: buildMetaUrl(null, hit.pageId),
           page_name: hit.pageName,
+          fb_slug: sameAsSlugs[0] ?? null,
         }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
     }
 
-    // ── Step 3: sameAs slug > other HTML slugs > brandName > domain guess ─────
-    const searchQ    = sameAsSlugs[0] ?? otherSlugs[0] ?? brandName ?? candidates[0] ?? null;
-    const displayName = sameAsSlugs[0] ?? otherSlugs[0] ?? brandName ?? candidates[0] ?? null;
+    // ── Step 3: brand name (og:site_name > title) as q= term; slug as fb_slug ──
+    // q= searches by PAGE NAME — brand name matches better than username slug
+    const searchQ    = brandName ?? sameAsSlugs[0] ?? otherSlugs[0] ?? candidates[0] ?? null;
+    const displayName = brandName ?? sameAsSlugs[0] ?? otherSlugs[0] ?? candidates[0] ?? null;
+    const fbSlug      = sameAsSlugs[0] ?? null;
 
     if (!searchQ) return empty;
 
     return new Response(JSON.stringify({
       meta_url: buildMetaUrl(searchQ, null),
       page_name: displayName,
+      fb_slug: fbSlug,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
   } catch (e) {
