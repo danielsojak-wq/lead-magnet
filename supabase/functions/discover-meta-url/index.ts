@@ -1,14 +1,5 @@
 import { corsHeaders } from "../_shared/cors.ts";
-
-const EXCLUDED = new Set([
-  "sharer", "share", "plugins", "tr", "events", "groups", "dialog",
-  "login", "home.php", "video.php", "photo.php", "ads", "business",
-  "help", "l", "n", "hashtag", "privacy", "policies", "terms",
-  "about", "legal", "settings", "watches", "gaming", "marketplace",
-  "fundraisers", "bookmarks", "saved", "people", "stories",
-  "pages", "watch", "messages", "search", "photo", "video", "reel",
-  "notifications", "live", "story", "reels", "profile",
-]);
+import { extractFbSlugs } from "./_helpers.ts";
 
 const BROWSER_HEADERS = {
   "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
@@ -60,35 +51,6 @@ function extractBrandName(html: string): string | null {
   return null;
 }
 
-function extractFbSlugs(html: string): string[] {
-  const counts = new Map<string, number>();
-
-  for (const block of html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)) {
-    try {
-      const obj = JSON.parse(block[1]);
-      const sameAs: unknown[] = Array.isArray(obj?.sameAs) ? obj.sameAs
-        : typeof obj?.sameAs === "string" ? [obj.sameAs] : [];
-      for (const u of sameAs) {
-        const m = String(u).match(/(?:https?:)?\/\/(?:www\.)?facebook\.com\/([a-zA-Z0-9._-]{3,60})/);
-        if (m) {
-          const slug = m[1].toLowerCase();
-          if (!EXCLUDED.has(slug) && !/^\d+$/.test(slug))
-            counts.set(slug, (counts.get(slug) ?? 0) + 5);
-        }
-      }
-    } catch { /* skip */ }
-  }
-
-  const fbRe = /(?:https?:)?\/\/(?:www\.)?facebook\.com\/([a-zA-Z0-9._-]{3,60})(?=[/?#"'\s<&\\]|$)/g;
-  let m;
-  while ((m = fbRe.exec(html)) !== null) {
-    const slug = m[1].toLowerCase();
-    if (!EXCLUDED.has(slug) && !slug.startsWith("pg/") && !/^\d+$/.test(slug))
-      counts.set(slug, (counts.get(slug) ?? 0) + 1);
-  }
-
-  return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([s]) => s);
-}
 
 function slugCandidates(siteUrl: string, htmlSlugs: string[], brandName: string | null): string[] {
   const seen = new Set<string>();
@@ -141,7 +103,8 @@ Deno.serve(async (req) => {
 
     // ── Step 1: Fetch website HTML ─────────────────────────────────────────────
     let brandName: string | null = null;
-    let htmlSlugs: string[] = [];
+    let sameAsSlugs: string[] = [];
+    let otherSlugs: string[] = [];
     let htmlNumericId: string | null = null;
 
     try {
@@ -153,7 +116,7 @@ Deno.serve(async (req) => {
           htmlNumericId = numericMatch[1];
         } else {
           brandName = extractBrandName(html);
-          htmlSlugs = extractFbSlugs(html);
+          ({ sameAsSlugs, otherSlugs } = extractFbSlugs(html));
         }
       }
     } catch { /* proceed with guesses */ }
@@ -166,7 +129,7 @@ Deno.serve(async (req) => {
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const candidates = slugCandidates(siteUrl, htmlSlugs, brandName);
+    const candidates = slugCandidates(siteUrl, [...sameAsSlugs, ...otherSlugs], brandName);
 
     // ── Step 2: Graph API lookup (reliable, requires FB_APP_ID + FB_APP_SECRET) ─
     if (fbToken && candidates.length) {
@@ -179,9 +142,9 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ── Step 3: Fallback — og:site_name or best slug as q= ────────────────────
-    const searchQ = brandName ?? htmlSlugs[0] ?? candidates[0] ?? null;
-    const displayName = brandName ?? htmlSlugs[0] ?? candidates[0] ?? null;
+    // ── Step 3: sameAs slug > other HTML slugs > brandName > domain guess ─────
+    const searchQ    = sameAsSlugs[0] ?? otherSlugs[0] ?? brandName ?? candidates[0] ?? null;
+    const displayName = sameAsSlugs[0] ?? otherSlugs[0] ?? brandName ?? candidates[0] ?? null;
 
     if (!searchQ) return empty;
 
