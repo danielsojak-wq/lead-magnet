@@ -416,7 +416,7 @@ async function syncToEcomail(
         lm_analysis_competitor_1: comp1 ? domainName(comp1.url) : "",
         lm_analysis_competitor_2: comp2 ? domainName(comp2.url) : "",
       },
-      tags: ["lead-magnet-analyza"],
+      tags: ["lead-magnet-analyza", "nurtured"],
     },
     trigger_autoresponders: false,
     update_existing: true,
