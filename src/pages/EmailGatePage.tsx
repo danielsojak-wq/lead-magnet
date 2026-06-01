@@ -269,9 +269,9 @@ export default function EmailGatePage() {
     setSubmitting(true);
 
     const competitors = [
-      { url: urlData.competitor1.url, meta_url: urlData.competitor1.meta || undefined, position: 1 },
+      { url: urlData.competitor1.url, meta_url: urlData.competitor1.meta || undefined, fb_slug: urlData.competitor1.fbSlug || undefined, position: 1 },
       ...(urlData.competitor2.url
-        ? [{ url: urlData.competitor2.url, meta_url: urlData.competitor2.meta || undefined, position: 2 }]
+        ? [{ url: urlData.competitor2.url, meta_url: urlData.competitor2.meta || undefined, fb_slug: urlData.competitor2.fbSlug || undefined, position: 2 }]
         : []),
     ];
 

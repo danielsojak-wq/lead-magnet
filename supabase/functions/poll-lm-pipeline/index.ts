@@ -14,6 +14,121 @@ function err(msg: string, status = 400) {
   return new Response(JSON.stringify({ error: msg }), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 }
 
+// ─── Page validation helpers ──────────────────────────────────────────────────
+
+function buildPageUrl(pageId: string): string {
+  return `https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=CZ` +
+    `&is_targeted_country=false&media_type=all&search_type=page&view_all_page_id=${pageId}`;
+}
+
+// Heuristic: page_name looks like a brand if short, no comma, max 3 words
+function looksLikeBrand(s: string | null): boolean {
+  if (!s) return false;
+  return !s.includes(",") && s.trim().split(/\s+/).length <= 3 && s.length <= 25;
+}
+
+// Derive display name: use scraped page_name when brand-like, else capitalize SLD
+function deriveDisplayName(pageName: string | null, competitorUrl: string): string {
+  if (looksLikeBrand(pageName)) return pageName!;
+  try {
+    const host = new URL(competitorUrl).hostname.replace(/^www\./, "");
+    const sld = host.replace(/\.[^.]+$/, ""); // "terasvet.cz" → "terasvet"
+    return sld.charAt(0).toUpperCase() + sld.slice(1);
+  } catch {
+    return pageName ?? competitorUrl;
+  }
+}
+
+function normStr(s: string): string {
+  return s.normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function brandFromUrl(metaUrl: string | null): string | null {
+  try { return new URL(metaUrl!).searchParams.get("q"); } catch { return null; }
+}
+
+function vanityFromUri(pageProfileUri: string | null | undefined): string | null {
+  if (!pageProfileUri) return null;
+  try {
+    const seg = new URL(pageProfileUri).pathname.replace(/^\//, "").split("/")[0];
+    return seg || null;
+  } catch {
+    return pageProfileUri.replace(/^\//, "").split("/")[0].split("?")[0] || null;
+  }
+}
+
+type MatchPath = "vanity_exact" | "brand_exact" | "containment";
+
+function pickDominantPage(
+  items: any[],
+  brandName: string | null,
+  fbSlug: string | null,
+): { filtered: any[]; pageId: string; pageName: string; matchPath: MatchPath } | null {
+  const groups: Record<string, { name: string; vanity: string | null; items: any[] }> = {};
+  for (const it of items) {
+    const pid = String(it?.page_id || it?.snapshot?.page_id || "").replace(/\D/g, "");
+    if (!pid) continue;
+    const pname = it?.page_name || it?.snapshot?.page_name || "";
+    const puri  = it?.snapshot?.page_profile_uri ?? null;
+    if (!groups[pid]) groups[pid] = { name: pname, vanity: vanityFromUri(puri), items: [] };
+    groups[pid].items.push(it);
+  }
+
+  const pick = (pid: string, matchPath: MatchPath) => ({
+    filtered: groups[pid].items,
+    pageId: pid,
+    pageName: groups[pid].name,
+    matchPath,
+  });
+
+  // Kolo 1: VANITY EXACT — fb_slug ze sameAs/HTML === slug z snapshot.page_profile_uri
+  // Guard: vanity_exact wins jen pokud je jediná page ve výsledcích NEBO page_name
+  // zároveň brand-matchne. Brání html-source slugu protlačit cizí stránku.
+  if (fbSlug) {
+    const normFb = normStr(fbSlug);
+    const normBrandV = brandName ? normStr(brandName) : null;
+    const vanityHits = Object.keys(groups)
+      .filter(pid => groups[pid].vanity && normStr(groups[pid].vanity!) === normFb);
+
+    if (vanityHits.length === 1) {
+      const pid = vanityHits[0];
+      const isOnlyPage = Object.keys(groups).length === 1;
+      const pageNameMatches = normBrandV
+        ? (() => {
+            const np = normStr(groups[pid].name);
+            return np === normBrandV ||
+              (Math.min(np.length, normBrandV.length) >= 4 &&
+               (np.includes(normBrandV) || normBrandV.includes(np)));
+          })()
+        : false;
+      if (isOnlyPage || pageNameMatches) return pick(pid, "vanity_exact");
+      // Vanity hit, ale nepotvrzeno brand matchem — propadni do kola 2/3
+    }
+    if (vanityHits.length > 1) return null;
+  }
+
+  if (!brandName) return null;
+  const normBrand = normStr(brandName);
+
+  // Kolo 2: BRAND EXACT
+  const exactHits = Object.keys(groups)
+    .filter(pid => normStr(groups[pid].name) === normBrand);
+  if (exactHits.length === 1) return pick(exactHits[0], "brand_exact");
+  if (exactHits.length > 1)  return null;
+
+  // Kolo 3: CONTAINMENT (min délka 4, právě 1 kandidát)
+  const containHits = Object.keys(groups).filter(pid => {
+    const normPage = normStr(groups[pid].name);
+    const minLen = Math.min(normPage.length, normBrand.length);
+    return minLen >= 4 && (normPage.includes(normBrand) || normBrand.includes(normPage));
+  });
+  if (containHits.length === 1) return pick(containHits[0], "containment");
+  return null;
+}
+
 // ─── Ad mappers ───────────────────────────────────────────────────────────────
 
 function mapMetaItem(it: any, sessionId: string, competitorId: string) {
@@ -58,6 +173,8 @@ function mapMetaItem(it: any, sessionId: string, competitorId: string) {
     is_active:     it?.is_active ?? true,
     ad_start_date: toDate(it?.start_date || it?.startDate || snapshot?.creation_time),
     ad_type:       null,
+    page_id:       String(it?.page_id || snapshot?.page_id || "").replace(/\D/g, "") || null,
+    page_name:     it?.page_name || snapshot?.page_name || null,
   };
 }
 
@@ -192,7 +309,7 @@ Deno.serve(async (req) => {
     // Load all competitors
     const { data: competitors } = await supa
       .from("lm_session_competitors")
-      .select("id, url, apify_run_id, apify_google_run_id, status")
+      .select("id, url, apify_run_id, apify_google_run_id, status, meta_library_url, fb_slug")
       .eq("session_id", session_id);
 
     const comps = competitors ?? [];
@@ -231,10 +348,29 @@ Deno.serve(async (req) => {
         }
         if (succeeded) {
           if (items.length) {
-            const rows = items.map(it => mapMetaItem(it, session_id, comp.id));
-            await supa.from("lm_session_ads").upsert(rows, { onConflict: "session_id,ad_archive_id", ignoreDuplicates: false });
-            totalAds = items.length;
-            console.log(`Competitor ${comp.id}: saved ${items.length} Meta ads`);
+            const brandName = brandFromUrl(comp.meta_library_url ?? null);
+            const fbSlug    = comp.fb_slug ?? null;
+            const match = pickDominantPage(items, brandName, fbSlug);
+
+            if (!match) {
+              console.log(JSON.stringify({ level: "warn", message: "page_validation_no_match",
+                session_id, competitor_id: comp.id, brand: brandName, fb_slug: fbSlug,
+                distinct_pages: [...new Set(items.map((i: any) => i?.page_id))].length }));
+            } else {
+              const winnerUrl = buildPageUrl(match.pageId);
+              const displayName = deriveDisplayName(match.pageName, comp.url);
+              const rows = match.filtered.map(it => mapMetaItem(it, session_id, comp.id));
+              await supa.from("lm_session_ads").upsert(rows, { onConflict: "session_id,ad_archive_id", ignoreDuplicates: false });
+              totalAds = rows.length;
+              scrapeStatus = "scraped";
+              await supa.from("lm_session_competitors")
+                .update({ status: scrapeStatus, ads_count: totalAds, meta_library_url: winnerUrl, name: displayName })
+                .eq("id", comp.id);
+              console.log(JSON.stringify({ level: "info", message: "page_validated",
+                session_id, competitor_id: comp.id, page_id: match.pageId,
+                page_name: match.pageName, ads: totalAds, match_path: match.matchPath }));
+              continue;
+            }
           }
         } else {
           scrapeStatus = "scrape_failed";

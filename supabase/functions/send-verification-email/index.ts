@@ -102,7 +102,7 @@ Deno.serve(async (req) => {
 
     const eshop_url: string | undefined = body.eshop_url;
     const eshop_meta_url: string | undefined = body.eshop_meta_url;
-    const competitors: Array<{ url: string; meta_url?: string; position: number }> = body.competitors ?? [];
+    const competitors: Array<{ url: string; meta_url?: string; fb_slug?: string; position: number }> = body.competitors ?? [];
 
     const supa = admin();
 
@@ -182,6 +182,7 @@ Deno.serve(async (req) => {
           position: c.position,
           url: c.url,
           meta_library_url: c.meta_url ?? null,
+          fb_slug: c.fb_slug ?? null,
         })),
       );
     }
