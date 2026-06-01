@@ -45,8 +45,13 @@ function extractBrandName(html: string): string | null {
   const title = html.match(/<title[^>]*>([^<]{2,120})<\/title>/i);
   if (title) {
     const parts = title[1].trim().split(/\s*[|–—\-]\s*/);
-    const brand = parts[parts.length - 1].trim();
-    if (brand.length >= 2 && brand.length <= 60) return brand;
+    // Iterate from last to first; skip domain-like segments (e.g. "akvaria.cz")
+    for (let i = parts.length - 1; i >= 0; i--) {
+      const candidate = parts[i].trim();
+      if (candidate.length >= 2 && candidate.length <= 60 && !/^\S+\.\w{2,4}$/.test(candidate)) {
+        return candidate;
+      }
+    }
   }
   return null;
 }
