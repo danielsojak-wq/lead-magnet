@@ -66,13 +66,30 @@ function pickDominantPage(
     matchPath,
   });
 
-  // Kolo 1: VANITY EXACT — fb_slug ze sameAs === slug z snapshot.page_profile_uri
+  // Kolo 1: VANITY EXACT — fb_slug ze sameAs/HTML === slug z snapshot.page_profile_uri
+  // Guard: vanity_exact wins jen pokud je jediná page ve výsledcích NEBO page_name
+  // zároveň brand-matchne. Brání html-source slugu protlačit cizí stránku.
   if (fbSlug) {
     const normFb = normStr(fbSlug);
-    const hits = Object.keys(groups)
+    const normBrandV = brandName ? normStr(brandName) : null;
+    const vanityHits = Object.keys(groups)
       .filter(pid => groups[pid].vanity && normStr(groups[pid].vanity!) === normFb);
-    if (hits.length === 1) return pick(hits[0], "vanity_exact");
-    if (hits.length > 1)  return null;
+
+    if (vanityHits.length === 1) {
+      const pid = vanityHits[0];
+      const isOnlyPage = Object.keys(groups).length === 1;
+      const pageNameMatches = normBrandV
+        ? (() => {
+            const np = normStr(groups[pid].name);
+            return np === normBrandV ||
+              (Math.min(np.length, normBrandV.length) >= 4 &&
+               (np.includes(normBrandV) || normBrandV.includes(np)));
+          })()
+        : false;
+      if (isOnlyPage || pageNameMatches) return pick(pid, "vanity_exact");
+      // Vanity hit, ale nepotvrzeno brand matchem — propadni do kola 2/3
+    }
+    if (vanityHits.length > 1) return null;
   }
 
   if (!brandName) return null;

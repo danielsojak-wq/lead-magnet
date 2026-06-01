@@ -153,7 +153,7 @@ Deno.serve(async (req) => {
     // q= searches by PAGE NAME — brand name matches better than username slug
     const searchQ    = brandName ?? sameAsSlugs[0] ?? otherSlugs[0] ?? candidates[0] ?? null;
     const displayName = brandName ?? sameAsSlugs[0] ?? otherSlugs[0] ?? candidates[0] ?? null;
-    const fbSlug      = sameAsSlugs[0] ?? null;
+    const fbSlug      = sameAsSlugs[0] ?? otherSlugs[0] ?? null;
 
     if (!searchQ) return empty;
 
