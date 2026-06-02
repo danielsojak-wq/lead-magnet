@@ -284,12 +284,7 @@ export default function LandingPage() {
             <p className="text-[#b0f221] text-sm font-semibold tracking-wide uppercase mb-3">TECHNICKÉ OKÉNKO</p>
             <h2 className="font-[family-name:var(--font-heading)] text-3xl sm:text-4xl font-bold text-white mb-5">
               Více než jen scraping reklam
-              <br />
-              <span className="text-[#b0f221]">Inteligentní analýza s daty z praxe.</span>
             </h2>
-            <p className="text-white/55 max-w-2xl mx-auto text-lg leading-relaxed">
-              Inteligentní analýza s daty z praxe
-            </p>
           </div>
 
           {/* Pipeline */}
