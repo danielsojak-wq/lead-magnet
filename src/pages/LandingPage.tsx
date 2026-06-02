@@ -326,7 +326,7 @@ export default function LandingPage() {
           <div className="grid md:grid-cols-2 gap-8">
             {/* For whom */}
             <div className="rounded-2xl border border-gray-100 p-7 bg-white">
-              <h3 className="font-[family-name:var(--font-heading)] font-bold text-lg text-gray-900 mb-5">Pro koho ANO</h3>
+              <h3 className="font-[family-name:var(--font-heading)] font-bold text-lg text-gray-900 mb-5">PRO KOHO TO JE</h3>
               <ul className="space-y-3">
                 {[
                   "CZ a SK e-shopy s obratem 5–50 M Kč/rok",
