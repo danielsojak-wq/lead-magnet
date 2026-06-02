@@ -178,7 +178,22 @@ export default function LandingPage() {
               { icon: Brain,    label: "AI analýza + naše metodika", sub: "Sílu AI spojujeme s naší metodikou z reálných klientských kampaní" },
               { icon: BarChart3, label: "Konkrétní kroky, ne teorie",       sub: "Získáte rovnou aplikovatelná doporučení" },
             ].map(({ icon: Icon, label, sub }) => (
-...
+              <div key={label} className="flex items-center gap-3 bg-white/5 border border-white/8 rounded-2xl px-4 py-3 text-left">
+                <div className="w-9 h-9 rounded-xl bg-[#b0f221]/15 border border-[#b0f221]/20 flex items-center justify-center shrink-0">
+                  <Icon className="h-4 w-4 text-[#b0f221]" />
+                </div>
+                <div>
+                  <p className="text-white text-xs font-semibold leading-snug">{label}</p>
+                  <p className="text-white/40 text-[11px] mt-0.5">{sub}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+
+      {/* ── Why it matters ─────────────────────────────────────────────────── */}
       <section className="py-20 sm:py-28 bg-white">
         <div className="max-w-5xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-14">
@@ -187,7 +202,22 @@ export default function LandingPage() {
               Informace, které vám konkurence nikdy nedá
             </h2>
           </div>
-...
+
+          <div className="grid sm:grid-cols-2 gap-6">
+            {BENEFITS.map((b) => (
+              <div key={b.title} className="border border-gray-100 rounded-2xl p-7 hover:border-[#4f11ff]/30 hover:shadow-md hover:shadow-[#4f11ff]/5 transition-all group bg-white">
+                <div className="w-10 h-10 rounded-xl bg-[#b0f221]/20 flex items-center justify-center mb-4">
+                  <b.icon className="h-5 w-5 text-[#4f11ff]" />
+                </div>
+                <h3 className="font-[family-name:var(--font-heading)] font-bold text-lg mb-2 text-gray-900">{b.title}</h3>
+                <p className="text-gray-500 text-sm leading-relaxed">{b.body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── How it works ───────────────────────────────────────────────────── */}
       <section className="py-20 sm:py-28 bg-gray-50 border-y border-gray-100">
         <div className="max-w-3xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-14">
@@ -196,7 +226,21 @@ export default function LandingPage() {
               Od URL k výsledkům za 3 minuty
             </h2>
           </div>
-...
+
+          <div className="space-y-6">
+            {STEPS.map((step, i) => (
+              <div key={step.num} className="flex gap-6 items-start bg-white rounded-2xl border border-gray-100 p-6">
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-[family-name:var(--font-heading)] font-bold text-lg flex-shrink-0 ${i === 0 ? "bg-[#4f11ff] text-white shadow-md shadow-[#4f11ff]/30" : "bg-gray-100 text-gray-400"}`}>
+                  {step.num}
+                </div>
+                <div className="pt-1">
+                  <h3 className="font-[family-name:var(--font-heading)] font-bold text-lg mb-1 text-gray-900">{step.title}</h3>
+                  <p className="text-gray-500 text-sm leading-relaxed">{step.body}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
           <div className="mt-10 flex items-center justify-center gap-2 text-gray-400 text-sm">
             <Clock className="h-4 w-4" />
             Výsledky se zobrazí přímo v prohlížeči během 3 minut
