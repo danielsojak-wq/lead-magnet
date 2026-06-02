@@ -88,6 +88,21 @@ function CtaButton({
   );
 }
 
+/* ─── Subtle text CTA link ──────────────────────────────────────────────────── */
+
+function TextCtaLink({ label = "Spustit analýzu zdarma" }: { label?: string }) {
+  const navigate = useNavigate();
+  return (
+    <button
+      onClick={() => navigate("/analyze")}
+      className="group inline-flex items-center gap-1.5 text-sm font-semibold text-[#4f11ff] hover:text-[#3d0dcc] transition-colors"
+    >
+      {label}
+      <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+    </button>
+  );
+}
+
 /* ─── Page ──────────────────────────────────────────────────────────────────── */
 
 export default function LandingPage() {
@@ -197,6 +212,10 @@ export default function LandingPage() {
               </div>
             ))}
           </div>
+
+          <div className="mt-12 flex justify-center">
+            <CtaButton size="sm" label="Spustit analýzu zdarma" subText="Zdarma. Bez registrace." />
+          </div>
         </div>
       </section>
 
@@ -227,6 +246,10 @@ export default function LandingPage() {
           <div className="mt-10 flex items-center justify-center gap-2 text-gray-400 text-sm">
             <Clock className="h-4 w-4" />
             Výsledky se zobrazí přímo v prohlížeči během 3 minut
+          </div>
+
+          <div className="mt-8 flex justify-center">
+            <TextCtaLink label="Pustit se do toho" />
           </div>
         </div>
       </section>

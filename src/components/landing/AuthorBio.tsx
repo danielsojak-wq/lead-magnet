@@ -1,7 +1,10 @@
-import { LinkedinIcon } from "lucide-react";
+import { LinkedinIcon, ArrowRight } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { trackEvent } from "@/lib/analytics";
 
 export function AuthorBio() {
+  const navigate = useNavigate();
+
   const handleLinkedInClick = () => {
     trackEvent({ event: "cta_clicked", cta_label: "linkedin_author_bio", section: "author_bio" });
   };
@@ -31,16 +34,25 @@ export function AuthorBio() {
               denní bázi. Nyní si ji můžete udělat i vy.
             </p>
 
-            <a
-              href="https://www.linkedin.com/in/daniel-sojak/"
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={handleLinkedInClick}
-              aria-label="LinkedIn profil Daniela Sojáka"
-              className="inline-flex items-center justify-center w-9 h-9 rounded-lg text-[#4f11ff] hover:bg-[#4f11ff]/8 transition-colors"
-            >
-              <LinkedinIcon className="h-5 w-5" />
-            </a>
+            <div className="flex items-center gap-5">
+              <a
+                href="https://www.linkedin.com/in/daniel-sojak/"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={handleLinkedInClick}
+                aria-label="LinkedIn profil Daniela Sojáka"
+                className="inline-flex items-center justify-center w-9 h-9 rounded-lg text-[#4f11ff] hover:bg-[#4f11ff]/8 transition-colors"
+              >
+                <LinkedinIcon className="h-5 w-5" />
+              </a>
+              <button
+                onClick={() => navigate("/analyze")}
+                className="group inline-flex items-center gap-1.5 text-sm font-semibold text-[#4f11ff] hover:text-[#3d0dcc] transition-colors"
+              >
+                Vyzkoušet naši analýzu
+                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
