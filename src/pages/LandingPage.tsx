@@ -55,10 +55,10 @@ const STEPS = [
 
 
 const PIPELINE = [
-  { icon: Globe,     label: "Sběr dat",    sub: "Ad Library API" },
-  { icon: Brain,     label: "Analýza a syntéza",  sub: "Jazykové modely Gemini" },
-  { icon: BarChart3, label: "Benchmarking", sub: "Porovnání na základě dat" },
-  { icon: Zap,       label: "Výsledky",    sub: "Uvidíte hned" },
+  { icon: Globe,     label: "Sběr dat",    sub: "Aktuální reklamy z Meta Ads Library" },
+  { icon: Brain,     label: "Paralelní AI analýza",  sub: "Vyhodnotíme každého konkurenta zvlášť" },
+  { icon: BarChart3, label: "Syntéza dat", sub: "Porovnání všech hráčů, identifikace mezer" },
+  { icon: Zap,       label: "Výsledky",    sub: "Konkrétní doporučení s prioritou" },
 ];
 
 /* ─── CTA button ────────────────────────────────────────────────────────────── */
@@ -256,15 +256,14 @@ export default function LandingPage() {
         <div className="max-w-5xl mx-auto px-4 sm:px-6">
 
           <div className="text-center mb-14">
-            <p className="text-[#b0f221] text-sm font-semibold tracking-wide uppercase mb-3">JAK TO DĚLÁME</p>
+            <p className="text-[#b0f221] text-sm font-semibold tracking-wide uppercase mb-3">TECHNICKÉ OKÉNKO</p>
             <h2 className="font-[family-name:var(--font-heading)] text-3xl sm:text-4xl font-bold text-white mb-5">
-              Víc než scraping reklam.
+              Více než jen scraping reklam
               <br />
               <span className="text-[#b0f221]">Inteligentní analýza s daty z praxe.</span>
             </h2>
             <p className="text-white/55 max-w-2xl mx-auto text-lg leading-relaxed">
-              Za každou analýzou stojí jazykové modely Gemini, vlastní prompt framework
-              a strukturovaná data přímo z Meta Ads Library
+              Inteligentní analýza s daty z praxe
             </p>
           </div>
 
@@ -298,22 +297,20 @@ export default function LandingPage() {
       <section className="py-20 sm:py-28 bg-white border-y border-gray-100">
         <div className="max-w-4xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-12">
-            <p className="text-[#4f11ff] text-sm font-semibold tracking-wide uppercase mb-3">PRO KOHO TO JE</p>
+            <p className="text-[#4f11ff] text-sm font-semibold tracking-wide uppercase mb-3">Pro koho ANO</p>
             <h2 className="font-[family-name:var(--font-heading)] text-3xl sm:text-4xl font-bold text-gray-900">
-              Tato analýza je premium nástroj.
-              <br />
-              Pro každého nemá smysl.
+              Tato analýza nemá smysl pro každého
             </h2>
           </div>
 
           <div className="grid md:grid-cols-2 gap-8">
             {/* For whom */}
             <div className="rounded-2xl border border-gray-100 p-7 bg-white">
-              <h3 className="font-[family-name:var(--font-heading)] font-bold text-lg text-gray-900 mb-5">Pro koho TO JE</h3>
+              <h3 className="font-[family-name:var(--font-heading)] font-bold text-lg text-gray-900 mb-5">Pro koho ANO</h3>
               <ul className="space-y-3">
                 {[
-                  "CZ e-shopy s obratem 10–50 M Kč",
-                  "Aktivní reklamní rozpočet 50 000 Kč+ měsíčně",
+                  "CZ a SK e-shopy s obratem 5–50 M Kč/rok",
+                  "Aktivní reklamní rozpočet 30 000 Kč+ měsíčně",
                   "Vlastní značka, vlastní produkty",
                   "Konkurence s aktivními reklamami na Metě",
                 ].map((item) => (
@@ -327,13 +324,13 @@ export default function LandingPage() {
 
             {/* Not for whom */}
             <div className="rounded-2xl border border-gray-100 p-7 bg-gray-50">
-              <h3 className="font-[family-name:var(--font-heading)] font-bold text-lg text-gray-900 mb-5">Pro koho TO NENÍ</h3>
+              <h3 className="font-[family-name:var(--font-heading)] font-bold text-lg text-gray-900 mb-5">Pro koho NE</h3>
               <ul className="space-y-3">
                 {[
                   "E-shopy pod 5 M Kč ročního obratu (málo dat)",
-                  "B2B firmy (cílíme B2C e-commerce)",
-                  "Dropshipping a affiliate projekty",
-                  "Brandy bez aktivního Meta reklamního rozpočtu",
+                  "Minimální reklamní rozpočet",
+                  "Značky bez aktivních reklam na Metě",
+                  "Konkurence bez aktivních reklam na Metě",
                 ].map((item) => (
                   <li key={item} className="flex items-start gap-3">
                     <X className="h-4 w-4 text-gray-400 mt-0.5 shrink-0" />
