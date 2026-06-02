@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import performindLogo from "@/assets/performind-logo-dark.svg";
 import { AuthorBio } from "@/components/landing/AuthorBio";
+import { FloatingIcons } from "@/components/landing/FloatingIcons";
 
 /* ─── Data ─────────────────────────────────────────────────────────────────── */
 
@@ -134,6 +135,8 @@ export default function LandingPage() {
 
       {/* ── Hero ───────────────────────────────────────────────────────────── */}
       <section className="relative pt-16 pb-20 overflow-hidden bg-gray-950">
+        {/* Floating decorative icons — ambient background, z-index 0 */}
+        <FloatingIcons />
         {/* Background blobs */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[500px] bg-[#4f11ff]/25 rounded-full blur-[140px] pointer-events-none" />
         <div className="absolute bottom-10 right-10 w-72 h-72 bg-[#b0f221]/12 rounded-full blur-[100px] pointer-events-none" />
