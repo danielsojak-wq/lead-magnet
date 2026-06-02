@@ -55,10 +55,10 @@ const STEPS = [
 
 
 const PIPELINE = [
-  { icon: Globe,     label: "Sběr dat",    sub: "Ad Library API" },
-  { icon: Brain,     label: "Analýza a syntéza",  sub: "Jazykové modely Gemini" },
-  { icon: BarChart3, label: "Benchmarking", sub: "Porovnání na základě dat" },
-  { icon: Zap,       label: "Výsledky",    sub: "Uvidíte hned" },
+  { icon: Globe,     label: "Sběr dat",    sub: "Aktuální reklamy z Meta Ads Library" },
+  { icon: Brain,     label: "Paralelní AI analýza",  sub: "Vyhodnotíme každého konkurenta zvlášť" },
+  { icon: BarChart3, label: "Syntéza dat", sub: "Porovnání všech hráčů, identifikace mezer" },
+  { icon: Zap,       label: "Výsledky",    sub: "Konkrétní doporučení s prioritou" },
 ];
 
 /* ─── CTA button ────────────────────────────────────────────────────────────── */
