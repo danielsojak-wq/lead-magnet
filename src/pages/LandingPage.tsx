@@ -8,6 +8,7 @@ import performindLogo from "@/assets/performind-logo-dark.svg";
 import { AuthorBio } from "@/components/landing/AuthorBio";
 import { FloatingIcons } from "@/components/landing/FloatingIcons";
 import { ResultPreviewTeaser } from "@/components/landing/ResultPreviewTeaser";
+import { ProblemSection } from "@/components/landing/ProblemSection";
 
 /* ─── Data ─────────────────────────────────────────────────────────────────── */
 
@@ -190,6 +191,8 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ── Problem (agitate) ──────────────────────────────────────────────── */}
+      <ProblemSection />
 
       {/* ── Why it matters ─────────────────────────────────────────────────── */}
       <section className="py-20 sm:py-28 bg-white">
