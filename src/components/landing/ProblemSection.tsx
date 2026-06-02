@@ -10,7 +10,7 @@ export function ProblemSection() {
         style={{ background: "linear-gradient(to bottom, #030712 0%, rgba(3,7,18,0.5) 45%, transparent 100%)" }}
       />
       {/* Fade into next section (Co získáte — white) */}
-      <SectionFade to="#ffffff" />
+      <SectionFade from="#0c0a1e" to="#ffffff" />
 
       {/* Ambient lime accent */}
       <div className="absolute top-1/2 -left-20 -translate-y-1/2 w-72 h-72 bg-[#b0f221]/8 rounded-full blur-[120px] pointer-events-none" />

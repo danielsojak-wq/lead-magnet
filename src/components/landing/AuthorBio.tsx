@@ -12,7 +12,7 @@ export function AuthorBio() {
 
   return (
     <section className="py-12 sm:py-16 bg-gray-50 relative overflow-hidden">
-      <SectionFade to="#0c0a1e" />
+      <SectionFade from="#f9fafb" to="#0c0a1e" />
       <div className="relative max-w-4xl mx-auto px-4 sm:px-6">
         <p className="text-[#4f11ff] text-sm font-semibold tracking-wide uppercase mb-10 text-center">Kdo za tím stojí</p>
         <div className="grid md:grid-cols-[auto_1fr] gap-10 items-start">

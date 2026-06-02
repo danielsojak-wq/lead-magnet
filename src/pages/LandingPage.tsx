@@ -279,7 +279,7 @@ export default function LandingPage() {
 
       {/* ── AI Methodology ─────────────────────────────────────────────────── */}
       <section className="py-20 sm:py-28 bg-[#0c0a1e] relative overflow-hidden">
-        <SectionFade to="#ffffff" />
+        <SectionFade from="#0c0a1e" to="#ffffff" />
         <div className="relative max-w-5xl mx-auto px-4 sm:px-6">
 
           <div className="text-center mb-14">
@@ -317,7 +317,7 @@ export default function LandingPage() {
 
       {/* ── Dis-qualifier ──────────────────────────────────────────────────── */}
       <section className="py-20 sm:py-28 bg-white relative overflow-hidden">
-        <SectionFade to="#4f11ff" />
+        <SectionFade from="#ffffff" to="#4f11ff" />
         <div className="relative max-w-4xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-12">
             <p className="text-[#4f11ff] text-sm font-semibold tracking-wide uppercase mb-3">PRO KOHO TO JE</p>
@@ -368,7 +368,7 @@ export default function LandingPage() {
 
       {/* ── Final CTA ──────────────────────────────────────────────────────── */}
       <section className="py-20 sm:py-28 bg-[#4f11ff] relative overflow-hidden">
-        <SectionFade to="#ffffff" />
+        <SectionFade from="#4f11ff" to="#ffffff" />
         <div className="relative max-w-2xl mx-auto px-4 sm:px-6 text-center">
           <div className="inline-flex items-center gap-2 bg-white/10 text-white text-xs font-semibold px-4 py-1.5 rounded-full mb-6">
             <Check className="h-3 w-3" /> ZDARMA, BEZ REGISTRACE
