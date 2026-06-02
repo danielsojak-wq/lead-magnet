@@ -171,7 +171,7 @@ export default function LandingPage() {
           </div>
 
           {/* Feature pills strip */}
-          <div className="flex flex-wrap items-center justify-center gap-3 max-w-2xl mx-auto">
+          <div className="flex flex-nowrap items-center justify-center gap-2 sm:gap-3 max-w-3xl mx-auto overflow-x-auto">
             {[
               { icon: Database,  label: "Hotovo za 3 minuty" },
               { icon: Brain,     label: "AI analýza + naše metodika" },
@@ -179,12 +179,12 @@ export default function LandingPage() {
             ].map(({ icon: Icon, label }) => (
               <div
                 key={label}
-                className="group relative flex items-center gap-2.5 rounded-full pl-2 pr-4 py-2 bg-white/[0.04] border border-white/10 hover:border-[#b0f221]/40 hover:bg-white/[0.07] transition-all duration-300"
+                className="group relative flex items-center gap-2 sm:gap-2.5 rounded-full pl-1.5 sm:pl-2 pr-3 sm:pr-4 py-1.5 sm:py-2 bg-white/[0.04] border border-white/10 hover:border-[#b0f221]/40 hover:bg-white/[0.07] transition-all duration-300 shrink-0"
               >
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#b0f221]/25 to-[#b0f221]/5 border border-[#b0f221]/25 flex items-center justify-center shrink-0 group-hover:from-[#b0f221]/40 transition-all">
-                  <Icon className="h-4 w-4 text-[#b0f221]" />
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-br from-[#b0f221]/25 to-[#b0f221]/5 border border-[#b0f221]/25 flex items-center justify-center shrink-0 group-hover:from-[#b0f221]/40 transition-all">
+                  <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#b0f221]" />
                 </div>
-                <span className="text-white/90 text-sm font-medium whitespace-nowrap">{label}</span>
+                <span className="text-white/90 text-xs sm:text-sm font-medium whitespace-nowrap">{label}</span>
               </div>
             ))}
           </div>
