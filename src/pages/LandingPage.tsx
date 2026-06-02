@@ -150,7 +150,7 @@ export default function LandingPage() {
             Pro CZ a SK e-shopy s obratem 5–50 M Kč
           </div>
 
-          <h1 className="font-[family-name:var(--font-heading)] text-4xl sm:text-5xl lg:text-[3.25rem] font-bold leading-[1.12] tracking-tight mb-4 text-white">
+          <h1 className="font-[family-name:var(--font-heading)] text-4xl sm:text-5xl lg:text-[3.25rem] font-bold leading-[1.12] tracking-tight mb-10 text-white">
             Proč vás konkurence v reklamě 
             <br />
             na Metě předbíhá?
