@@ -152,15 +152,13 @@ export default function LandingPage() {
           </div>
 
           <h1 className="font-[family-name:var(--font-heading)] text-4xl sm:text-5xl lg:text-[3.25rem] font-bold leading-[1.12] tracking-tight mb-4 text-white">
-            Vaše konkurence dělá na Metě věci,
+            Proč vás konkurence v reklamě 
             <br />
-            o kterých nevíte.
+            na Metě předbíhá?
           </h1>
 
           <p className="font-[family-name:var(--font-heading)] text-2xl sm:text-3xl font-semibold text-white/70 mb-8 leading-snug">
-            Za 3 minuty zjistíte strategii konkurentů
-            <br />
-            a kde máte největší příležitost zaútočit.
+            Odhalte jejich strategii za 3 minuty
           </p>
 
           <p className="text-white/50 text-lg max-w-xl mx-auto mb-10 leading-relaxed">
@@ -170,7 +168,7 @@ export default function LandingPage() {
 
           {/* CTA */}
           <div ref={ctaRef} className="flex justify-center mb-14">
-            <CtaButton size="lg" label="Spustit analýzu" subText="Zdarma. Bez registrace. 1× na firmu." />
+            <CtaButton size="lg" label="Spustit analýzu" subText="Zdarma. Bez registrace." />
           </div>
 
           {/* Feature cards strip */}
