@@ -1,3 +1,5 @@
+import { SectionFade } from "./SectionFade";
+
 export function ProblemSection() {
   return (
     <section className="pt-12 sm:pt-16 pb-20 sm:pb-28 bg-[#0c0a1e] relative overflow-hidden">
@@ -7,6 +9,8 @@ export function ProblemSection() {
         className="absolute top-0 inset-x-0 h-40 pointer-events-none"
         style={{ background: "linear-gradient(to bottom, #030712 0%, rgba(3,7,18,0.5) 45%, transparent 100%)" }}
       />
+      {/* Fade into next section (Co získáte — white) */}
+      <SectionFade to="#ffffff" />
 
       {/* Ambient lime accent */}
       <div className="absolute top-1/2 -left-20 -translate-y-1/2 w-72 h-72 bg-[#b0f221]/8 rounded-full blur-[120px] pointer-events-none" />
