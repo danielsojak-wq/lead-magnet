@@ -14,7 +14,7 @@ export function AuthorBio() {
           <div className="flex justify-center md:justify-start">
             <img
               src="/daniel-sojak.jpg"
-              alt="Daniel Soják, Zakladatel a konzultant, Performind Marketing s.r.o."
+              alt="Daniel Soják, Zakladatel, Performind.cz"
               className="w-24 h-24 rounded-full object-cover shadow-md ring-2 ring-white"
             />
           </div>
@@ -22,12 +22,12 @@ export function AuthorBio() {
           {/* Bio */}
           <div>
             <h3 className="font-[family-name:var(--font-heading)] text-xl font-bold text-gray-900">Daniel Soják</h3>
-            <p className="text-[#4f11ff] text-sm font-semibold mb-4">Zakladatel a konzultant, Performind Marketing s.r.o.</p>
+            <p className="text-[#4f11ff] text-sm font-semibold mb-4">Zakladatel, Performind.cz</p>
 
             <p className="text-gray-600 leading-relaxed mb-4">
-              Vedu Performind, výkonnostní agenturu pro e-shopy. Spravujeme reklamní rozpočty
-              v desítkách milionů ročně a konkurenční analýzy děláme na denní bázi —
-              proto vím, co z nich má smysl.
+              Vedu Performind, výkonnostní agenturu pro firmy, které chtějí růst. Spravujeme
+              reklamní rozpočty v desítkách milionů ročně a konkurenční analýzy děláme na
+              denní bázi. Nyní si ji můžete udělat i vy.
             </p>
 
             <a
