@@ -15,35 +15,35 @@ const BENEFITS = [
   {
     icon: Eye,
     title: "Aktivní reklamy konkurence",
-    body: "Vidíte každou jejich spuštěnou reklamu na Metě — kreativy, copy, formáty, délku běhu. Žádný odhad, jen real-time data z Meta Ads Library.",
+    body: "Uvidíte každou jejich spuštěnou reklamu na Metě - kreativy, copy, formáty, délku běhu. Žádný odhad, jen real-time data přímo z knihovny reklam.",
   },
   {
     icon: Target,
     title: "Quick wins s prioritou",
-    body: "Konkrétní akční seznam — co aplikovat tento týden, co testovat tento měsíc, kde máte oproti konkurenci výhodu. Každý win má označenou obtížnost nasazení.",
+    body: "Získáte konkrétní akční seznam - co aplikovat nejdříve, co později, kde máte oproti konkurenci výhodu. Každý bod ke zlepšení má označenou obtížnost nasazení.",
   },
   {
     icon: Zap,
     title: "Žádná teorie, jen akce",
-    body: "Nedostanete tabulky plné čísel. Dostanete jasný seznam: co zlepšit, co testovat a kde máte mezeru, kterou konkurence přehlíží.",
+    body: "Nedostanete tabulky plné čísel. Dostanete jasný seznam: co zlepšit, co testovat a kde je mezera, kterou konkurence přehlíží.",
   },
   {
     icon: TrendingUp,
     title: "Náš každodenní framework",
-    body: "Stejnou analýzu provádíme každý den při správě kampaní pro naše klienty. Teď ji máte zdarma i vy — jednou.",
+    body: "Stejnou analýzu provádíme téměř každý den při správě kampaní pro naše klienty. Nyní ji zdarma získáte i vy.",
   },
 ];
 
 const STEPS = [
   {
     num: "01",
-    title: "Zadejte vaši URL + 2 konkurenty",
-    body: "Vyplníte krátký formulář — váš web a 2 hlavní konkurenty. Systém najde jejich Meta Ads Library profily automaticky.",
+    title: "Zadáte vaši URL adresu + 2 konkurenty",
+    body: "Vyplníte krátký formulář - váš web a 2 hlavní konkurenty. Systém najde jejich Facebook stránky automaticky.",
   },
   {
     num: "02",
-    title: "Ověřte svůj email",
-    body: "Zašleme vám ověřovací odkaz. 30 sekund práce, chrání systém před boty.",
+    title: "Ověříte svůj email",
+    body: "Zašleme vám ověřovací odkaz do e-mailu. 30 sekund práce, chráníme tak systém před boty.",
   },
   {
     num: "03",
