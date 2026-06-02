@@ -6,7 +6,7 @@ export function ProblemSection() {
       <div className="absolute bottom-0 right-0 w-80 h-80 bg-[#4f11ff]/15 rounded-full blur-[130px] pointer-events-none" />
 
       <div className="relative max-w-3xl mx-auto px-4 sm:px-6">
-        <p className="text-[#b0f221] text-sm font-semibold tracking-wide uppercase mb-3 text-center">V čem je problém</p>
+        <p className="text-[#b0f221] text-sm font-semibold tracking-wide uppercase mb-3 text-center">V ČEM JE PROBLÉM?</p>
         <h2 className="font-[family-name:var(--font-heading)] text-3xl sm:text-4xl font-bold text-white text-center mb-10 leading-tight">
           Reklamy vám běží. Jen netušíte, proti čemu stojíte.
         </h2>
@@ -14,22 +14,22 @@ export function ProblemSection() {
         <div className="space-y-5 text-white/60 text-base sm:text-lg leading-relaxed">
           <p>
             Každý měsíc dáte do reklam na Metě desítky tisíc korun. Vaše konkurence
-            taky — jen ona ví, co testujete vy, a vy o ní nevíte skoro nic.
+            taky - jen ona možná ví, co testujete vy, a vy o jejich reklamách a strategii nevíte skoro nic.
           </p>
           <p>
             To není maličkost. Je to rozdíl mezi tím, jestli své rozpočty řídíte
             podle dat, nebo podle odhadu. Kdo vidí dál, neplatí dvakrát za stejnou
-            lekci — odladěné formáty, sdělení i kreativy nasazuje dřív. A vy zatím
-            testujete to, co někdo vedle vás vyřešil před půl rokem.
+            lekci - odladěné formáty, sdělení i kreativy tak nasazuje dřív.&nbsp;
+            A vy zatím testujete to, co někdo vedle vás vyřešil před půl rokem.
           </p>
           <p>
             Zjistit si to můžete i sami. Jen to dá práci: Meta Ads Library je
-            nepřehledná, ručně projít desítky reklam dvou konkurentů zabere hodiny —
-            a i pak z toho spíš vyčtete jednotlivé reklamy než celou strategii.
+            nepřehledná a ručně projít desítky reklam dvou konkurentů zabere hodiny.
+            {"\n"}
           </p>
           <p className="text-white/80 font-medium">
-            Proto jsme tu analýzu postavili. Za tři minuty zvládne to, co vás ručně
-            stojí celé odpoledne.
+            Proto jsme postavili tento nástroj. Za tři minuty zvládne to, co vás ručně
+            stojí půlku odpoledne nebo vyšší tisíce ve fakturaci agentury za analýzu navíc.
           </p>
         </div>
       </div>
