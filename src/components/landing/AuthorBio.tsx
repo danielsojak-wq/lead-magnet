@@ -6,10 +6,6 @@ export function AuthorBio() {
     trackEvent({ event: "cta_clicked", cta_label: "linkedin_author_bio", section: "author_bio" });
   };
 
-  const handleWebsiteClick = () => {
-    trackEvent({ event: "cta_clicked", cta_label: "website_author_bio", section: "author_bio" });
-  };
-
   return (
     <section className="py-12 sm:py-16 bg-gray-50 border-y border-gray-100">
       <div className="max-w-4xl mx-auto px-4 sm:px-6">
@@ -19,7 +15,7 @@ export function AuthorBio() {
             <img
               src="/daniel-sojak.jpg"
               alt="Daniel Soják, Zakladatel a konzultant, Performind Marketing s.r.o."
-              className="w-36 h-36 rounded-full object-cover shadow-md ring-2 ring-white"
+              className="w-24 h-24 rounded-full object-cover shadow-md ring-2 ring-white"
             />
           </div>
 
@@ -34,26 +30,16 @@ export function AuthorBio() {
               proto vím, co z nich má smysl.
             </p>
 
-            <div className="flex flex-wrap gap-4">
-              <a
-                href="https://www.linkedin.com/in/daniel-sojak/"
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={handleLinkedInClick}
-                className="inline-flex items-center gap-2 text-sm font-semibold text-[#4f11ff] hover:text-[#3d0dcc] transition-colors"
-              >
-                <LinkedinIcon className="h-4 w-4" /> LinkedIn profil
-              </a>
-              <a
-                href="https://performind.cz"
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={handleWebsiteClick}
-                className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-800 transition-colors"
-              >
-                performind.cz
-              </a>
-            </div>
+            <a
+              href="https://www.linkedin.com/in/daniel-sojak/"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={handleLinkedInClick}
+              aria-label="LinkedIn profil Daniela Sojáka"
+              className="inline-flex items-center justify-center w-9 h-9 rounded-lg text-[#4f11ff] hover:bg-[#4f11ff]/8 transition-colors"
+            >
+              <LinkedinIcon className="h-5 w-5" />
+            </a>
           </div>
         </div>
       </div>
