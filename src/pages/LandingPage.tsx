@@ -157,12 +157,11 @@ export default function LandingPage() {
           </h1>
 
           <p className="font-[family-name:var(--font-heading)] text-2xl sm:text-3xl font-semibold text-white/70 mb-8 leading-snug">
-            Odhalte jejich strategii za 3 minuty
+            Na co ještě čekáte?
           </p>
 
           <p className="text-white/50 text-lg max-w-xl mx-auto mb-10 leading-relaxed">
-            Proskenujeme každou aktivní reklamu vašich 2 hlavních konkurentů,
-            vyhodnotíme strategii a najdeme mezery, které můžete využít.
+            Zjistěte během 3 minut, co dělá vaše konkurence a získejte doporučení, co můžete udělat lépe.
           </p>
 
           {/* CTA */}
@@ -375,14 +374,11 @@ export default function LandingPage() {
           <div className="inline-flex items-center gap-2 bg-white/10 text-white text-xs font-semibold px-4 py-1.5 rounded-full mb-6">
             <Check className="h-3 w-3" /> ZDARMA, BEZ REGISTRACE
           </div>
-          <h2 className="font-[family-name:var(--font-heading)] text-3xl sm:text-4xl font-bold text-white mb-4">
-            Vaše konkurence vás možná předbíhá.
-          </h2>
           <h2 className="font-[family-name:var(--font-heading)] text-3xl sm:text-4xl font-bold text-white mb-8">
-            {"\n"}
+            Na co ještě čekáte?
           </h2>
           <p className="text-white/70 mb-10 text-lg">
-            Během 3 minut zjistíte kde a dostanete doporučení, co můžete udělat lépe.
+            Zjistěte během 3 minut, co dělá vaše konkurence a získejte doporučení, co můžete udělat lépe.
           </p>
 
           <div ref={ctaRef} className="flex justify-center">
