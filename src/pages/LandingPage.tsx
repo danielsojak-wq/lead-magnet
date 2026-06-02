@@ -2,7 +2,7 @@ import { useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowRight, Eye, Zap, Target, TrendingUp, Clock, Check, X,
-  Globe, Database, Brain, BarChart3, Layers,
+  Globe, Database, Brain, BarChart3,
 } from "lucide-react";
 import performindLogo from "@/assets/performind-logo-dark.svg";
 import { AuthorBio } from "@/components/landing/AuthorBio";
@@ -53,24 +53,6 @@ const STEPS = [
   },
 ];
 
-
-const AI_FEATURES = [
-  {
-    icon: Database,
-    title: "Real-time data z Meta Ads Library",
-    body: "Napojujeme se přímo na Meta Ads Library API. Vidíme každou aktivní reklamu, délku jejího běhu, formát i frekvenci změn. Žádný cached snapshot — vždy aktuální stav.",
-  },
-  {
-    icon: Layers,
-    title: "Vícevrstvá analýza",
-    body: "Layer 1 — deep dive každého konkurenta (co dělají, co funguje). Layer 2 — cross-competitor syntéza (kde jsou mezery, kde můžete vyniknout). Hodnotíme copy, kreativy, formáty i konzistenci sdělení.",
-  },
-  {
-    icon: Target,
-    title: "Framework z reálné praxe",
-    body: "Stejnou praxí ověřeno metodiku používáme při onboardingu klientů Performind.",
-  },
-];
 
 const PIPELINE = [
   { icon: Globe,     label: "Sběr dat",    sub: "Ad Library API" },
@@ -284,19 +266,6 @@ export default function LandingPage() {
               Za každou analýzou stojí jazykové modely Gemini, vlastní prompt framework
               a strukturovaná data přímo z Meta Ads Library
             </p>
-          </div>
-
-          {/* Feature grid */}
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-10">
-            {AI_FEATURES.map((f) => (
-              <div key={f.title} className="bg-white/5 border border-white/10 rounded-2xl p-6 hover:bg-white/8 hover:border-white/20 transition-all">
-                <div className="w-10 h-10 rounded-xl bg-[#4f11ff]/40 flex items-center justify-center mb-4">
-                  <f.icon className="h-5 w-5 text-[#b0f221]" />
-                </div>
-                <h3 className="font-[family-name:var(--font-heading)] font-bold text-white mb-2">{f.title}</h3>
-                <p className="text-white/50 text-sm leading-relaxed">{f.body}</p>
-              </div>
-            ))}
           </div>
 
           {/* Pipeline */}
