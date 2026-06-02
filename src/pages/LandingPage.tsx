@@ -350,18 +350,16 @@ export default function LandingPage() {
       <section className="py-20 sm:py-28 bg-[#4f11ff]">
         <div className="max-w-2xl mx-auto px-4 sm:px-6 text-center">
           <div className="inline-flex items-center gap-2 bg-white/10 text-white text-xs font-semibold px-4 py-1.5 rounded-full mb-6">
-            <Check className="h-3 w-3" /> ZDARMA, 1× NA FIRMU
+            <Check className="h-3 w-3" /> ZDARMA, BEZ REGISTRACE
           </div>
           <h2 className="font-[family-name:var(--font-heading)] text-3xl sm:text-4xl font-bold text-white mb-4">
-            Vaše konkurence vás předbíhá.
+            Vaše konkurence vás možná předbíhá.
           </h2>
           <h2 className="font-[family-name:var(--font-heading)] text-3xl sm:text-4xl font-bold text-white mb-8">
-            Teď to změníme.
+            {"\n"}
           </h2>
           <p className="text-white/70 mb-10 text-lg">
-            Spustit analýzu trvá 5 minut. Výsledky uvidíte hned.
-            <br />
-            Pak se rozhodneme, jak je nasadit ve vaší firmě.
+            Během 3 minut zjistíte kde a dostanete doporučení, co můžete udělat lépe.
           </p>
 
           <div ref={ctaRef} className="flex justify-center">
