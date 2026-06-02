@@ -12,8 +12,15 @@
   50%       { transform: translateY(-13px); }
 }
 
+@keyframes limeGlow {
+  0%, 100% { transform: scale(1)    translate(0,    0);   opacity: 0.60; }
+  33%       { transform: scale(1.18) translate(3%,  -4%); opacity: 0.80; }
+  66%       { transform: scale(0.92) translate(-3%, 3%);  opacity: 0.50; }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .float-icon { animation: none !important; }
+  .float-icon  { animation: none !important; }
+  .lime-glow   { animation: none !important; }
 }
 
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Space+Grotesk:wght@300..700&display=swap');
