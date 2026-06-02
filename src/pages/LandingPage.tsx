@@ -170,21 +170,21 @@ export default function LandingPage() {
             <CtaButton size="lg" label="Spustit analýzu" subText="Zdarma. Bez registrace." />
           </div>
 
-          {/* Feature cards strip */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-2xl mx-auto">
+          {/* Feature pills strip */}
+          <div className="flex flex-wrap items-center justify-center gap-3 max-w-2xl mx-auto">
             {[
-              { icon: Database, label: "Hotovo za 3 minuty", sub: "Analýzu vidíte hned, žádné čekání na obchodníka" },
-              { icon: Brain,    label: "AI analýza + naše metodika", sub: "Sílu AI spojujeme s naší metodikou z reálných klientských kampaní" },
-              { icon: BarChart3, label: "Konkrétní kroky, ne teorie",       sub: "Získáte rovnou aplikovatelná doporučení" },
-            ].map(({ icon: Icon, label, sub }) => (
-              <div key={label} className="flex items-center gap-3 bg-white/5 border border-white/8 rounded-2xl px-4 py-3 text-left">
-                <div className="w-9 h-9 rounded-xl bg-[#b0f221]/15 border border-[#b0f221]/20 flex items-center justify-center shrink-0">
+              { icon: Database,  label: "Hotovo za 3 minuty" },
+              { icon: Brain,     label: "AI analýza + naše metodika" },
+              { icon: BarChart3, label: "Konkrétní kroky, ne teorie" },
+            ].map(({ icon: Icon, label }) => (
+              <div
+                key={label}
+                className="group relative flex items-center gap-2.5 rounded-full pl-2 pr-4 py-2 bg-white/[0.04] border border-white/10 hover:border-[#b0f221]/40 hover:bg-white/[0.07] transition-all duration-300"
+              >
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#b0f221]/25 to-[#b0f221]/5 border border-[#b0f221]/25 flex items-center justify-center shrink-0 group-hover:from-[#b0f221]/40 transition-all">
                   <Icon className="h-4 w-4 text-[#b0f221]" />
                 </div>
-                <div>
-                  <p className="text-white text-xs font-semibold leading-snug">{label}</p>
-                  <p className="text-white/40 text-[11px] mt-0.5">{sub}</p>
-                </div>
+                <span className="text-white/90 text-sm font-medium whitespace-nowrap">{label}</span>
               </div>
             ))}
           </div>
