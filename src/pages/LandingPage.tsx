@@ -133,7 +133,7 @@ export default function LandingPage() {
       </nav>
 
       {/* ── Hero ───────────────────────────────────────────────────────────── */}
-      <section className="relative pt-16 pb-20 overflow-hidden bg-gray-950">
+      <section className="relative pt-16 pb-10 overflow-hidden bg-gray-950">
         {/* Floating decorative icons — ambient background, z-index 0 */}
         <FloatingIcons />
         {/* Background blobs */}

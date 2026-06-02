@@ -1,17 +1,11 @@
 export function ProblemSection() {
   return (
-    <section className="py-20 sm:py-28 bg-[#0c0a1e] relative overflow-hidden">
+    <section className="pt-12 sm:pt-16 pb-20 sm:pb-28 bg-[#0c0a1e] relative overflow-hidden">
       {/* Seamless blend from hero (bg-gray-950 #030712) into this section */}
       <div
         aria-hidden="true"
         className="absolute top-0 inset-x-0 h-40 pointer-events-none"
         style={{ background: "linear-gradient(to bottom, #030712 0%, rgba(3,7,18,0.5) 45%, transparent 100%)" }}
-      />
-      {/* Soft lime glow centered on the boundary */}
-      <div
-        aria-hidden="true"
-        className="absolute -top-16 left-1/2 -translate-x-1/2 w-[420px] h-32 pointer-events-none"
-        style={{ background: "radial-gradient(ellipse at center, rgba(176,242,33,0.13) 0%, transparent 70%)", filter: "blur(8px)" }}
       />
 
       {/* Ambient lime accent */}
