@@ -263,14 +263,16 @@ export default function LandingPage() {
 
           <div className="grid sm:grid-cols-3 gap-5">
             {[
-              { icon: "🎯", title: "Aktivní reklamy konkurence", desc: "Vidíte všechny jejich spuštěné reklamy na Metě — kreativy, texty, CTA." },
-              { icon: "🧠", title: "Strategic breakdown", desc: "Co komunikují, komu cílí, jaké formáty udržují nejdéle. V čem jsou dobří a kde slábnou." },
-              { icon: "🚀", title: "Konkrétní doporučení", desc: "Co udělat jinak, kde zaútočit, co testovat jako první. Žádná teorie — jen akce." },
-            ].map((item) => (
-              <div key={item.title} className="border border-gray-100 rounded-2xl p-6 bg-white hover:shadow-md transition-all">
-                <div className="text-3xl mb-4">{item.icon}</div>
-                <h3 className="font-[family-name:var(--font-heading)] font-bold mb-2 text-gray-900">{item.title}</h3>
-                <p className="text-gray-500 text-sm leading-relaxed">{item.desc}</p>
+              { icon: Target,     title: "Aktivní reklamy konkurence", desc: "Vidíte všechny jejich spuštěné reklamy na Metě — kreativy, texty, CTA." },
+              { icon: Brain,      title: "Strategic breakdown",        desc: "Co komunikují, komu cílí, jaké formáty udržují nejdéle. V čem jsou dobří a kde slábnou." },
+              { icon: Zap,        title: "Konkrétní doporučení",       desc: "Co udělat jinak, kde zaútočit, co testovat jako první. Žádná teorie — jen akce." },
+            ].map(({ icon: Icon, title, desc }) => (
+              <div key={title} className="border border-gray-100 rounded-2xl p-6 bg-white hover:border-[#4f11ff]/30 hover:shadow-md hover:shadow-[#4f11ff]/5 transition-all">
+                <div className="w-10 h-10 rounded-xl bg-[#b0f221]/20 flex items-center justify-center mb-4">
+                  <Icon className="h-5 w-5 text-[#4f11ff]" />
+                </div>
+                <h3 className="font-[family-name:var(--font-heading)] font-bold mb-2 text-gray-900">{title}</h3>
+                <p className="text-gray-500 text-sm leading-relaxed">{desc}</p>
               </div>
             ))}
           </div>
