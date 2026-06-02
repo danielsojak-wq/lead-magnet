@@ -256,15 +256,14 @@ export default function LandingPage() {
         <div className="max-w-5xl mx-auto px-4 sm:px-6">
 
           <div className="text-center mb-14">
-            <p className="text-[#b0f221] text-sm font-semibold tracking-wide uppercase mb-3">JAK TO DĚLÁME</p>
+            <p className="text-[#b0f221] text-sm font-semibold tracking-wide uppercase mb-3">TECHNICKÉ OKÉNKO</p>
             <h2 className="font-[family-name:var(--font-heading)] text-3xl sm:text-4xl font-bold text-white mb-5">
-              Víc než scraping reklam.
+              Více než jen scraping reklam
               <br />
               <span className="text-[#b0f221]">Inteligentní analýza s daty z praxe.</span>
             </h2>
             <p className="text-white/55 max-w-2xl mx-auto text-lg leading-relaxed">
-              Za každou analýzou stojí jazykové modely Gemini, vlastní prompt framework
-              a strukturovaná data přímo z Meta Ads Library
+              Inteligentní analýza s daty z praxe
             </p>
           </div>
 
