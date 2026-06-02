@@ -297,11 +297,9 @@ export default function LandingPage() {
       <section className="py-20 sm:py-28 bg-white border-y border-gray-100">
         <div className="max-w-4xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-12">
-            <p className="text-[#4f11ff] text-sm font-semibold tracking-wide uppercase mb-3">PRO KOHO TO JE</p>
+            <p className="text-[#4f11ff] text-sm font-semibold tracking-wide uppercase mb-3">Pro koho ANO</p>
             <h2 className="font-[family-name:var(--font-heading)] text-3xl sm:text-4xl font-bold text-gray-900">
-              Tato analýza je premium nástroj.
-              <br />
-              Pro každého nemá smysl.
+              Tato analýza nemá smysl pro každého
             </h2>
           </div>
 
