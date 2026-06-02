@@ -94,9 +94,9 @@ export function ResultPreviewTeaser() {
           {/* 1. Wow-number row */}
           <div className="rounded-3xl bg-white border border-gray-100 shadow-sm p-5 sm:p-7 flex flex-col sm:flex-row items-start sm:items-center gap-5">
             <div className="flex-1">
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-1">Objem reklam · K1 vs. Vy</p>
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-1">Objem reklam · Konk. 1 vs. Vy</p>
               <p className="font-[family-name:var(--font-heading)] text-4xl sm:text-5xl font-bold text-[#4f11ff] leading-none mb-2">3,2×</p>
-              <p className="text-sm text-gray-600 leading-relaxed">více reklam spouští Konkurent 1 oproti vám. Víte proč?</p>
+              <p className="text-sm text-gray-600 leading-relaxed">více reklam spouští Konk. 1 oproti vám. Víte proč?</p>
             </div>
             <div className="hidden sm:block h-14 w-px bg-gray-100 shrink-0" />
             <div className="flex gap-6 sm:gap-8">
@@ -106,11 +106,11 @@ export function ResultPreviewTeaser() {
               </div>
               <div className="text-center">
                 <p className="font-[family-name:var(--font-heading)] text-2xl font-bold" style={{ color: K1_COLOR }}>45</p>
-                <p className="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5">Konk. 1</p>
+                <p className="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5">Konk.&nbsp;1</p>
               </div>
               <div className="text-center">
                 <p className="font-[family-name:var(--font-heading)] text-2xl font-bold" style={{ color: K2_COLOR }}>31</p>
-                <p className="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5">Konk. 2</p>
+                <p className="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5">Konk.&nbsp;2</p>
               </div>
             </div>
           </div>
@@ -123,7 +123,7 @@ export function ResultPreviewTeaser() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-[family-name:var(--font-heading)] font-bold text-gray-900 text-base leading-tight">Váš e-shop</p>
-                <p className="text-xs text-gray-400 mt-0.5">vaseshop.cz · placeholder analýza</p>
+                <p className="text-xs text-gray-400 mt-0.5">vaseshop.cz · ukázková data</p>
               </div>
               <div className="shrink-0 text-right">
                 <p className="font-[family-name:var(--font-heading)] text-2xl font-bold leading-none" style={{ color: VY_COLOR }}>14</p>
@@ -173,7 +173,7 @@ export function ResultPreviewTeaser() {
             <div className="flex items-center gap-4 mb-4">
               <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Poziční mapa</p>
               <div className="flex items-center gap-3 ml-auto">
-                {[["Vy", VY_COLOR],["Konk. 1", K1_COLOR],["Konk. 2", K2_COLOR]].map(([label, color]) => (
+                {[["Vy", VY_COLOR],["Konk. 1", K1_COLOR],["Konk. 2", K2_COLOR]].map(([label, color]) => (
                   <div key={label} className="flex items-center gap-1.5">
                     <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: color }} />
                     <span className="text-[11px] text-gray-500">{label}</span>
