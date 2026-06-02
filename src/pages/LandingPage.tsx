@@ -324,13 +324,13 @@ export default function LandingPage() {
 
             {/* Not for whom */}
             <div className="rounded-2xl border border-gray-100 p-7 bg-gray-50">
-              <h3 className="font-[family-name:var(--font-heading)] font-bold text-lg text-gray-900 mb-5">Pro koho TO NENÍ</h3>
+              <h3 className="font-[family-name:var(--font-heading)] font-bold text-lg text-gray-900 mb-5">Pro koho NE</h3>
               <ul className="space-y-3">
                 {[
                   "E-shopy pod 5 M Kč ročního obratu (málo dat)",
-                  "B2B firmy (cílíme B2C e-commerce)",
-                  "Dropshipping a affiliate projekty",
-                  "Brandy bez aktivního Meta reklamního rozpočtu",
+                  "Minimální reklamní rozpočet",
+                  "Značky bez aktivních reklam na Metě",
+                  "Konkurence bez aktivních reklam na Metě",
                 ].map((item) => (
                   <li key={item} className="flex items-start gap-3">
                     <X className="h-4 w-4 text-gray-400 mt-0.5 shrink-0" />
