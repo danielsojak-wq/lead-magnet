@@ -1,17 +1,6 @@
-import { SectionFade } from "./SectionFade";
-
 export function ProblemSection() {
   return (
     <section className="pt-12 sm:pt-16 pb-20 sm:pb-28 bg-[#0c0a1e] relative overflow-hidden">
-      {/* Seamless blend from hero (bg-gray-950 #030712) into this section */}
-      <div
-        aria-hidden="true"
-        className="absolute top-0 inset-x-0 h-40 pointer-events-none"
-        style={{ background: "linear-gradient(to bottom, #030712 0%, rgba(3,7,18,0.5) 45%, transparent 100%)" }}
-      />
-      {/* Fade into next section (Co získáte — white) */}
-      <SectionFade from="#0c0a1e" to="#ffffff" />
-
       {/* Ambient lime accent */}
       <div className="absolute top-1/2 -left-20 -translate-y-1/2 w-72 h-72 bg-[#b0f221]/8 rounded-full blur-[120px] pointer-events-none" />
       <div className="absolute bottom-0 right-0 w-80 h-80 bg-[#4f11ff]/15 rounded-full blur-[130px] pointer-events-none" />

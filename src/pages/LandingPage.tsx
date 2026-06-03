@@ -9,7 +9,6 @@ import { AuthorBio } from "@/components/landing/AuthorBio";
 import { FloatingIcons } from "@/components/landing/FloatingIcons";
 import { ResultPreviewTeaser } from "@/components/landing/ResultPreviewTeaser";
 import { ProblemSection } from "@/components/landing/ProblemSection";
-import { SectionFade } from "@/components/landing/SectionFade";
 
 /* ─── Data ─────────────────────────────────────────────────────────────────── */
 
@@ -278,9 +277,8 @@ export default function LandingPage() {
       <AuthorBio />
 
       {/* ── AI Methodology ─────────────────────────────────────────────────── */}
-      <section className="py-20 sm:py-28 bg-[#0c0a1e] relative overflow-hidden">
-        <SectionFade from="#0c0a1e" to="#ffffff" />
-        <div className="relative max-w-5xl mx-auto px-4 sm:px-6">
+      <section className="py-20 sm:py-28 bg-[#0c0a1e]">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6">
 
           <div className="text-center mb-14">
             <p className="text-[#b0f221] text-sm font-semibold tracking-wide uppercase mb-3">TECHNICKÉ OKÉNKO</p>
@@ -316,9 +314,8 @@ export default function LandingPage() {
       </section>
 
       {/* ── Dis-qualifier ──────────────────────────────────────────────────── */}
-      <section className="py-20 sm:py-28 bg-white relative overflow-hidden">
-        <SectionFade from="#ffffff" to="#4f11ff" />
-        <div className="relative max-w-4xl mx-auto px-4 sm:px-6">
+      <section className="py-20 sm:py-28 bg-white">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-12">
             <p className="text-[#4f11ff] text-sm font-semibold tracking-wide uppercase mb-3">PRO KOHO TO JE</p>
             <h2 className="font-[family-name:var(--font-heading)] text-3xl sm:text-4xl font-bold text-gray-900">
@@ -367,9 +364,8 @@ export default function LandingPage() {
       </section>
 
       {/* ── Final CTA ──────────────────────────────────────────────────────── */}
-      <section className="py-20 sm:py-28 bg-[#4f11ff] relative overflow-hidden">
-        <SectionFade from="#4f11ff" to="#ffffff" />
-        <div className="relative max-w-2xl mx-auto px-4 sm:px-6 text-center">
+      <section className="py-20 sm:py-28 bg-[#4f11ff]">
+        <div className="max-w-2xl mx-auto px-4 sm:px-6 text-center">
           <div className="inline-flex items-center gap-2 bg-white/10 text-white text-xs font-semibold px-4 py-1.5 rounded-full mb-6">
             <Check className="h-3 w-3" /> ZDARMA, BEZ REGISTRACE
           </div>
