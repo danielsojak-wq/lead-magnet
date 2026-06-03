@@ -39,14 +39,14 @@ function buildEmailHtml(verifyUrl: string): string {
   <div style="max-width:520px;margin:32px auto;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
 
     <div style="background:linear-gradient(135deg,#4f11ff,#7c3aed);padding:32px 32px 28px;">
-      <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:rgba(255,255,255,0.6);margin-bottom:8px;">Performind Marketing</div>
-      <h1 style="margin:0;font-size:22px;font-weight:800;color:#ffffff;line-height:1.2;">
-        Ověřte email<br>a spusťte analýzu
+      <img src="${SITE_URL}/performind-logo-email.png" alt="Performind Marketing" height="22" style="display:block;height:22px;width:auto;margin-bottom:16px;border:0;">
+      <h1 style="margin:0;font-size:22px;font-weight:800;color:#ffffff;line-height:1.25;">
+        Ověřte email a spusťte analýzu vaší konkurence zdarma
       </h1>
     </div>
 
     <div style="padding:32px;">
-      <p style="margin:0 0 8px;font-size:14px;color:#6b7280;">Ahoj,</p>
+      <p style="margin:0 0 8px;font-size:14px;color:#6b7280;">Dobrý den,</p>
       <p style="margin:0 0 24px;font-size:14px;color:#374151;line-height:1.6;">
         Klikněte na tlačítko níže. Email ověříme a vaše analýza se <strong>automaticky spustí</strong>.
         Odkaz je platný <strong>24 hodin</strong>.
@@ -54,17 +54,19 @@ function buildEmailHtml(verifyUrl: string): string {
 
       <div style="text-align:center;margin:32px 0;">
         <a href="${verifyUrl}"
-           style="display:inline-block;background:#4f11ff;color:#ffffff;text-decoration:none;font-weight:700;font-size:15px;padding:16px 36px;border-radius:12px;letter-spacing:0.01em;">
+           style="display:inline-block;background:#b0f221;color:#111827;text-decoration:none;font-weight:700;font-size:15px;padding:16px 36px;border-radius:12px;letter-spacing:0.01em;">
           Ověřit email a spustit analýzu →
         </a>
       </div>
 
-      <div style="background:#f9fafb;border-radius:10px;padding:16px;margin-top:24px;">
-        <p style="margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#9ca3af;">Co se stane po kliknutí</p>
+      <div style="background:#f9fafb;border-radius:10px;padding:16px 20px;margin-top:24px;">
+        <p style="margin:0 0 12px;font-size:13px;color:#374151;line-height:1.6;">
+          Proskenujeme každou aktivní reklamu vašich 2 hlavních konkurentů, vyhodnotíme strategii a najdeme mezery, které můžete využít.
+        </p>
         <ul style="margin:0;padding:0 0 0 16px;font-size:13px;color:#6b7280;line-height:1.8;">
-          <li>AI nascrapuje a analyzuje reklamy vaší konkurence</li>
-          <li>Dostanete radar, quick wins a konkrétní doporučení</li>
-          <li>Výsledky se zobrazí přímo v prohlížeči</li>
+          <li>Hotovo do 5 minut</li>
+          <li>1× ZDARMA</li>
+          <li>Konkrétní doporučení, ne teorie</li>
         </ul>
       </div>
 
@@ -76,7 +78,7 @@ function buildEmailHtml(verifyUrl: string): string {
 
     <div style="padding:16px 32px;background:#f9fafb;border-top:1px solid #e5e7eb;text-align:center;">
       <p style="margin:0;font-size:11px;color:#9ca3af;">
-        © ${new Date().getFullYear()} Performind Marketing s.r.o. · Vyšehradská 1349/2, Praha 2
+        © ${new Date().getFullYear()} Performind Marketing s.r.o. · Masarykova 32, 602 00 Brno
       </p>
     </div>
   </div>
