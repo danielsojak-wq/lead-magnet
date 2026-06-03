@@ -77,6 +77,7 @@ Deno.serve(async (req) => {
     // or omit it so we read from the stored session (new flow).
     let eshop_url: string | undefined = body.eshop_url;
     let eshop_meta_url: string | undefined = body.eshop_meta_url;
+    let eshop_fb_slug: string | undefined = body.eshop_fb_slug;
     let competitors: Array<{ url: string; meta_url?: string; fb_slug?: string; position: number }> | undefined = body.competitors;
 
     const APIFY_TOKEN = Deno.env.get("APIFY_API_TOKEN");
@@ -88,7 +89,7 @@ Deno.serve(async (req) => {
     if (!eshop_url || !competitors?.length) {
       const { data: session, error: sessErr } = await supa
         .from("lm_sessions")
-        .select("eshop_url, eshop_meta_library_url")
+        .select("eshop_url, eshop_meta_library_url, eshop_fb_slug")
         .eq("id", session_id)
         .single();
 
@@ -97,6 +98,7 @@ Deno.serve(async (req) => {
 
       eshop_url = session.eshop_url;
       eshop_meta_url = session.eshop_meta_library_url ?? undefined;
+      eshop_fb_slug = session.eshop_fb_slug ?? undefined;
 
       const { data: dbComps } = await supa
         .from("lm_session_competitors")
@@ -125,25 +127,29 @@ Deno.serve(async (req) => {
     await supa.from("lm_session_competitors").delete().eq("session_id", session_id);
     await supa.from("lm_session_ads").delete().eq("session_id", session_id);
 
-    // Eshop as position 0 — scrape its ads if Meta URL provided
+    // Eshop as position 0 — prefer FB Page URL (facebook.com/<slug>) over q= search
     const eshopLog: string[] = [];
-    if (eshop_meta_url?.trim()) {
+    const eshopMeta   = eshop_meta_url?.trim() || null;
+    const eshopSlug   = eshop_fb_slug?.trim() || null;
+    const eshopTarget = apifyTargetUrl(eshopSlug, eshopMeta);
+    if (eshopTarget) {
       const { data: eshopRow } = await supa
         .from("lm_session_competitors")
-        .upsert({ session_id, position: 0, url: eshop_url, meta_library_url: eshop_meta_url.trim(), status: "pending" }, { onConflict: "session_id,position" })
+        .upsert({ session_id, position: 0, url: eshop_url, meta_library_url: eshopMeta, fb_slug: eshopSlug, status: "pending" }, { onConflict: "session_id,position" })
         .select().single();
       if (eshopRow) {
         const { runId, error: runErr } = await startApifyRun(APIFY_TOKEN, APIFY_META_ACTOR, {
-          urls: [{ url: eshop_meta_url.trim() }],
+          urls: [{ url: eshopTarget }],
           limitPerSource: 50,
           "scrapePageAds.activeStatus": "active",
         });
+        const mode = eshopSlug ? "page_url" : "q";
         if (runId) {
           await supa.from("lm_session_competitors").update({ apify_run_id: runId, status: "scraping" }).eq("id", eshopRow.id);
-          eshopLog.push(`eshop_meta=${runId}`);
+          eshopLog.push(`eshop_meta[${mode}]=${runId}`);
         } else {
           await supa.from("lm_session_competitors").update({ status: "scraped", ads_count: 0 }).eq("id", eshopRow.id);
-          eshopLog.push(`eshop_meta=FAILED: ${runErr}`);
+          eshopLog.push(`eshop_meta[${mode}]=FAILED: ${runErr}`);
         }
       }
     }

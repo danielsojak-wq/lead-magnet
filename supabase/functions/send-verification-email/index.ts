@@ -102,6 +102,7 @@ Deno.serve(async (req) => {
 
     const eshop_url: string | undefined = body.eshop_url;
     const eshop_meta_url: string | undefined = body.eshop_meta_url;
+    const eshop_fb_slug: string | undefined = body.eshop_fb_slug;
     const competitors: Array<{ url: string; meta_url?: string; fb_slug?: string; position: number }> = body.competitors ?? [];
 
     const supa = admin();
@@ -154,6 +155,7 @@ Deno.serve(async (req) => {
           token_expires_at: new Date(Date.now() + 24 * 3600 * 1000).toISOString(),
           eshop_url: eshop_url ?? null,
           eshop_meta_library_url: eshop_meta_url ?? null,
+          eshop_fb_slug: eshop_fb_slug ?? null,
         })
         .eq("id", existing.id);
       sessionId = existing.id;
@@ -167,6 +169,7 @@ Deno.serve(async (req) => {
           email,
           eshop_url: eshop_url ?? null,
           eshop_meta_library_url: eshop_meta_url ?? null,
+          eshop_fb_slug: eshop_fb_slug ?? null,
         })
         .select()
         .single();

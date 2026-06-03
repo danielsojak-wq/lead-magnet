@@ -282,6 +282,7 @@ export default function EmailGatePage() {
         email: trimmed,
         eshop_url: urlData.eshop.url,
         eshop_meta_url: urlData.eshop.meta || undefined,
+        eshop_fb_slug: urlData.eshop.fbSlug || undefined,
         competitors,
         website: honeypotRef.current?.value ?? "",
       },
