@@ -1,6 +1,13 @@
 export function ProblemSection() {
   return (
     <section className="pt-12 sm:pt-16 pb-20 sm:pb-28 bg-[#0c0a1e] relative overflow-hidden">
+      {/* Single blend from hero (#030712) into this section (#0c0a1e) */}
+      <div
+        aria-hidden="true"
+        className="absolute top-0 inset-x-0 h-32 pointer-events-none"
+        style={{ background: "linear-gradient(to bottom, #030712 0%, transparent 100%)" }}
+      />
+
       {/* Ambient lime accent */}
       <div className="absolute top-1/2 -left-20 -translate-y-1/2 w-72 h-72 bg-[#b0f221]/8 rounded-full blur-[120px] pointer-events-none" />
       <div className="absolute bottom-0 right-0 w-80 h-80 bg-[#4f11ff]/15 rounded-full blur-[130px] pointer-events-none" />
