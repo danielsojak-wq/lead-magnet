@@ -370,10 +370,10 @@ export default function LandingPage() {
             <Check className="h-3 w-3" /> ZDARMA, BEZ REGISTRACE
           </div>
           <h2 className="font-[family-name:var(--font-heading)] text-3xl sm:text-4xl font-bold text-white mb-8">
-            Odhalte jejich strategii za 3 minuty
+            Na co ještě čekáte?
           </h2>
           <p className="text-white/70 mb-10 text-lg">
-            Proskenujeme každou aktivní reklamu vašich 2 hlavních konkurentů, vyhodnotíme strategii a najdeme mezery, které můžete využít.
+            Zjistěte během 3 minut, co dělá vaše konkurence a získejte doporučení, co můžete udělat lépe.
           </p>
 
           <div ref={ctaRef} className="flex justify-center">
