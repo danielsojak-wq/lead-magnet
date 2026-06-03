@@ -221,8 +221,25 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── How it works ───────────────────────────────────────────────────── */}
+      {/* ── What you'll get ────────────────────────────────────────────────── */}
       <section className="py-20 sm:py-28 bg-gray-50 border-y border-gray-100">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6">
+          <div className="text-center mb-14">
+            <p className="text-[#4f11ff] text-sm font-semibold tracking-wide uppercase mb-3">JAK VYPADÁ VÝSTUP</p>
+            <h2 className="font-[family-name:var(--font-heading)] text-3xl sm:text-4xl font-bold text-gray-900 mb-3">
+              Přehled marketingové strategie konkurence zdarma
+            </h2>
+            <p className="text-gray-500 max-w-xl mx-auto whitespace-pre-line">
+              Za podobné analýzy si agentury běžně účtují 10 000 Kč a více{"\n\n"}
+            </p>
+          </div>
+
+          <ResultPreviewTeaser />
+        </div>
+      </section>
+
+      {/* ── How it works ───────────────────────────────────────────────────── */}
+      <section className="py-20 sm:py-28 bg-white">
         <div className="max-w-3xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-14">
             <p className="text-[#4f11ff] text-sm font-semibold tracking-wide uppercase mb-3">JAK TO FUNGUJE</p>
@@ -233,7 +250,7 @@ export default function LandingPage() {
 
           <div className="space-y-6">
             {STEPS.map((step, i) => (
-              <div key={step.num} className="flex gap-6 items-start bg-white rounded-2xl border border-gray-100 p-6">
+              <div key={step.num} className="flex gap-6 items-start bg-gray-50 rounded-2xl border border-gray-100 p-6">
                 <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-[family-name:var(--font-heading)] font-bold text-lg flex-shrink-0 ${i === 0 ? "bg-[#4f11ff] text-white shadow-md shadow-[#4f11ff]/30" : "bg-gray-100 text-gray-400"}`}>
                   {step.num}
                 </div>
@@ -253,23 +270,6 @@ export default function LandingPage() {
           <div className="mt-8 flex justify-center">
             <TextCtaLink label="Pustit se do toho" />
           </div>
-        </div>
-      </section>
-
-      {/* ── What you'll get ────────────────────────────────────────────────── */}
-      <section className="py-20 sm:py-28 bg-white">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-14">
-            <p className="text-[#4f11ff] text-sm font-semibold tracking-wide uppercase mb-3">JAK VYPADÁ VÝSTUP</p>
-            <h2 className="font-[family-name:var(--font-heading)] text-3xl sm:text-4xl font-bold text-gray-900 mb-3">
-              Přehled marketingové strategie konkurence zdarma
-            </h2>
-            <p className="text-gray-500 max-w-xl mx-auto whitespace-pre-line">
-              Za podobné analýzy si agentury běžně účtují 10 000 Kč a více{"\n\n"}
-            </p>
-          </div>
-
-          <ResultPreviewTeaser />
         </div>
       </section>
 
