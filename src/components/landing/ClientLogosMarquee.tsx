@@ -19,7 +19,7 @@ const LOGO_FILTER = "grayscale(1) brightness(0) opacity(0.6)";
 
 export function ClientLogosMarquee() {
   return (
-    <section className="py-12 sm:py-16 bg-white border-t border-gray-100">
+    <section className="pt-4 pb-14 sm:pt-6 sm:pb-16 bg-gradient-to-b from-gray-50 to-gray-100">
       <style>{`
         @keyframes pm-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
         .pm-marquee-track { animation: pm-marquee 38s linear infinite; }
@@ -42,12 +42,6 @@ export function ClientLogosMarquee() {
           .pm-marquee-mask { -webkit-mask-image: none; mask-image: none; }
         }
       `}</style>
-
-      <div className="max-w-5xl mx-auto px-4 sm:px-6">
-        <p className="text-[#4f11ff] text-sm font-semibold tracking-wide uppercase mb-10 text-center">
-          Důvěřují nám
-        </p>
-      </div>
 
       <div className="pm-marquee-viewport pm-marquee-mask relative w-full overflow-hidden">
         <div className="pm-marquee-track flex w-max items-center">
