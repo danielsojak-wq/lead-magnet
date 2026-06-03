@@ -1,10 +1,7 @@
-import { LinkedinIcon, ArrowRight } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { LinkedinIcon } from "lucide-react";
 import { trackEvent } from "@/lib/analytics";
 
 export function AuthorBio() {
-  const navigate = useNavigate();
-
   const handleLinkedInClick = () => {
     trackEvent({ event: "cta_clicked", cta_label: "linkedin_author_bio", section: "author_bio" });
   };
@@ -45,13 +42,6 @@ export function AuthorBio() {
               >
                 <LinkedinIcon className="h-5 w-5" />
               </a>
-              <button
-                onClick={() => navigate("/analyze")}
-                className="group inline-flex items-center gap-1.5 text-sm font-semibold text-[#4f11ff] hover:text-[#3d0dcc] transition-colors"
-              >
-                Vyzkoušet naši analýzu
-                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-              </button>
             </div>
           </div>
         </div>
