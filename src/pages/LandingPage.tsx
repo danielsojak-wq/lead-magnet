@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import performindLogo from "@/assets/performind-logo-dark.svg";
 import { AuthorBio } from "@/components/landing/AuthorBio";
+import { ClientLogosMarquee } from "@/components/landing/ClientLogosMarquee";
 import { FloatingIcons } from "@/components/landing/FloatingIcons";
 import { ResultPreviewTeaser } from "@/components/landing/ResultPreviewTeaser";
 import { ProblemSection } from "@/components/landing/ProblemSection";
@@ -275,6 +276,9 @@ export default function LandingPage() {
 
       {/* ── Author Bio ─────────────────────────────────────────────────────── */}
       <AuthorBio />
+
+      {/* ── Social proof: pruh log klientů ─────────────────────────────────── */}
+      <ClientLogosMarquee />
 
       {/* ── AI Methodology ─────────────────────────────────────────────────── */}
       <section className="py-20 sm:py-28 bg-[#0c0a1e]">
