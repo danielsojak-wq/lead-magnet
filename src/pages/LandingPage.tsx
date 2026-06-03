@@ -1,7 +1,7 @@
 import { useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  ArrowRight, Eye, Zap, Target, TrendingUp, Clock, Check, X,
+  ArrowRight, Eye, Zap, Target, TrendingUp, Check, X,
   Globe, Database, Brain, BarChart3,
 } from "lucide-react";
 import performindLogo from "@/assets/performind-logo-dark.svg";
@@ -248,12 +248,7 @@ export default function LandingPage() {
             ))}
           </div>
 
-          <div className="mt-10 flex items-center justify-center gap-2 text-gray-400 text-sm">
-            <Clock className="h-4 w-4" />
-            Výsledky se zobrazí přímo v prohlížeči během 3 minut
-          </div>
-
-          <div className="mt-8 flex justify-center">
+          <div className="mt-10 flex justify-center">
             <CtaButton size="sm" label="Získat analýzu zdarma" subText="1 analýza zdarma" />
           </div>
         </div>
