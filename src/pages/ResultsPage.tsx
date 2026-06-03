@@ -1102,7 +1102,7 @@ export default function ResultsPage() {
             Naši stratégové přeloží tato data do konkrétního kreativního briefu a mediálního plánu přímo pro váš e-shop.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
-            <a href="https://performind.cz" target="_blank" rel="noreferrer"
+            <a href="https://calendar.app.google/GDJZhgABwHo4i4qx6" target="_blank" rel="noreferrer"
               onClick={() => trackEvent({ event: "cta_clicked", cta_label: "chci_strategii", session_id: sessionId ?? null })}
               className="inline-flex items-center justify-center gap-2 bg-[#b0f221] text-black font-semibold px-6 py-3.5 rounded-xl hover:bg-[#9de01a] transition-colors text-sm">
               Chci strategii pro svůj e-shop <ArrowRight className="h-4 w-4" />
