@@ -301,7 +301,7 @@ export default function LandingPage() {
       <section className="py-20 sm:py-28 bg-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-12">
-            <p className="text-[#4f11ff] text-sm font-semibold tracking-wide uppercase mb-3">Pro koho ANO</p>
+            <p className="text-[#4f11ff] text-sm font-semibold tracking-wide uppercase mb-3">PRO KOHO JE TENTO NÁSTROJ</p>
             <h2 className="font-[family-name:var(--font-heading)] text-3xl sm:text-4xl font-bold text-gray-900">
               Tato analýza nemá smysl pro každého
             </h2>
@@ -310,7 +310,7 @@ export default function LandingPage() {
           <div className="grid md:grid-cols-2 gap-8">
             {/* For whom */}
             <div className="rounded-2xl border border-gray-100 p-7 bg-white">
-              <h3 className="font-[family-name:var(--font-heading)] font-bold text-lg text-gray-900 mb-5">Pro koho ANO</h3>
+              <h3 className="font-[family-name:var(--font-heading)] font-bold text-lg text-gray-900 mb-5">PRO KOHO JE TENTO NÁSTROJ</h3>
               <ul className="space-y-3">
                 {[
                   "CZ a SK e-shopy s obratem 5–50 M Kč/rok",
