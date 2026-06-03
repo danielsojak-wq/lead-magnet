@@ -519,7 +519,8 @@ export async function runAnalysis(sessionId: string, apiKey: string): Promise<vo
   };
 
   // ── Parallel L1 calls — all players at once ───────────────────────────────
-  const eshopName = session.eshop_name || session.eshop_url || "Váš e-shop";
+  // Display/AI name je VŽDY normalizovaná doména (ne eshop_name/page_name slogan).
+  const eshopName = domainName(session.eshop_url || "") || "Váš e-shop";
 
   const runEshopL1 = eshopComp
     ? ((eshopComp as any).ai_analysis
@@ -532,7 +533,7 @@ export async function runAnalysis(sessionId: string, apiKey: string): Promise<vo
   const runCompL1s = comps.map((c: any, i: number) =>
     (c as any).ai_analysis
       ? (async () => { await supa.from("lm_session_competitors").update({ status: "ready" }).eq("id", c.id); return (c as any).ai_analysis; })()
-      : callAI(apiKey, L1_SYSTEM, l1User(c.name || c.url, c.url, compAdsFiltered[i], compWebs[i]))
+      : callAI(apiKey, L1_SYSTEM, l1User(domainName(c.url), c.url, compAdsFiltered[i], compWebs[i]))
           .then(async r => { if (r) await saveL1(c.id, r, classifiedMap.get(c.id) ?? []); return r; })
           .catch(async e => { await saveL1(c.id, null, classifiedMap.get(c.id) ?? [], String(e)); return null; })
   );
@@ -544,11 +545,11 @@ export async function runAnalysis(sessionId: string, apiKey: string): Promise<vo
   // ── L2 synthesis ─────────────────────────────────────────────────────────
   console.log("L2: cross-analysis synthesis");
   const compsForL2 = comps.map((c: any, i: number) => ({
-    name: c.name || domainName(c.url),
+    name: domainName(c.url),
     l1: compL1s[i] ?? {},
     adsCount: compAdsFiltered[i]?.length ?? 0,
   }));
-  const advertiserName = session.eshop_name || domainName(session.eshop_url || "");
+  const advertiserName = eshopName;
   const l2 = await callAI(apiKey, L2_SYSTEM, l2User(advertiserName, eshopL1, compsForL2), 8000)
     .catch(e => { console.error("L2 failed:", e); return null; });
 

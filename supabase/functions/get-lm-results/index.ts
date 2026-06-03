@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
     if (session.status === "email_pending" || session.status === "urls_pending") {
       return ok({
         status: session.status,
-        eshop_name: session.eshop_name ?? "Váš e-shop",
+        eshop_name: domainName(session.eshop_url ?? "") || "Váš e-shop",
         competitors: [],
         cross_summary: null,
       });
@@ -84,7 +84,7 @@ Deno.serve(async (req) => {
     function mapCompetitor(c: any) {
       return {
         id: c.id,
-        name: c.name ?? domainName(c.url),
+        name: domainName(c.url),
         website_url: c.url,
         summary: c.summary ?? null,
         ai_analysis: c.ai_analysis ?? null,
@@ -111,7 +111,7 @@ Deno.serve(async (req) => {
 
     return ok({
       status: session.status as string,
-      eshop_name: session.eshop_name ?? "Váš e-shop",
+      eshop_name: domainName(session.eshop_url ?? "") || "Váš e-shop",
       eshop_competitor: eshopCompetitor,
       competitors: mappedCompetitors,
       cross_summary: session.cross_summary ?? null,
