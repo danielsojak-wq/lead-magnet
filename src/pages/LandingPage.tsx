@@ -260,7 +260,7 @@ export default function LandingPage() {
       <section className="py-20 sm:py-28 bg-white">
         <div className="max-w-5xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-14">
-            <p className="text-[#4f11ff] text-sm font-semibold tracking-wide uppercase mb-3">Co dostanete</p>
+            <p className="text-[#4f11ff] text-sm font-semibold tracking-wide uppercase mb-3">JAK VYPADÁ VÝSTUP</p>
             <h2 className="font-[family-name:var(--font-heading)] text-3xl sm:text-4xl font-bold text-gray-900 mb-3">
               Přehled marketingové strategie konkurence zdarma
             </h2>
