@@ -39,7 +39,7 @@ function buildEmailHtml(verifyUrl: string): string {
   <div style="max-width:520px;margin:32px auto;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
 
     <div style="background:linear-gradient(135deg,#4f11ff,#7c3aed);padding:32px 32px 28px;">
-      <img src="${SITE_URL}/performind-logo-email.png" alt="Performind Marketing" height="22" style="display:block;height:22px;width:auto;margin-bottom:16px;border:0;">
+      <img src="${SITE_URL}/performind-logo-email.png" alt="Performind Marketing" height="18" style="display:block;height:18px;width:auto;margin:0 auto 32px;border:0;">
       <h1 style="margin:0;font-size:22px;font-weight:800;color:#ffffff;line-height:1.25;">
         Ověřte email a spusťte analýzu vaší konkurence zdarma
       </h1>
