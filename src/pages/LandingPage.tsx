@@ -49,7 +49,7 @@ const STEPS = [
   },
   {
     num: "03",
-    title: "Výsledky do 3 minut",
+    title: "Výsledky do 5 minut",
     body: "Systém proskenuje reklamy konkurence, porovná je s vašimi a vrátí konkrétní doporučení přímo v prohlížeči. Můžete si je nechat poslat na email.",
   },
 ];
@@ -157,7 +157,7 @@ export default function LandingPage() {
           </h1>
 
           <p className="font-[family-name:var(--font-heading)] text-2xl sm:text-3xl font-semibold text-white/70 mb-8 leading-snug">
-            Odhalte jejich strategii za 3 minuty
+            Odhalte jejich strategii za 5 minut
           </p>
 
           <p className="text-white/50 text-lg max-w-xl mx-auto mb-10 leading-relaxed">
@@ -166,13 +166,13 @@ export default function LandingPage() {
 
           {/* CTA */}
           <div ref={ctaRef} className="flex justify-center mb-14">
-            <CtaButton size="lg" label="Spustit analýzu" subText="Zdarma. Bez registrace." />
+            <CtaButton size="lg" label="Spustit analýzu" subText="1 analýza zdarma" />
           </div>
 
           {/* Feature pills strip */}
           <div className="flex flex-nowrap items-center justify-center gap-2 sm:gap-3 max-w-3xl mx-auto overflow-x-auto">
             {[
-              { icon: Database,  label: "Hotovo za 3 minuty" },
+              { icon: Database,  label: "Hotovo za 5 minut" },
               { icon: Brain,     label: "AI analýza + naše metodika" },
               { icon: BarChart3, label: "Konkrétní kroky, ne teorie" },
             ].map(({ icon: Icon, label }) => (
@@ -244,7 +244,7 @@ export default function LandingPage() {
           <div className="text-center mb-14">
             <p className="text-[#4f11ff] text-sm font-semibold tracking-wide uppercase mb-3">JAK TO FUNGUJE</p>
             <h2 className="font-[family-name:var(--font-heading)] text-3xl sm:text-4xl font-bold text-gray-900">
-              Od URL k výsledkům za 3 minuty
+              Od URL k výsledkům do 5 minut
             </h2>
           </div>
 
@@ -373,7 +373,7 @@ export default function LandingPage() {
             Na co ještě čekáte?
           </h2>
           <p className="text-white/70 mb-10 text-lg">
-            Zjistěte během 3 minut, co dělá vaše konkurence a získejte doporučení, co můžete udělat lépe.
+            Zjistěte během 5 minut, co dělá vaše konkurence a získejte doporučení, co můžete udělat lépe.
           </p>
 
           <div ref={ctaRef} className="flex justify-center">
