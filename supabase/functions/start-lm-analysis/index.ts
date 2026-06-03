@@ -24,6 +24,26 @@ function extractDomain(url: string): string | null {
   }
 }
 
+// Strip protocol/host/leading slashes so we get a bare FB vanity slug.
+function normalizeFbSlug(slug: string): string {
+  return slug
+    .trim()
+    .replace(/^https?:\/\//i, "")
+    .replace(/^(www\.|m\.|web\.)?facebook\.com\//i, "")
+    .replace(/^\/+/, "")
+    .split(/[/?#]/)[0]
+    .trim();
+}
+
+// Apify input URL: prefer a direct FB Page URL (facebook.com/<slug>) when we
+// have a vanity slug — far more reliable than q= keyword search. Fall back to
+// the stored q= Ads Library URL when no slug is available.
+function apifyTargetUrl(fbSlug: string | null | undefined, fallbackMetaUrl: string | null): string | null {
+  const slug = fbSlug ? normalizeFbSlug(fbSlug) : "";
+  if (slug) return `https://www.facebook.com/${slug}`;
+  return fallbackMetaUrl;
+}
+
 async function startApifyRun(token: string, actor: string, input: unknown): Promise<{ runId: string | null; error?: string }> {
   const res = await fetch(
     `https://api.apify.com/v2/acts/${actor}/runs?token=${token}`,
@@ -57,7 +77,7 @@ Deno.serve(async (req) => {
     // or omit it so we read from the stored session (new flow).
     let eshop_url: string | undefined = body.eshop_url;
     let eshop_meta_url: string | undefined = body.eshop_meta_url;
-    let competitors: Array<{ url: string; meta_url?: string; position: number }> | undefined = body.competitors;
+    let competitors: Array<{ url: string; meta_url?: string; fb_slug?: string; position: number }> | undefined = body.competitors;
 
     const APIFY_TOKEN = Deno.env.get("APIFY_API_TOKEN");
     if (!APIFY_TOKEN) return err("APIFY_API_TOKEN not configured", 500);
@@ -80,7 +100,7 @@ Deno.serve(async (req) => {
 
       const { data: dbComps } = await supa
         .from("lm_session_competitors")
-        .select("url, meta_library_url, position")
+        .select("url, meta_library_url, fb_slug, position")
         .eq("session_id", session_id)
         .gt("position", 0)
         .order("position");
@@ -88,6 +108,7 @@ Deno.serve(async (req) => {
       competitors = (dbComps ?? []).map((c) => ({
         url: c.url,
         meta_url: c.meta_library_url ?? undefined,
+        fb_slug: c.fb_slug ?? undefined,
         position: c.position,
       }));
 
@@ -129,6 +150,7 @@ Deno.serve(async (req) => {
 
     const runLogs = await Promise.all(competitors.map(async (c) => {
       const metaUrl = c.meta_url?.trim() || null;
+      const fbSlug  = c.fb_slug?.trim() || null;
       const domain  = extractDomain(c.url);
 
       const { data: inserted, error: compErr } = await supa
@@ -138,6 +160,7 @@ Deno.serve(async (req) => {
           position: c.position,
           url: c.url,
           meta_library_url: metaUrl,
+          fb_slug: fbSlug,
           status: "pending",
         }, { onConflict: "session_id,position" })
         .select()
@@ -151,14 +174,18 @@ Deno.serve(async (req) => {
       const updates: Record<string, unknown> = {};
       const log: string[] = [];
 
-      if (metaUrl) {
+      // Prefer direct FB Page URL (facebook.com/<slug>) over q= keyword search.
+      const targetUrl = apifyTargetUrl(fbSlug, metaUrl);
+
+      if (targetUrl) {
         const { runId: metaRunId, error: metaErr } = await startApifyRun(APIFY_TOKEN, APIFY_META_ACTOR, {
-          urls: [{ url: metaUrl }],
+          urls: [{ url: targetUrl }],
           limitPerSource: 50,
           "scrapePageAds.activeStatus": "active",
         });
-        if (metaRunId) { updates.apify_run_id = metaRunId; log.push(`meta=${metaRunId}`); }
-        else log.push(`meta=FAILED: ${metaErr}`);
+        const mode = fbSlug ? "page_url" : "q";
+        if (metaRunId) { updates.apify_run_id = metaRunId; log.push(`meta[${mode}]=${metaRunId}`); }
+        else log.push(`meta[${mode}]=FAILED: ${metaErr}`);
       } else log.push("meta=no_url");
 
       if (domain) log.push(`google=link_only:${domain}`);
