@@ -9,7 +9,7 @@ import {
 } from "recharts";
 import {
   ExternalLink, Globe, Layers, Video, Image as ImageIcon,
-  ArrowRight, RefreshCw, Mail, Printer, X, Check,
+  ArrowRight, RefreshCw, Mail, CalendarCheck, X, Check,
   Zap, Target, MessageSquare, Activity, Lightbulb, AlertCircle,
 } from "lucide-react";
 import * as Dialog from "@radix-ui/react-dialog";
@@ -992,12 +992,23 @@ export default function ResultsPage() {
 
       <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-100 print:hidden">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
-          <img src={performindLogo} alt="Performind Marketing" className="h-6 object-contain" />
+          <div className="flex items-center gap-3">
+            <img src={performindLogo} alt="Performind Marketing" className="h-6 object-contain" />
+            <span className="hidden sm:flex items-center gap-1.5 bg-[#4f11ff]/8 text-[#4f11ff] text-xs font-semibold px-2.5 py-1 rounded-full border border-[#4f11ff]/15 tracking-wide uppercase">
+              Analýza konkurence
+            </span>
+          </div>
           <div className="flex items-center gap-2">
-            <button onClick={() => window.print()} className="hidden sm:inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg transition-colors">
-              <Printer className="h-3.5 w-3.5" /> Uložit PDF
-            </button>
-            <button onClick={() => setEmailDialogOpen(true)} className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-900 bg-[#b0f221] hover:bg-[#a3e01e] px-3 py-1.5 rounded-lg transition-colors">
+            <a
+              href="https://calendar.app.google/GDJZhgABwHo4i4qx6"
+              target="_blank"
+              rel="noreferrer"
+              onClick={() => trackEvent({ event: "cta_clicked", cta_label: "rezervace_schuzky_nav", session_id: sessionId ?? null })}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-900 bg-[#b0f221] hover:bg-[#a3e01e] px-3 py-1.5 rounded-lg transition-colors"
+            >
+              <CalendarCheck className="h-3.5 w-3.5" /> Rezervovat schůzku
+            </a>
+            <button onClick={() => setEmailDialogOpen(true)} className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-900 bg-white border border-[#b0f221] hover:bg-[#b0f221]/10 px-3 py-1.5 rounded-lg transition-colors">
               <Mail className="h-3.5 w-3.5" /> Odeslat na mail
             </button>
           </div>
