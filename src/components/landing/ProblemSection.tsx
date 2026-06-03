@@ -20,7 +20,7 @@ export function ProblemSection() {
 
         <div className="space-y-5 text-white/60 text-base sm:text-lg leading-relaxed">
           <p>
-            Každý měsíc dáte do reklam na Metě desítky tisíc korun. Vaše konkurence
+            Každý měsíc dáte do reklam na Metě desítky až stovky tisíc korun. Vaše konkurence
             taky - jen ona možná ví, co testujete vy, a vy o jejich reklamách a strategii nevíte skoro nic.
           </p>
           <p>

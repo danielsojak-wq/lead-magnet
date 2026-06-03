@@ -158,7 +158,7 @@ export default function LandingPage() {
           {/* Feature pills strip */}
           <div className="flex flex-nowrap items-center justify-center gap-2 sm:gap-3 max-w-3xl mx-auto overflow-x-auto">
             {[
-              { icon: Database,  label: "Hotovo za 5 minut" },
+              { icon: Database,  label: "Hotovo do 5 minut" },
               { icon: Brain,     label: "AI analýza + naše metodika" },
               { icon: BarChart3, label: "Konkrétní kroky, ne teorie" },
             ].map(({ icon: Icon, label }) => (
