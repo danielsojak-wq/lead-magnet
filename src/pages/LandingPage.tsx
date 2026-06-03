@@ -90,21 +90,6 @@ function CtaButton({
   );
 }
 
-/* ─── Subtle text CTA link ──────────────────────────────────────────────────── */
-
-function TextCtaLink({ label = "Spustit analýzu zdarma" }: { label?: string }) {
-  const navigate = useNavigate();
-  return (
-    <button
-      onClick={() => navigate("/analyze")}
-      className="group inline-flex items-center gap-1.5 text-sm font-semibold text-[#4f11ff] hover:text-[#3d0dcc] transition-colors"
-    >
-      {label}
-      <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-    </button>
-  );
-}
-
 /* ─── Page ──────────────────────────────────────────────────────────────────── */
 
 export default function LandingPage() {
@@ -269,7 +254,7 @@ export default function LandingPage() {
           </div>
 
           <div className="mt-8 flex justify-center">
-            <TextCtaLink label="Pustit se do toho" />
+            <CtaButton size="sm" label="Získat analýzu zdarma" subText="1 analýza zdarma" />
           </div>
         </div>
       </section>
