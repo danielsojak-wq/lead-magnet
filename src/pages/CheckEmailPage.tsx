@@ -4,14 +4,6 @@ import { Mail, RefreshCw, CheckCircle2, ArrowRight, Sparkles } from "lucide-reac
 import performindLogo from "@/assets/performind-logo-dark.svg";
 import { supabase } from "@/integrations/supabase/client";
 
-const ROTATING_MESSAGES = [
-  "Systém je připraven na spuštění analýzy…",
-  "Čekáme na ověření vašeho emailu…",
-  "Analýza se spustí okamžitě po kliknutí…",
-  "AI modely jsou připraveny…",
-  "Meta Ads Library scraper je v pohotovosti…",
-];
-
 const STEPS = [
   { label: "Formulář vyplněn", done: true },
   { label: "Ověření emailu", done: false, active: true },
@@ -28,20 +20,7 @@ export default function CheckEmailPage() {
 
   const [resent, setResent] = useState(false);
   const [resending, setResending] = useState(false);
-  const [msgIndex, setMsgIndex] = useState(0);
-  const [msgVisible, setMsgVisible] = useState(true);
   const [verified, setVerified] = useState(false);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setMsgVisible(false);
-      setTimeout(() => {
-        setMsgIndex((i) => (i + 1) % ROTATING_MESSAGES.length);
-        setMsgVisible(true);
-      }, 400);
-    }, 3000);
-    return () => clearInterval(interval);
-  }, []);
 
   useEffect(() => {
     if (!sessionId) return;
@@ -79,8 +58,11 @@ export default function CheckEmailPage() {
     <div className="min-h-screen bg-white text-gray-900 font-[family-name:var(--font-body)] flex flex-col">
 
       <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-100">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-3">
           <img src={performindLogo} alt="Performind Marketing" className="h-6 object-contain" />
+          <span className="hidden sm:flex items-center gap-1.5 bg-[#4f11ff]/8 text-[#4f11ff] text-xs font-semibold px-2.5 py-1 rounded-full border border-[#4f11ff]/15 tracking-wide uppercase">
+            Analýza konkurence
+          </span>
         </div>
       </nav>
 
@@ -143,16 +125,6 @@ export default function CheckEmailPage() {
                   <p className="text-gray-900 font-semibold text-sm leading-relaxed">
                     Klikněte na odkaz v emailu<br />
                     <span className="text-[#4f11ff]">→ analýza se spustí okamžitě</span>
-                  </p>
-                </div>
-
-                {/* Rotating status */}
-                <div className="h-8 flex items-center justify-center mb-8">
-                  <p
-                    className="text-gray-400 text-xs transition-opacity duration-400"
-                    style={{ opacity: msgVisible ? 1 : 0 }}
-                  >
-                    {ROTATING_MESSAGES[msgIndex]}
                   </p>
                 </div>
 
