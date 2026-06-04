@@ -1101,8 +1101,28 @@ export default function ResultsPage() {
           <CompetitorSection key={competitor.id} competitor={competitor} index={i} />
         ))}
 
-        {/* CTA — booking call */}
-        <section className="rounded-3xl bg-gray-900 text-white p-8 sm:p-10 text-center print:hidden">
+        {/* CTA — booking call (lime podkres jako vzorová analýza na LP) */}
+        <div className="relative">
+          {/* Animated lime glow blobs — halo kolem tmavého bloku */}
+          <div aria-hidden="true" className="absolute inset-0 overflow-visible pointer-events-none">
+            <div
+              className="lime-glow absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[85%] h-[75%] rounded-full"
+              style={{ background: "radial-gradient(ellipse, rgba(176,242,33,0.22) 0%, rgba(176,242,33,0.06) 55%, transparent 75%)", animation: "limeGlow 9s ease-in-out infinite", filter: "blur(8px)" }}
+            />
+            <div
+              className="lime-glow absolute -top-10 -right-10 w-72 h-72 rounded-full"
+              style={{ background: "radial-gradient(circle, rgba(176,242,33,0.18) 0%, transparent 65%)", animation: "limeGlow 12s ease-in-out 3s infinite reverse", filter: "blur(6px)" }}
+            />
+            <div
+              className="lime-glow absolute -bottom-10 -left-10 w-64 h-64 rounded-full"
+              style={{ background: "radial-gradient(circle, rgba(79,17,255,0.12) 0%, transparent 65%)", animation: "limeGlow 15s ease-in-out 6s infinite", filter: "blur(6px)" }}
+            />
+          </div>
+
+          <section
+            className="relative rounded-3xl bg-gray-900 text-white p-8 sm:p-10 text-center print:hidden"
+            style={{ border: "1.5px solid rgba(176,242,33,0.30)" }}
+          >
           <img
             src="/daniel-sojak.jpg"
             alt="Daniel Soják, zakladatel Performind"
@@ -1145,16 +1165,8 @@ export default function ResultsPage() {
             Rezervovat bezplatný hovor <ArrowRight className="h-4 w-4" />
           </a>
           <p className="text-gray-500 text-xs mt-3">30 minut · zdarma · žádný závazek</p>
-
-          <div className="mt-6">
-            <button
-              onClick={() => setEmailDialogOpen(true)}
-              className="text-gray-400 hover:text-white text-sm underline underline-offset-4 decoration-gray-600 hover:decoration-gray-300 transition-colors"
-            >
-              nebo si analýzu uložte na e-mail
-            </button>
-          </div>
-        </section>
+          </section>
+        </div>
 
       </main>
 
