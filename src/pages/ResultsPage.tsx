@@ -1114,14 +1114,14 @@ export default function ResultsPage() {
           </h2>
           <p className="text-gray-400 max-w-lg mx-auto text-sm sm:text-base leading-relaxed mb-8">
             Většina lidí si analýzu uloží a vrátí se k práci — ne proto, že by nechtěli růst,
-            ale protože udělat z dat konkrétní kroky není vždy snadné.
+            ale proměnit čísla v konkrétní kroky není vždy snadné.
             <br /><br />
             Na hovoru to uděláme za vás.
           </p>
 
           <ul className="max-w-md mx-auto space-y-3 text-left mb-8">
             {[
-              "Projdeme vaše výsledky a vysvětlíme, co znamenají pro váš e-shop",
+              "Projdeme výsledky a vysvětlíme, co znamenají pro váš e-shop",
               "Řekneme vám 2 konkrétní body, které můžete ihned aplikovat",
               "30 minut, online, bez závazku a bez prodejního tlaku",
             ].map((t) => (
