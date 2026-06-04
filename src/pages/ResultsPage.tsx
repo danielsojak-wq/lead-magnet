@@ -1101,27 +1101,27 @@ export default function ResultsPage() {
           <CompetitorSection key={competitor.id} competitor={competitor} index={i} />
         ))}
 
-        {/* CTA — booking call (lime podkres jako vzorová analýza na LP) */}
-        <div className="relative">
-          {/* Animated lime glow blobs — halo přesahující za tmavý blok */}
-          <div aria-hidden="true" className="absolute -inset-12 overflow-visible pointer-events-none">
+        {/* CTA — booking call (statický lime podkres jako náhled analýzy na LP) */}
+        <div className="relative px-1 py-5">
+          {/* Static lime glow — oříznutý na rámec, nepřelévá se ven */}
+          <div aria-hidden="true" className="absolute inset-0 overflow-hidden rounded-[2rem] pointer-events-none -z-10">
             <div
-              className="lime-glow absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[105%] h-[100%] rounded-[40%]"
-              style={{ background: "radial-gradient(ellipse, rgba(176,242,33,0.45) 0%, rgba(176,242,33,0.15) 50%, transparent 72%)", animation: "limeGlow 9s ease-in-out infinite", filter: "blur(40px)" }}
+              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] h-[85%] rounded-full"
+              style={{ background: "radial-gradient(ellipse, rgba(176,242,33,0.22) 0%, rgba(176,242,33,0.06) 55%, transparent 75%)", filter: "blur(2px)" }}
             />
             <div
-              className="lime-glow absolute top-0 -right-4 w-80 h-80 rounded-full"
-              style={{ background: "radial-gradient(circle, rgba(176,242,33,0.40) 0%, transparent 65%)", animation: "limeGlow 12s ease-in-out 3s infinite reverse", filter: "blur(30px)" }}
+              className="absolute -top-8 -right-8 w-72 h-72 rounded-full"
+              style={{ background: "radial-gradient(circle, rgba(176,242,33,0.18) 0%, transparent 65%)", filter: "blur(1px)" }}
             />
             <div
-              className="lime-glow absolute -bottom-4 -left-4 w-80 h-80 rounded-full"
-              style={{ background: "radial-gradient(circle, rgba(79,17,255,0.28) 0%, transparent 65%)", animation: "limeGlow 15s ease-in-out 6s infinite", filter: "blur(30px)" }}
+              className="absolute -bottom-6 -left-6 w-56 h-56 rounded-full"
+              style={{ background: "radial-gradient(circle, rgba(79,17,255,0.10) 0%, transparent 65%)", filter: "blur(1px)" }}
             />
           </div>
 
           <section
             className="relative rounded-3xl bg-gray-900 text-white p-8 sm:p-10 text-center print:hidden"
-            style={{ border: "1.5px solid rgba(176,242,33,0.35)", boxShadow: "0 0 50px -8px rgba(176,242,33,0.45), 0 0 110px -25px rgba(176,242,33,0.30)" }}
+            style={{ border: "1.5px solid rgba(176,242,33,0.30)" }}
           >
           <img
             src="/daniel-sojak.jpg"
