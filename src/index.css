@@ -18,9 +18,43 @@
   66%       { transform: scale(0.92) translate(-3%, 3%);  opacity: 0.50; }
 }
 
+/* Hero CTA — jemná lime "polární záře" plující za tlačítkem */
+@keyframes ctaAurora {
+  0%   { transform: translate3d(-9%, 2%, 0) rotate(-6deg) scale(1);     opacity: .45; }
+  50%  { transform: translate3d(9%, -5%, 0) rotate(5deg)  scale(1.22);  opacity: .9; }
+  100% { transform: translate3d(-9%, 2%, 0) rotate(-6deg) scale(1);     opacity: .45; }
+}
+.cta-aurora {
+  background:
+    radial-gradient(55% 130% at 28% 50%, rgba(176, 242, 33, .85), transparent 70%),
+    radial-gradient(50% 130% at 72% 50%, rgba(214, 255, 122, .65), transparent 70%);
+  filter: blur(22px);
+  animation: ctaAurora 6.5s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+/* Decentní světelný přejezd přes plochu tlačítka */
+@keyframes ctaShimmer {
+  0%   { transform: translateX(-140%) skewX(-22deg); opacity: 0; }
+  10%  { opacity: .5; }
+  32%  { transform: translateX(140%)  skewX(-22deg); opacity: 0; }
+  100% { transform: translateX(140%)  skewX(-22deg); opacity: 0; }
+}
+.cta-shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(100deg, transparent 35%, rgba(255, 255, 255, .55) 50%, transparent 65%);
+  pointer-events: none;
+  animation: ctaShimmer 5.5s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .float-icon  { animation: none !important; }
-  .lime-glow   { animation: none !important; }
+  .float-icon   { animation: none !important; }
+  .lime-glow    { animation: none !important; }
+  .cta-aurora   { animation: none !important; opacity: .55; }
+  .cta-shimmer::after { animation: none !important; opacity: 0; }
 }
 
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Space+Grotesk:wght@300..700&display=swap');

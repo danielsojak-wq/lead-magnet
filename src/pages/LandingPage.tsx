@@ -79,12 +79,17 @@ function CtaButton({
 
   return (
     <div className="flex flex-col items-center gap-3">
-      <button
-        onClick={() => navigate("/analyze")}
-        className={`inline-flex items-center justify-center gap-2 bg-[#b0f221] hover:bg-[#a3e01e] text-gray-900 font-semibold rounded-xl transition-all shadow-lg shadow-[#b0f221]/30 ${isLg ? "px-8 py-4 text-base" : "px-6 py-3.5 text-sm"}`}
-      >
-        {label} <ArrowRight className="h-4 w-4" />
-      </button>
+      <div className="relative">
+        {isLg && (
+          <div aria-hidden className="cta-aurora pointer-events-none absolute -inset-4 rounded-3xl" />
+        )}
+        <button
+          onClick={() => navigate("/analyze")}
+          className={`relative overflow-hidden inline-flex items-center justify-center gap-2 bg-[#b0f221] hover:bg-[#a3e01e] text-gray-900 font-semibold rounded-xl transition-all shadow-lg shadow-[#b0f221]/30 ${isLg ? "cta-shimmer px-8 py-4 text-base" : "px-6 py-3.5 text-sm"}`}
+        >
+          {label} <ArrowRight className="h-4 w-4" />
+        </button>
+      </div>
       {subText && <p className="text-xs text-gray-400">{subText}</p>}
     </div>
   );
