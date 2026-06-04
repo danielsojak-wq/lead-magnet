@@ -464,7 +464,7 @@ export default function AnalyzePage() {
 
       <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-100">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-3">
-          <img src={performindLogo} alt="Performind Marketing" className="h-6 object-contain" />
+          <img src={performindLogo} alt="Performind Marketing" className="h-5 object-contain" />
           <span className="hidden sm:flex items-center gap-1.5 bg-[#4f11ff]/8 text-[#4f11ff] text-xs font-semibold px-2.5 py-1 rounded-full border border-[#4f11ff]/15 tracking-wide uppercase">
             Analýza konkurence
           </span>

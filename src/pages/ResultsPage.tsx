@@ -991,25 +991,30 @@ export default function ResultsPage() {
     <div className="min-h-screen bg-gray-50 text-gray-900 font-[family-name:var(--font-body)]">
 
       <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-100 print:hidden">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <img src={performindLogo} alt="Performind Marketing" className="h-6 object-contain" />
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-3 min-w-0">
+            <img src={performindLogo} alt="Performind Marketing" className="h-5 object-contain shrink-0" />
             <span className="hidden sm:flex items-center gap-1.5 bg-[#4f11ff]/8 text-[#4f11ff] text-xs font-semibold px-2.5 py-1 rounded-full border border-[#4f11ff]/15 tracking-wide uppercase">
               Analýza konkurence
             </span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <a
               href="https://calendar.app.google/GDJZhgABwHo4i4qx6"
               target="_blank"
               rel="noopener noreferrer"
               onClick={() => trackEvent({ event: "cta_clicked", cta_label: "booking_nav", context: "booking", session_id: sessionId ?? null })}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-900 bg-[#b0f221] hover:bg-[#a3e01e] px-3 py-1.5 rounded-lg transition-colors"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-900 bg-[#b0f221] hover:bg-[#a3e01e] px-3 py-2 rounded-lg transition-colors whitespace-nowrap shrink-0"
             >
-              <CalendarCheck className="h-3.5 w-3.5" /> Rezervovat hovor
+              <CalendarCheck className="h-3.5 w-3.5 shrink-0" /> Rezervovat hovor
             </a>
-            <button onClick={() => setEmailDialogOpen(true)} className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-gray-900 hover:bg-gray-100 px-3 py-1.5 rounded-lg transition-colors">
-              <Mail className="h-3.5 w-3.5" /> Odeslat na mail
+            <button
+              onClick={() => setEmailDialogOpen(true)}
+              aria-label="Odeslat analýzu na e-mail"
+              title="Odeslat na mail"
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-gray-900 hover:bg-gray-100 px-2.5 sm:px-3 py-2 rounded-lg transition-colors whitespace-nowrap shrink-0"
+            >
+              <Mail className="h-3.5 w-3.5 shrink-0" /> <span className="hidden sm:inline">Odeslat na mail</span>
             </button>
           </div>
         </div>
