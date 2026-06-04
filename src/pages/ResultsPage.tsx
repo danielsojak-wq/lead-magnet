@@ -1101,27 +1101,11 @@ export default function ResultsPage() {
           <CompetitorSection key={competitor.id} competitor={competitor} index={i} />
         ))}
 
-        {/* CTA — booking call (statický lime podkres jako náhled analýzy na LP) */}
-        <div className="relative px-1 py-5">
-          {/* Static lime glow — oříznutý na rámec, nepřelévá se ven */}
-          <div aria-hidden="true" className="absolute inset-0 overflow-hidden rounded-[2rem] pointer-events-none -z-10">
-            <div
-              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] h-[85%] rounded-full"
-              style={{ background: "radial-gradient(ellipse, rgba(176,242,33,0.22) 0%, rgba(176,242,33,0.06) 55%, transparent 75%)", filter: "blur(2px)" }}
-            />
-            <div
-              className="absolute -top-8 -right-8 w-72 h-72 rounded-full"
-              style={{ background: "radial-gradient(circle, rgba(176,242,33,0.18) 0%, transparent 65%)", filter: "blur(1px)" }}
-            />
-            <div
-              className="absolute -bottom-6 -left-6 w-56 h-56 rounded-full"
-              style={{ background: "radial-gradient(circle, rgba(79,17,255,0.10) 0%, transparent 65%)", filter: "blur(1px)" }}
-            />
-          </div>
-
+        {/* CTA — booking call (statický lime podkres, těsně přilehlý) */}
+        <div className="relative">
           <section
             className="relative rounded-3xl bg-gray-900 text-white p-8 sm:p-10 text-center print:hidden"
-            style={{ border: "1.5px solid rgba(176,242,33,0.30)" }}
+            style={{ border: "1.5px solid rgba(176,242,33,0.35)", boxShadow: "0 0 28px -2px rgba(176,242,33,0.50), 0 0 8px 0 rgba(176,242,33,0.30)" }}
           >
           <img
             src="/daniel-sojak.jpg"
