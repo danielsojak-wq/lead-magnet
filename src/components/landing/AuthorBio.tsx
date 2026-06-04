@@ -9,13 +9,13 @@ export function AuthorBio() {
   return (
     <section className="py-12 sm:py-16 bg-gray-50">
       <div className="max-w-4xl mx-auto px-4 sm:px-6">
-        <p className="text-[#4f11ff] text-sm font-semibold tracking-wide uppercase mb-10 text-center">Kdo za tím stojí</p>
+        <p className="text-[#4f11ff] text-sm font-semibold tracking-wide uppercase mb-10 text-center">O Performind</p>
         <div className="grid md:grid-cols-[auto_1fr] gap-10 items-start">
           {/* Photo */}
           <div className="flex justify-center md:justify-start">
             <img
               src="/daniel-sojak.jpg"
-              alt="Daniel Soják, Zakladatel, Performind.cz"
+              alt="Daniel Soják, zakladatel Performind"
               className="w-24 h-24 rounded-full object-cover shadow-md ring-2 ring-white"
             />
           </div>
@@ -23,12 +23,13 @@ export function AuthorBio() {
           {/* Bio */}
           <div>
             <h3 className="font-[family-name:var(--font-heading)] text-xl font-bold text-gray-900">Daniel Soják</h3>
-            <p className="text-[#4f11ff] text-sm font-semibold mb-4">Zakladatel, Performind.cz</p>
+            <p className="text-[#4f11ff] text-sm font-semibold mb-4">zakladatel</p>
 
             <p className="text-gray-600 leading-relaxed mb-4">
-              Vedu Performind, výkonnostní agenturu pro firmy, které chtějí růst. Spravujeme
-              reklamní rozpočty v desítkách milionů ročně a konkurenční analýzy děláme na
-              denní bázi. Nyní si ji můžete udělat i vy.
+              Performind je výkonnostní agentura pro e-shopy, které chtějí růst. S týmem
+              specialistů spravujeme reklamní rozpočty v desítkách milionů ročně pro více než
+              30 klientů. Konkurenční analýzy děláme na denní bázi. Díky tomuto nástroji si ji
+              nyní můžete během pár minut udělat i vy.
             </p>
 
             <div className="flex items-center gap-5">
