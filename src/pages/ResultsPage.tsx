@@ -1109,13 +1109,14 @@ export default function ResultsPage() {
             className="w-16 h-16 rounded-full object-cover mx-auto mb-5 ring-2 ring-white/20 shadow-lg"
           />
           <h2 className="font-[family-name:var(--font-heading)] text-2xl sm:text-3xl font-bold mb-4">
-            Tohle je jen špička ledovce.<br /><br />
+            Tohle je jen špička ledovce.<br />
             Pojďme z dat udělat plán.
           </h2>
           <p className="text-gray-400 max-w-lg mx-auto text-sm sm:text-base leading-relaxed mb-8">
-            Analýza ukázala, kde konkurence tlačí a kde má mezery. Na hovoru je projdeme
-            společně a řekneme vám konkrétně, na co se zaměřit první — ať už se rozhodnete
-            pracovat s námi, nebo ne.
+            Většina lidí si analýzu uloží a vrátí se k práci — ne proto, že by nechtěli růst,
+            ale protože udělat z dat konkrétní kroky není vždy snadné.
+            <br /><br />
+            Na hovoru to uděláme za vás.
           </p>
 
           <ul className="max-w-md mx-auto space-y-3 text-left mb-8">
