@@ -1002,13 +1002,13 @@ export default function ResultsPage() {
             <a
               href="https://calendar.app.google/GDJZhgABwHo4i4qx6"
               target="_blank"
-              rel="noreferrer"
-              onClick={() => trackEvent({ event: "cta_clicked", cta_label: "rezervace_schuzky_nav", session_id: sessionId ?? null })}
+              rel="noopener noreferrer"
+              onClick={() => trackEvent({ event: "cta_clicked", cta_label: "booking_nav", context: "booking", session_id: sessionId ?? null })}
               className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-900 bg-[#b0f221] hover:bg-[#a3e01e] px-3 py-1.5 rounded-lg transition-colors"
             >
-              <CalendarCheck className="h-3.5 w-3.5" /> Rezervovat schůzku
+              <CalendarCheck className="h-3.5 w-3.5" /> Rezervovat hovor
             </a>
-            <button onClick={() => setEmailDialogOpen(true)} className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-900 bg-white border border-[#b0f221] hover:bg-[#b0f221]/10 px-3 py-1.5 rounded-lg transition-colors">
+            <button onClick={() => setEmailDialogOpen(true)} className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-gray-900 hover:bg-gray-100 px-3 py-1.5 rounded-lg transition-colors">
               <Mail className="h-3.5 w-3.5" /> Odeslat na mail
             </button>
           </div>
@@ -1101,28 +1101,55 @@ export default function ResultsPage() {
           <CompetitorSection key={competitor.id} competitor={competitor} index={i} />
         ))}
 
-        {/* CTA */}
-        <section className="rounded-3xl bg-gray-900 text-white p-8 sm:p-10 text-center space-y-4 print:hidden">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-white/10 mb-2">
-            <Layers className="h-7 w-7 text-[#b0f221]" />
-          </div>
-          <h2 className="font-[family-name:var(--font-heading)] text-2xl sm:text-3xl font-bold">
-            Víte, co dělá konkurence.<br />Co uděláte vy?
+        {/* CTA — booking call */}
+        <section className="rounded-3xl bg-gray-900 text-white p-8 sm:p-10 text-center print:hidden">
+          <img
+            src="/daniel-sojak.jpg"
+            alt="Daniel Soják, zakladatel Performind"
+            className="w-16 h-16 rounded-full object-cover mx-auto mb-5 ring-2 ring-white/20 shadow-lg"
+          />
+          <h2 className="font-[family-name:var(--font-heading)] text-2xl sm:text-3xl font-bold mb-4">
+            Data máte. Teď to nejtěžší — co s nimi.
           </h2>
-          <p className="text-gray-400 max-w-md mx-auto text-sm leading-relaxed">
-            Naši stratégové přeloží tato data do konkrétního kreativního briefu a mediálního plánu přímo pro váš e-shop.
+          <p className="text-gray-400 max-w-lg mx-auto text-sm sm:text-base leading-relaxed mb-8">
+            Analýza ukázala, kde konkurence tlačí a kde má mezery. Na hovoru je projdeme
+            společně a řekneme vám konkrétně, na co se zaměřit první — ať už se rozhodnete
+            pracovat s námi, nebo ne.
           </p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
-            <a href="https://calendar.app.google/GDJZhgABwHo4i4qx6" target="_blank" rel="noreferrer"
-              onClick={() => trackEvent({ event: "cta_clicked", cta_label: "chci_strategii", session_id: sessionId ?? null })}
-              className="inline-flex items-center justify-center gap-2 bg-[#b0f221] text-black font-semibold px-6 py-3.5 rounded-xl hover:bg-[#9de01a] transition-colors text-sm">
-              Chci strategii pro svůj e-shop <ArrowRight className="h-4 w-4" />
-            </a>
-            <a href="mailto:hello@performind.cz"
-              onClick={() => trackEvent({ event: "cta_clicked", cta_label: "napsat_nam", session_id: sessionId ?? null })}
-              className="inline-flex items-center justify-center gap-2 bg-white/10 text-white font-semibold px-6 py-3.5 rounded-xl hover:bg-white/20 transition-colors text-sm">
-              Napsat nám
-            </a>
+
+          <ul className="max-w-md mx-auto space-y-3 text-left mb-8">
+            {[
+              "Projdeme vaše výsledky a vysvětlíme, co znamenají pro váš e-shop",
+              "Řekneme vám 1-2 konkrétní věci, co můžete zlepšit hned",
+              "30 minut, online, bez závazku a bez prodejního tlaku",
+            ].map((t) => (
+              <li key={t} className="flex items-start gap-3">
+                <span className="shrink-0 mt-0.5 inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#b0f221]/20">
+                  <Check className="h-3.5 w-3.5 text-[#b0f221]" />
+                </span>
+                <span className="text-gray-200 text-sm leading-relaxed">{t}</span>
+              </li>
+            ))}
+          </ul>
+
+          <a
+            href="https://calendar.app.google/GDJZhgABwHo4i4qx6"
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => trackEvent({ event: "cta_clicked", cta_label: "booking_results", context: "booking", session_id: sessionId ?? null })}
+            className="inline-flex items-center justify-center gap-2 bg-[#b0f221] text-gray-900 font-semibold px-8 py-4 rounded-xl hover:bg-[#a3e01e] transition-colors text-base shadow-lg shadow-[#b0f221]/20"
+          >
+            Rezervovat bezplatný hovor <ArrowRight className="h-4 w-4" />
+          </a>
+          <p className="text-gray-500 text-xs mt-3">30 minut · zdarma · žádný závazek</p>
+
+          <div className="mt-6">
+            <button
+              onClick={() => setEmailDialogOpen(true)}
+              className="text-gray-400 hover:text-white text-sm underline underline-offset-4 decoration-gray-600 hover:decoration-gray-300 transition-colors"
+            >
+              nebo si analýzu uložte na e-mail
+            </button>
           </div>
         </section>
 
