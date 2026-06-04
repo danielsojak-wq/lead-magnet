@@ -1109,7 +1109,8 @@ export default function ResultsPage() {
             className="w-16 h-16 rounded-full object-cover mx-auto mb-5 ring-2 ring-white/20 shadow-lg"
           />
           <h2 className="font-[family-name:var(--font-heading)] text-2xl sm:text-3xl font-bold mb-4">
-            Data máte. Teď to nejtěžší — co s nimi.
+            Tohle je jen špička ledovce.<br /><br />
+            Pojďme z dat udělat plán.
           </h2>
           <p className="text-gray-400 max-w-lg mx-auto text-sm sm:text-base leading-relaxed mb-8">
             Analýza ukázala, kde konkurence tlačí a kde má mezery. Na hovoru je projdeme
@@ -1120,7 +1121,7 @@ export default function ResultsPage() {
           <ul className="max-w-md mx-auto space-y-3 text-left mb-8">
             {[
               "Projdeme vaše výsledky a vysvětlíme, co znamenají pro váš e-shop",
-              "Řekneme vám 1-2 konkrétní věci, co můžete zlepšit hned",
+              "Řekneme vám 2 konkrétní body, které můžete ihned aplikovat",
               "30 minut, online, bez závazku a bez prodejního tlaku",
             ].map((t) => (
               <li key={t} className="flex items-start gap-3">
