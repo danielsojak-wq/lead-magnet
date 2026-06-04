@@ -156,7 +156,7 @@ export default function LandingPage() {
           </div>
 
           {/* Feature pills strip */}
-          <div className="flex flex-nowrap items-center justify-center gap-2 sm:gap-3 max-w-3xl mx-auto overflow-x-auto">
+          <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 max-w-3xl mx-auto">
             {[
               { icon: Database,  label: "Hotovo do 5 minut" },
               { icon: Brain,     label: "AI analýza + naše metodika" },
