@@ -1113,8 +1113,9 @@ export default function ResultsPage() {
             Pojďme z dat udělat plán.
           </h2>
           <p className="text-gray-400 max-w-lg mx-auto text-sm sm:text-base leading-relaxed mb-8">
-            Většina lidí si analýzu uloží a vrátí se k práci — ne proto, že by nechtěli růst,
-            ale proměnit čísla v konkrétní kroky není vždy snadné.
+            Většina lidí si analýzu uloží a více se k ní nevrátí.
+            <br /><br />
+            Ne proto, že by nechtěli růst, ale proměnit čísla v konkrétní kroky není vždy snadné.
             <br /><br />
             Na hovoru to uděláme za vás.
           </p>
