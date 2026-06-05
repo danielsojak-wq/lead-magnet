@@ -326,7 +326,36 @@ Deno.serve(async (req) => {
     const { data: session } = await supa
       .from("lm_sessions").select("status, error_message").eq("id", session_id).single();
 
-    if (session?.status === "ready" || session?.status === "completed") return ok({ status: "ready" });
+    if (session?.status === "ready" || session?.status === "completed") {
+      // L1 self-heal: hráč nascrapován (ads>0), ale L1 selhala (status=failed)
+      // kvůli transientní chybě Gemini → JEDEN re-run v čerstvé invokaci (nový
+      // 150s budget + nové AI okno). Idempotentní: úspěšní hráči reuse, padlý se
+      // přepočítá. Strop přes l1_retried, ať nevzniká smyčka.
+      const { data: full } = await supa.from("lm_sessions").select("l1_retried").eq("id", session_id).single();
+      if (full && !full.l1_retried) {
+        const { count: failedWithAds } = await supa.from("lm_session_competitors")
+          .select("id", { count: "exact", head: true })
+          .eq("session_id", session_id).eq("status", "failed").gt("ads_count", 0);
+        if ((failedWithAds ?? 0) > 0) {
+          // Atomický claim — jen jeden poll vyhraje (status→analyzing, l1_retried=true).
+          const { data: claimed } = await supa.from("lm_sessions")
+            .update({ status: "analyzing", l1_retried: true, analyzing_started_at: new Date().toISOString() })
+            .eq("id", session_id).eq("status", session.status).eq("l1_retried", false)
+            .select("id").maybeSingle();
+          if (claimed) {
+            console.warn(`Session ${session_id} L1 self-heal: re-running ${failedWithAds} failed-L1 player(s)`);
+            const analyzeUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/analyze-lm-session`;
+            await fetch(analyzeUrl, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` },
+              body: JSON.stringify({ session_id }),
+            }).catch(e => console.error("L1 self-heal trigger failed:", e));
+            return ok({ status: "analyzing" });
+          }
+        }
+      }
+      return ok({ status: "ready" });
+    }
     if (session?.status === "failed") return ok({ status: "failed", error_message: session.error_message ?? null });
 
     // Recovery: session zaseklá v "analyzing" (runAnalysis nedoběhl v 150s).
