@@ -430,7 +430,7 @@ async function syncToEcomail(
       },
       tags: ["lead-magnet-analyza", "nurtured"],
     },
-    trigger_autoresponders: false,
+    trigger_autoresponders: true,
     update_existing: true,
     resubscribe: false,
   };
