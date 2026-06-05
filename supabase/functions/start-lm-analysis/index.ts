@@ -35,10 +35,25 @@ function normalizeFbSlug(slug: string): string {
     .trim();
 }
 
-// Apify input URL: prefer a direct FB Page URL (facebook.com/<slug>) when we
-// have a vanity slug — far more reliable than q= keyword search. Fall back to
-// the stored q= Ads Library URL when no slug is available.
-function apifyTargetUrl(fbSlug: string | null | undefined, fallbackMetaUrl: string | null): string | null {
+// Vytáhni view_all_page_id z uložené discovery meta_url (když ho discovery našla).
+function pageIdFromMetaUrl(metaUrl: string | null | undefined): string | null {
+  if (!metaUrl) return null;
+  try { return new URL(metaUrl).searchParams.get("view_all_page_id"); } catch { return null; }
+}
+
+// Canonical Ads Library Page URL (view_all_page_id) — NEdělá FB redirect, takže
+// se actor nezasekne na "Maximum redirect limit exceeded" jako u vanity URL.
+function buildPageUrl(pageId: string): string {
+  return `https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=CZ` +
+    `&is_targeted_country=false&media_type=all&search_type=page&view_all_page_id=${pageId}`;
+}
+
+// Apify input URL — priorita:
+//   1. page_id (z cache / discovery) → canonical view_all_page_id URL (bez redirectu, spolehlivé)
+//   2. vanity slug → facebook.com/<slug> (flaky kvůli FB redirectu, ale lepší než q=)
+//   3. q= fallback (uložená Ads Library URL — jako fieldmann bez slugu)
+function apifyTargetUrl(pageId: string | null | undefined, fbSlug: string | null | undefined, fallbackMetaUrl: string | null): string | null {
+  if (pageId) return buildPageUrl(pageId);
   const slug = fbSlug ? normalizeFbSlug(fbSlug) : "";
   if (slug) return `https://www.facebook.com/${slug}`;
   return fallbackMetaUrl;
@@ -127,11 +142,23 @@ Deno.serve(async (req) => {
     await supa.from("lm_session_competitors").delete().eq("session_id", session_id);
     await supa.from("lm_session_ads").delete().eq("session_id", session_id);
 
-    // Eshop as position 0 — prefer FB Page URL (facebook.com/<slug>) over q= search
+    // page_id cache lookup — domény s historií scrapujeme přes canonical
+    // view_all_page_id URL (bez vanity redirectu). Jeden dotaz pro všechny domény.
+    const lookupDomains = [extractDomain(eshop_url), ...competitors.map(c => extractDomain(c.url))]
+      .filter((d): d is string => !!d);
+    const pageIdByDomain = new Map<string, string>();
+    if (lookupDomains.length) {
+      const { data: cacheRows } = await supa
+        .from("lm_page_id_cache").select("domain, page_id").in("domain", lookupDomains);
+      for (const r of cacheRows ?? []) pageIdByDomain.set(r.domain as string, r.page_id as string);
+    }
+
+    // Eshop as position 0 — prefer canonical page_id URL > vanity slug > q=
     const eshopLog: string[] = [];
     const eshopMeta   = eshop_meta_url?.trim() || null;
     const eshopSlug   = eshop_fb_slug?.trim() || null;
-    const eshopTarget = apifyTargetUrl(eshopSlug, eshopMeta);
+    const eshopPageId = pageIdByDomain.get(extractDomain(eshop_url) ?? "") ?? pageIdFromMetaUrl(eshopMeta);
+    const eshopTarget = apifyTargetUrl(eshopPageId, eshopSlug, eshopMeta);
     if (eshopTarget) {
       const { data: eshopRow } = await supa
         .from("lm_session_competitors")
@@ -143,7 +170,7 @@ Deno.serve(async (req) => {
           limitPerSource: 50,
           "scrapePageAds.activeStatus": "active",
         });
-        const mode = eshopSlug ? "page_url" : "q";
+        const mode = eshopPageId ? "page_id" : eshopSlug ? "vanity" : "q";
         if (runId) {
           await supa.from("lm_session_competitors").update({ apify_run_id: runId, status: "scraping" }).eq("id", eshopRow.id);
           eshopLog.push(`eshop_meta[${mode}]=${runId}`);
@@ -180,8 +207,9 @@ Deno.serve(async (req) => {
       const updates: Record<string, unknown> = {};
       const log: string[] = [];
 
-      // Prefer direct FB Page URL (facebook.com/<slug>) over q= keyword search.
-      const targetUrl = apifyTargetUrl(fbSlug, metaUrl);
+      // Prefer canonical page_id URL (cache) > vanity slug > q= keyword.
+      const compPageId = pageIdByDomain.get(domain ?? "") ?? pageIdFromMetaUrl(metaUrl);
+      const targetUrl = apifyTargetUrl(compPageId, fbSlug, metaUrl);
 
       if (targetUrl) {
         const { runId: metaRunId, error: metaErr } = await startApifyRun(APIFY_TOKEN, APIFY_META_ACTOR, {
@@ -189,7 +217,7 @@ Deno.serve(async (req) => {
           limitPerSource: 50,
           "scrapePageAds.activeStatus": "active",
         });
-        const mode = fbSlug ? "page_url" : "q";
+        const mode = compPageId ? "page_id" : fbSlug ? "vanity" : "q";
         if (metaRunId) { updates.apify_run_id = metaRunId; log.push(`meta[${mode}]=${metaRunId}`); }
         else log.push(`meta[${mode}]=FAILED: ${metaErr}`);
       } else log.push("meta=no_url");

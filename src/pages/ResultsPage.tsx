@@ -700,6 +700,19 @@ function CompetitorSection({ competitor, index, isEshop }: { competitor: Competi
             </div>
           </div>
         )}
+        {competitor.ads_count === 0 && competitor.status !== "scrape_failed" && competitor.status !== "processing" && (
+          <div className="flex items-start gap-3 text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-xl p-4">
+            <AlertCircle className="h-4 w-4 text-gray-400 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold text-gray-700">Nenašli jsme aktivní Meta reklamy</p>
+              <p className="text-gray-500 text-xs mt-0.5">
+                {isEshop
+                  ? "Pro vaši doménu právě neběží žádné aktivní reklamy na Meta (Facebook/Instagram), nebo se je nepodařilo načíst. Analýza se proto zaměřila na vaši konkurenci."
+                  : "Pro tuto doménu právě neběží žádné aktivní reklamy na Meta (Facebook/Instagram), nebo se je nepodařilo načíst."}
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* 3-block grid: Strategie / Kreativa / Aktivita */}
         {ai && (
@@ -1096,8 +1109,8 @@ export default function ResultsPage() {
           );
         })()}
 
-        {/* Eshop (Váš e-shop) */}
-        {results.eshop_competitor && results.eshop_competitor.ads.length > 0 && (
+        {/* Eshop (Váš e-shop) — zobraz i s 0 reklamami (graceful hláška, ne tichý skryt) */}
+        {results.eshop_competitor && (
           <CompetitorSection competitor={{ ...results.eshop_competitor, name: results.eshop_name }} index={0} isEshop />
         )}
 

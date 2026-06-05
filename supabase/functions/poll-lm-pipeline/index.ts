@@ -21,6 +21,45 @@ function buildPageUrl(pageId: string): string {
     `&is_targeted_country=false&media_type=all&search_type=page&view_all_page_id=${pageId}`;
 }
 
+function extractDomain(url: string): string | null {
+  try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return null; }
+}
+
+function pageIdFromMetaUrl(metaUrl: string | null | undefined): string | null {
+  if (!metaUrl) return null;
+  try { return new URL(metaUrl).searchParams.get("view_all_page_id"); } catch { return null; }
+}
+
+function normalizeFbSlug(slug: string): string {
+  return slug.trim()
+    .replace(/^https?:\/\//i, "")
+    .replace(/^(www\.|m\.|web\.)?facebook\.com\//i, "")
+    .replace(/^\/+/, "")
+    .split(/[/?#]/)[0]
+    .trim();
+}
+
+// Retry target — priorita page_id > vanity slug > q= (stejně jako start-lm-analysis).
+function retryTargetUrl(pageId: string | null, fbSlug: string | null, fallbackMetaUrl: string | null): string | null {
+  if (pageId) return buildPageUrl(pageId);
+  const slug = fbSlug ? normalizeFbSlug(fbSlug) : "";
+  if (slug) return `https://www.facebook.com/${slug}`;
+  return fallbackMetaUrl;
+}
+
+async function startApifyRun(token: string, actor: string, input: unknown): Promise<string | null> {
+  try {
+    const res = await fetch(`https://api.apify.com/v2/acts/${actor}/runs?token=${token}`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input),
+    });
+    if (!res.ok) { console.error("Apify retry start failed:", res.status); return null; }
+    const d = await res.json();
+    return d?.data?.id ?? null;
+  } catch (e) { console.error("Apify retry start error:", e); return null; }
+}
+
+const APIFY_META_ACTOR = "curious_coder~facebook-ads-library-scraper";
+
 // Heuristic: page_name looks like a brand if short, no comma, max 3 words
 function looksLikeBrand(s: string | null): boolean {
   if (!s) return false;
@@ -290,26 +329,52 @@ Deno.serve(async (req) => {
     if (session?.status === "ready" || session?.status === "completed") return ok({ status: "ready" });
     if (session?.status === "failed") return ok({ status: "failed", error_message: session.error_message ?? null });
 
-    // Recovery: if stuck in "analyzing" for more than 8 minutes with no result, reset
+    // Recovery: session zaseklá v "analyzing" (runAnalysis nedoběhl v 150s).
+    // Práh 3 min. ATOMICKÝ CLAIM přes DB funkci → jen jeden souběžný poll vyhraje
+    // → brání dvojímu re-triggeru / dvojímu L2 (peníze). Status zůstává 'analyzing',
+    // takže žádný jiný poll nepropadne do trigger cesty níže.
     if (session?.status === "analyzing") {
-      const { data: fullSession } = await supa
-        .from("lm_sessions").select("analyzing_started_at, ai_cross_analysis").eq("id", session_id).single();
-      const startedAt = fullSession?.analyzing_started_at ? new Date(fullSession.analyzing_started_at).getTime() : 0;
-      const hasResult = fullSession?.ai_cross_analysis != null;
-      const stuckTooLong = !hasResult && startedAt > 0 && (Date.now() - startedAt > 15 * 60 * 1000);
-      if (stuckTooLong) {
-        console.warn(`Session ${session_id} stuck in analyzing with no result, resetting to processing`);
-        await supa.from("lm_sessions").update({ status: "processing" }).eq("id", session_id);
-        // Fall through to re-trigger analysis below
-      } else {
-        return ok({ status: "analyzing" });
+      const STUCK_SECONDS = 180;          // 3 min bez výsledku → recovery
+      const MAX_RESTART_ATTEMPTS = 3;     // po 3 restartech → finalize (částečná analýza)
+      const ABSOLUTE_MAX = 6;             // tvrdý strop → fail (garantuje terminaci)
+
+      const { data: claimRows } = await supa.rpc("claim_stuck_lm_session", {
+        p_session_id: session_id,
+        p_stuck_seconds: STUCK_SECONDS,
+      });
+      const attempts = Array.isArray(claimRows) && claimRows.length > 0
+        ? (claimRows[0].attempts as number)
+        : null;
+
+      // Nezaseklé (pod prahem) NEBO claim vyhrál jiný poll → nic nedělej.
+      if (attempts === null) return ok({ status: "analyzing" });
+
+      // Tvrdý strop — ani finalize nepomohl → ukončit jako failed, ne věčný stuck.
+      if (attempts > ABSOLUTE_MAX) {
+        console.error(`Session ${session_id} recovery exhausted (${attempts}) → failed`);
+        await supa.from("lm_sessions").update({ status: "failed", error_message: "analysis_timeout" }).eq("id", session_id);
+        return ok({ status: "failed", error_message: "analysis_timeout" });
       }
+
+      // <= MAX_RESTART_ATTEMPTS: normální re-run (idempotentní — dožene jen
+      // nedokončené hráče + L2). Nad strop: finalize (přeskoč stuck L1, vynuť L2).
+      const finalize = attempts > MAX_RESTART_ATTEMPTS;
+      console.warn(`Session ${session_id} stuck recovery: attempt ${attempts}, finalize=${finalize}`);
+
+      const analyzeUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/analyze-lm-session`;
+      await fetch(analyzeUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` },
+        body: JSON.stringify({ session_id, finalize }),
+      }).catch(e => console.error("recovery analyze trigger failed:", e));
+
+      return ok({ status: "analyzing" });
     }
 
     // Load all competitors
     const { data: competitors } = await supa
       .from("lm_session_competitors")
-      .select("id, url, apify_run_id, apify_google_run_id, status, meta_library_url, fb_slug")
+      .select("id, url, apify_run_id, apify_google_run_id, status, meta_library_url, fb_slug, scrape_retried")
       .eq("session_id", session_id);
 
     const comps = competitors ?? [];
@@ -366,6 +431,13 @@ Deno.serve(async (req) => {
               await supa.from("lm_session_competitors")
                 .update({ status: scrapeStatus, ads_count: totalAds, meta_library_url: winnerUrl, name: displayName })
                 .eq("id", comp.id);
+              // Cache doména → page_id, ať příští scrape jde přes canonical URL (bez vanity redirectu)
+              const cacheDomain = extractDomain(comp.url);
+              if (cacheDomain) {
+                await supa.from("lm_page_id_cache")
+                  .upsert({ domain: cacheDomain, page_id: match.pageId, page_name: match.pageName, updated_at: new Date().toISOString() }, { onConflict: "domain" })
+                  .then(({ error }) => { if (error) console.warn("page_id cache upsert failed:", error.message); });
+              }
               console.log(JSON.stringify({ level: "info", message: "page_validated",
                 session_id, competitor_id: comp.id, page_id: match.pageId,
                 page_name: match.pageName, ads: totalAds, match_path: match.matchPath }));
@@ -376,6 +448,33 @@ Deno.serve(async (req) => {
           scrapeStatus = "scrape_failed";
           console.warn(`Competitor ${comp.id}: Apify run failed`);
         }
+      }
+
+      // Retry-on-empty: 0 reklam + ještě neretryováno → JEDEN retry (chrání první
+      // běh bez cache; když mezitím máme page_id, retry přes canonical URL).
+      if (totalAds === 0 && !comp.scrape_retried) {
+        const domain = extractDomain(comp.url);
+        let pageId: string | null = pageIdFromMetaUrl(comp.meta_library_url);
+        if (!pageId && domain) {
+          const { data: cache } = await supa.from("lm_page_id_cache").select("page_id").eq("domain", domain).maybeSingle();
+          pageId = (cache?.page_id as string | undefined) ?? null;
+        }
+        const target = retryTargetUrl(pageId, comp.fb_slug ?? null, comp.meta_library_url ?? null);
+        if (target) {
+          const retryRun = await startApifyRun(APIFY_TOKEN, APIFY_META_ACTOR, {
+            urls: [{ url: target }], limitPerSource: 50, "scrapePageAds.activeStatus": "active",
+          });
+          if (retryRun) {
+            await supa.from("lm_session_competitors")
+              .update({ apify_run_id: retryRun, status: "scraping", scrape_retried: true })
+              .eq("id", comp.id);
+            console.log(JSON.stringify({ level: "info", message: "scrape_retry",
+              session_id, competitor_id: comp.id, via: pageId ? "page_id" : (comp.fb_slug ? "vanity" : "q") }));
+            continue; // další poll cyklus zpracuje retry run
+          }
+        }
+        // retry se nepodařilo nastartovat → spadni do terminálního 0 (s scrape_retried=true ať neloopuje)
+        await supa.from("lm_session_competitors").update({ scrape_retried: true }).eq("id", comp.id);
       }
 
       await supa.from("lm_session_competitors")

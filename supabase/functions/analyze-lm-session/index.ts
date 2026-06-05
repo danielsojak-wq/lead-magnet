@@ -169,9 +169,16 @@ async function classifyAds(apiKey: string, supa: ReturnType<typeof admin>, sessi
   if (!ads?.length) return;
   console.log(`classifyAds: ${ads.length} unclassified ads in session ${sessionId}`);
 
-  const BATCH = 5;
-  for (let i = 0; i < ads.length; i += BATCH) {
-    const batch = ads.slice(i, i + BATCH);
+  const BATCH = 5;        // reklam na 1 Gemini call
+  const CONCURRENCY = 5;  // max paralelních callů (pojistka proti Gemini rate-limitu)
+
+  // Rozsekej na nezávislé batche (každý klasifikuje vlastních max 5 reklam)
+  const batches: Array<Array<{ id: string; primary_text: string | null }>> = [];
+  for (let i = 0; i < ads.length; i += BATCH) batches.push(ads.slice(i, i + BATCH) as any);
+
+  // Jeden batch: výsledky se přiřazují per-batch (results[idx] → batch[idx].id),
+  // takže paralelizace mezi batchi NEovlivní správnost přiřazení.
+  const classifyBatch = async (batch: Array<{ id: string; primary_text: string | null }>): Promise<void> => {
     try {
       const res = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
         method: "POST",
@@ -181,7 +188,7 @@ async function classifyAds(apiKey: string, supa: ReturnType<typeof admin>, sessi
           max_tokens: 200,
           messages: [
             { role: "system", content: "Klasifikuj každou reklamu: brand = budování značky; sales = přímá konverze; retargeting = připomenutí. Zavolej classify_batch." },
-            { role: "user", content: batch.map((ad: any, idx: number) => `--- Reklama ${idx + 1} ---\nText: ${(ad.primary_text || "—").slice(0, 300)}`).join("\n") },
+            { role: "user", content: batch.map((ad, idx) => `--- Reklama ${idx + 1} ---\nText: ${(ad.primary_text || "—").slice(0, 300)}`).join("\n") },
           ],
           tools: [{
             type: "function",
@@ -202,21 +209,25 @@ async function classifyAds(apiKey: string, supa: ReturnType<typeof admin>, sessi
           tool_choice: { type: "function", function: { name: "classify_batch" } },
         }),
       });
-      if (!res.ok) { console.warn(`classifyAds batch ${i} HTTP ${res.status}`); continue; }
+      if (!res.ok) { console.warn(`classifyAds batch HTTP ${res.status}`); return; }
       const d = await res.json();
       const args = d?.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
-      if (!args) continue;
+      if (!args) return;
       const results: { ad_type: string }[] = JSON.parse(args)?.results ?? [];
-      await Promise.all(batch.map(async (ad: any, idx: number) => {
+      await Promise.all(batch.map(async (ad, idx) => {
         const t = results[idx]?.ad_type;
         if (t === "brand" || t === "sales" || t === "retargeting") {
           await supa.from("lm_session_ads").update({ ad_type: t }).eq("id", ad.id);
         }
       }));
-      if (i + BATCH < ads.length) await new Promise(r => setTimeout(r, 150));
     } catch (e) {
-      console.error(`classifyAds batch ${i} error:`, e);
+      console.error("classifyAds batch error:", e);
     }
+  };
+
+  // Zpracuj batche ve vlnách po CONCURRENCY paralelně (ne všechny naráz)
+  for (let i = 0; i < batches.length; i += CONCURRENCY) {
+    await Promise.all(batches.slice(i, i + CONCURRENCY).map(classifyBatch));
   }
   console.log(`classifyAds: done`);
 }
@@ -441,8 +452,12 @@ async function syncToEcomail(
 
 // ─── Core analysis logic (exported so start-lm-analysis can import) ──────────
 
-export async function runAnalysis(sessionId: string, apiKey: string): Promise<void> {
+// finalize=true: fallback po vyčerpání recovery pokusů — nedokončeným hráčům
+// už NEspouštět L1 (mohla by zas hangnout 150s), označit je "bez dat" a rovnou
+// dotáhnout L2 + status=ready. Částečná analýza > věčný stuck.
+export async function runAnalysis(sessionId: string, apiKey: string, finalize = false): Promise<void> {
   const supa = admin();
+  if (finalize) console.warn(`runAnalysis: FINALIZE mode for ${sessionId} — skipping L1 of unfinished players`);
 
   // Mark all competitors as processing
   await supa.from("lm_session_competitors").update({ status: "processing" }).eq("session_id", sessionId);
@@ -526,17 +541,21 @@ export async function runAnalysis(sessionId: string, apiKey: string): Promise<vo
   const runEshopL1 = eshopComp
     ? ((eshopComp as any).ai_analysis
         ? (async () => { await supa.from("lm_session_competitors").update({ status: "ready" }).eq("id", eshopComp.id); return (eshopComp as any).ai_analysis; })()
-        : callAI(apiKey, L1_SYSTEM, l1User(eshopName, session.eshop_url || "", eshopAds, eshopWeb))
-            .then(async r => { if (r) await saveL1(eshopComp.id, r, eshopAds); return r; })
-            .catch(async e => { await saveL1(eshopComp.id, null, eshopAds, String(e)); return null; }))
+        : finalize
+          ? (async () => { await saveL1(eshopComp.id, null, eshopAds, "finalize_skip"); return null; })()
+          : callAI(apiKey, L1_SYSTEM, l1User(eshopName, session.eshop_url || "", eshopAds, eshopWeb))
+              .then(async r => { if (r) await saveL1(eshopComp.id, r, eshopAds); return r; })
+              .catch(async e => { await saveL1(eshopComp.id, null, eshopAds, String(e)); return null; }))
     : Promise.resolve(null);
 
   const runCompL1s = comps.map((c: any, i: number) =>
     (c as any).ai_analysis
       ? (async () => { await supa.from("lm_session_competitors").update({ status: "ready" }).eq("id", c.id); return (c as any).ai_analysis; })()
-      : callAI(apiKey, L1_SYSTEM, l1User(domainName(c.url), c.url, compAdsFiltered[i], compWebs[i]))
-          .then(async r => { if (r) await saveL1(c.id, r, classifiedMap.get(c.id) ?? []); return r; })
-          .catch(async e => { await saveL1(c.id, null, classifiedMap.get(c.id) ?? [], String(e)); return null; })
+      : finalize
+        ? (async () => { await saveL1(c.id, null, classifiedMap.get(c.id) ?? [], "finalize_skip"); return null; })()
+        : callAI(apiKey, L1_SYSTEM, l1User(domainName(c.url), c.url, compAdsFiltered[i], compWebs[i]))
+            .then(async r => { if (r) await saveL1(c.id, r, classifiedMap.get(c.id) ?? []); return r; })
+            .catch(async e => { await saveL1(c.id, null, classifiedMap.get(c.id) ?? [], String(e)); return null; })
   );
 
   console.log(`L1: firing ${1 + comps.length} calls in parallel`);
@@ -575,13 +594,14 @@ Deno.serve(async (req) => {
   try {
     const body = await req.json();
     const sessionId = body.session_id as string | undefined;
+    const finalize = body.finalize === true;
     if (!sessionId) return err("session_id required");
 
     const apiKey = Deno.env.get("GEMINI_API_KEY");
     if (!apiKey) return err("GEMINI_API_KEY not configured", 500);
 
     // Run analysis in background — return 202 immediately so poll-lm-pipeline isn't blocked
-    const task = runAnalysis(sessionId, apiKey).catch(async (e) => {
+    const task = runAnalysis(sessionId, apiKey, finalize).catch(async (e) => {
       console.error("analyze-lm-session background error:", e);
       const supa = admin();
       await supa.from("lm_sessions").update({
