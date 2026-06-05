@@ -984,7 +984,9 @@ export default function ResultsPage() {
     },
     enabled: !!sessionId,
     retry: 1,
-    refetchInterval: q => q.state.data?.status === "processing" ? 6000 : false,
+    // Refetchuj, dokud session není v terminálním stavu — ať se stránka vždy
+    // sama dotáhne do finálu a nezamrzne na přechodném snímku (processing/analyzing).
+    refetchInterval: q => ["ready", "completed", "failed"].includes(q.state.data?.status ?? "") ? false : 5000,
     placeholderData: MOCK,
   });
 
