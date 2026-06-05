@@ -309,7 +309,7 @@ export default function WaitingPage() {
               Analýza probíhá
             </h1>
             <p className="text-gray-500 mb-6 text-sm">
-              Trvá to přibližně 5–10 minut. Výsledky se zobrazí<br className="hidden sm:block" /> přímo zde, jakmile budou hotové.
+              Trvá to přibližně do 5 minut. Výsledky se zobrazí<br className="hidden sm:block" /> přímo zde, jakmile budou hotové.
             </p>
 
             {/* Progress bar */}

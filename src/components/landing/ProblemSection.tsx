@@ -35,7 +35,7 @@ export function ProblemSection() {
             {"\n"}
           </p>
           <p className="text-white/80 font-medium">
-            Proto jsme postavili tento nástroj. Za tři minuty zvládne to, co vás ručně
+            Proto jsme postavili tento nástroj. Do 5 minut zvládne to, co vás ručně
             stojí půlku odpoledne nebo vyšší tisíce ve fakturaci agentury za analýzu navíc.
           </p>
         </div>

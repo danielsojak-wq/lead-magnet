@@ -306,6 +306,7 @@ PRAVIDLA PRO KVALITU INSIGHTŮ:
 - V textech VŽDY používej skutečné názvy — hodnotu z ADVERTISER_NAME pro zadavatele, doménu ze závorek pro každého konkurenta. NIKDY nepoužívej slova "zadavatel", "Hráč 1", "HRÁČ_1" ani jiná zástupná označení
 - Vycházej VÝHRADNĚ z Meta Ads dat. NIKDY nezmiňuj Google Ads, Google kampaně, Google Search ani Display v analýze.
 - NIKDY nezmiňuj procenta rozpočtu, alokaci investic ani % výdajů. Místo toho vždy uváděj počty reklam: "X z Y reklam jsou retargetingové povahy"
+- POČTY REKLAM MUSÍ BÝT JEDNOZNAČNÉ: každý počet vždy ukotvi k typu/formátu a k celku — např. "14 z 50 reklam je carousel". NIKDY nepiš holý počet v závorce za jménem hráče (např. "vikio.cz (14 reklam)") — čtenář by si ho spletl s celkovým počtem reklam hráče, který je uveden v jeho sekci. Číslo za jménem hráče smí být jen celkový počet z hodnoty "X reklam" v jeho HRÁČ_ řádku, nic jiného.
 - quick_wins.obtiznost musí být správně klasifikována: "jednoduche" = lze udělat do 1 týdne bez velkých zdrojů; "stredni" = vyžaduje 1–2 týdny a koordinaci; "komplexni" = strategická změna vyžadující měsíc+. POVINNĚ musí být zastoupena aspoň 1 "jednoduche" a 1 "komplexni" obtiznost`;
 
 function domainName(url: string): string {
