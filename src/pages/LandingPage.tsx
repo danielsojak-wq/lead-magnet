@@ -99,8 +99,7 @@ function CtaButton({
 
 export default function LandingPage() {
   const ctaRef = useRef<HTMLDivElement>(null);
-
-  const scrollToCta = () => ctaRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  const navigate = useNavigate();
 
   return (
     <div className="min-h-screen bg-white text-gray-900 font-[family-name:var(--font-body)]">
@@ -115,7 +114,7 @@ export default function LandingPage() {
             </span>
           </div>
           <button
-            onClick={scrollToCta}
+            onClick={() => navigate("/analyze")}
             className="hidden sm:flex items-center gap-2 bg-[#b0f221] hover:bg-[#a3e01e] text-gray-900 text-sm font-semibold px-4 py-2 rounded-lg transition-all shadow-md shadow-[#b0f221]/30"
           >
             Získat analýzu zdarma <ArrowRight className="h-3.5 w-3.5" />
