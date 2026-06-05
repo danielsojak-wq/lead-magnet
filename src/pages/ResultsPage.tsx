@@ -263,7 +263,7 @@ function ComparisonChart({ competitors }: { competitors: CompetitorResult[] }) {
   const data = competitors.map(c => {
     const total = c.ad_mix.brand + c.ad_mix.sales + c.ad_mix.retargeting;
     return {
-      name: c.name.length > 14 ? c.name.slice(0, 14) + "…" : c.name,
+      name: c.name,
       Brand: total ? Math.round((c.ad_mix.brand / total) * 100) : 0,
       Akvizice: total ? Math.round((c.ad_mix.sales / total) * 100) : 0,
       Retargeting: total ? Math.round((c.ad_mix.retargeting / total) * 100) : 0,
@@ -273,7 +273,7 @@ function ComparisonChart({ competitors }: { competitors: CompetitorResult[] }) {
     <ResponsiveContainer width="100%" height={220}>
       <BarChart data={data} layout="vertical" barCategoryGap="30%">
         <XAxis type="number" domain={[0, 100]} tickFormatter={v => `${v}%`} tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
-        <YAxis type="category" dataKey="name" tick={{ fontSize: 12, fill: "#374151", fontWeight: 500 }} axisLine={false} tickLine={false} width={90} />
+        <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: "#374151", fontWeight: 500 }} axisLine={false} tickLine={false} width={150} interval={0} />
         <Tooltip formatter={(v: number, name: string) => [`${v}%`, name]} contentStyle={{ borderRadius: 10, border: "1px solid #e5e7eb", fontSize: 12 }} />
         <Bar dataKey="Brand" stackId="a" fill={TYPE_COLORS.brand} />
         <Bar dataKey="Akvizice" stackId="a" fill={TYPE_COLORS.sales} />
