@@ -21,21 +21,6 @@ function normalizeWebUrl(raw: string): string | null {
   }
 }
 
-function domainOf(raw: string): string {
-  const s = raw.trim();
-  const withProtocol = /^https?:\/\//i.test(s) ? s : `https://${s}`;
-  try {
-    return new URL(withProtocol).hostname.replace(/^www\./, "");
-  } catch {
-    return s.replace(/^https?:\/\//i, "").replace(/^www\./, "").replace(/\/.*$/, "");
-  }
-}
-
-// Ověřitelný handle pro potvrzení nálezu — nikdy syrový FB page_name slogan.
-function discoveryLabel(fbSlug: string | null, url: string): string {
-  return fbSlug ? `facebook.com/${fbSlug}` : domainOf(url);
-}
-
 type UrlStatus = "idle" | "checking" | "valid" | "invalid";
 
 function useUrlCheck(raw: string): UrlStatus {
@@ -392,7 +377,9 @@ function ShopSection({ title, badge, fields, onChange, required, highlight, play
               <p className="text-xs text-gray-500 flex items-center gap-1.5"><Loader2 className="h-3 w-3 animate-spin" /> Hledám Facebook stránku...</p>
             )}
             {discovery.status === "found" && (
-              <p className="text-xs text-green-600 flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3" /> Nalezena Facebook stránka: <span className="font-medium">{discoveryLabel(discovery.fbSlug, fields.url)}</span></p>
+              <p className="text-xs text-green-600 flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3" /> {discovery.fbSlug
+                ? <>Nalezena Facebook stránka: <span className="font-medium">facebook.com/{discovery.fbSlug}</span></>
+                : <>Facebook stránka nalezena</>}</p>
             )}
             {discovery.status === "not_found" && !fields.meta.trim() && (
               <p className="text-xs text-amber-600 flex items-center gap-1.5"><AlertCircle className="h-3 w-3" /> Facebook stránka nenalezena — zadejte URL Meta Ads Library ručně</p>
