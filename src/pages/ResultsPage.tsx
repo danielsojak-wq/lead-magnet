@@ -270,16 +270,27 @@ function ComparisonChart({ competitors }: { competitors: CompetitorResult[] }) {
     };
   });
   return (
-    <ResponsiveContainer width="100%" height={220}>
-      <BarChart data={data} layout="vertical" barCategoryGap="30%">
-        <XAxis type="number" domain={[0, 100]} tickFormatter={v => `${v}%`} tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
-        <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: "#374151", fontWeight: 500 }} axisLine={false} tickLine={false} width={150} interval={0} />
-        <Tooltip formatter={(v: number, name: string) => [`${v}%`, name]} contentStyle={{ borderRadius: 10, border: "1px solid #e5e7eb", fontSize: 12 }} />
-        <Bar dataKey="Brand" stackId="a" fill={TYPE_COLORS.brand} />
-        <Bar dataKey="Akvizice" stackId="a" fill={TYPE_COLORS.sales} />
-        <Bar dataKey="Retargeting" stackId="a" fill={TYPE_COLORS.retargeting} radius={[0, 4, 4, 0]} />
-      </BarChart>
-    </ResponsiveContainer>
+    <>
+      <ResponsiveContainer width="100%" height={220}>
+        <BarChart data={data} layout="vertical" barCategoryGap="30%">
+          <XAxis type="number" domain={[0, 100]} tickFormatter={v => `${v}%`} tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
+          <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: "#374151", fontWeight: 500 }} axisLine={false} tickLine={false} width={150} interval={0} />
+          <Tooltip formatter={(v: number, name: string) => [`${v}%`, name]} contentStyle={{ borderRadius: 10, border: "1px solid #e5e7eb", fontSize: 12 }} />
+          <Bar dataKey="Brand" stackId="a" fill={TYPE_COLORS.brand} />
+          <Bar dataKey="Akvizice" stackId="a" fill={TYPE_COLORS.sales} />
+          <Bar dataKey="Retargeting" stackId="a" fill={TYPE_COLORS.retargeting} radius={[0, 4, 4, 0]} />
+        </BarChart>
+      </ResponsiveContainer>
+      {/* Legenda — tečka má STEJNOU barvu jako segment v liště (stejný TYPE_COLORS) */}
+      <div className="flex items-center justify-center gap-4 sm:gap-6 mt-2 flex-wrap">
+        {([["brand", "Brand"], ["sales", "Akvizice"], ["retargeting", "Retargeting"]] as const).map(([k, lbl]) => (
+          <span key={k} className="inline-flex items-center gap-1.5 text-xs text-gray-500">
+            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: TYPE_COLORS[k] }} />
+            {lbl}
+          </span>
+        ))}
+      </div>
+    </>
   );
 }
 
@@ -1127,11 +1138,6 @@ export default function ResultsPage() {
             className="relative rounded-3xl bg-gray-900 text-white p-8 sm:p-10 text-center print:hidden"
             style={{ border: "1.5px solid rgba(176,242,33,0.35)", boxShadow: "0 0 28px -2px rgba(176,242,33,0.50), 0 0 8px 0 rgba(176,242,33,0.30)" }}
           >
-          <img
-            src="/daniel-sojak.jpg"
-            alt="Daniel Soják, zakladatel Performind"
-            className="w-16 h-16 rounded-full object-cover mx-auto mb-5 ring-2 ring-white/20 shadow-lg"
-          />
           <h2 className="font-[family-name:var(--font-heading)] text-2xl sm:text-3xl font-bold mb-4">
             Tohle je jen špička ledovce.<br />
             Pojďme z dat udělat plán.
@@ -1159,15 +1165,30 @@ export default function ResultsPage() {
             ))}
           </ul>
 
-          <a
-            href="https://calendar.app.google/GDJZhgABwHo4i4qx6"
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={() => trackEvent({ event: "cta_clicked", cta_label: "booking_results", context: "booking", session_id: sessionId ?? null })}
-            className="inline-flex items-center justify-center gap-2 bg-[#b0f221] text-gray-900 font-semibold px-8 py-4 rounded-xl hover:bg-[#a3e01e] transition-colors text-base shadow-lg shadow-[#b0f221]/20"
-          >
-            Rezervovat bezplatný hovor <ArrowRight className="h-4 w-4" />
-          </a>
+          {/* Fotka vedle CTA (ne nahoře) — táhne na akci; zelený online indikátor v rohu */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <div className="relative shrink-0">
+              <img
+                src="/daniel-sojak.jpg"
+                alt="Daniel Soják, zakladatel Performind"
+                className="w-14 h-14 rounded-full object-cover ring-2 ring-white/20 shadow-lg"
+              />
+              <span
+                aria-hidden
+                title="Online"
+                className="online-dot absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-[#22c55e] ring-2 ring-gray-900"
+              />
+            </div>
+            <a
+              href="https://calendar.app.google/GDJZhgABwHo4i4qx6"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => trackEvent({ event: "cta_clicked", cta_label: "booking_results", context: "booking", session_id: sessionId ?? null })}
+              className="inline-flex items-center justify-center gap-2 bg-[#b0f221] text-gray-900 font-semibold px-8 py-4 rounded-xl hover:bg-[#a3e01e] transition-colors text-base shadow-lg shadow-[#b0f221]/20"
+            >
+              Rezervovat bezplatný hovor <ArrowRight className="h-4 w-4" />
+            </a>
+          </div>
           <p className="text-gray-500 text-xs mt-3">30 minut · zdarma · žádný závazek</p>
           </section>
         </div>
