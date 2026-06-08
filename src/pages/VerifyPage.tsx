@@ -14,6 +14,9 @@ export default function VerifyPage() {
   const [state, setState] = useState<State>("verifying");
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string>("Ověřovací odkaz není platný nebo vypršel.");
+  // Sdílené event_id pro CompleteRegistration dedup (browser Pixel přes GTM + server CAPI).
+  // Generujeme jednou na mountu → stejná hodnota do verify-lm-token i do dataLayeru.
+  const [cregEventId] = useState(() => crypto.randomUUID());
 
   useEffect(() => {
     if (!token) {
@@ -22,7 +25,7 @@ export default function VerifyPage() {
     }
 
     supabase.functions
-      .invoke("verify-lm-token", { body: { token } })
+      .invoke("verify-lm-token", { body: { token, completereg_event_id: cregEventId } })
       .then(async ({ data, error }) => {
         if (error || !data?.session_id) {
           const msg = data?.error || error?.message || "";
@@ -56,11 +59,11 @@ export default function VerifyPage() {
 
   useEffect(() => {
     if (state === "success" && sessionId) {
-      trackEvent({ event: "email_verified", session_id: sessionId, ...(getUtmData() ?? {}) });
+      trackEvent({ event: "email_verified", session_id: sessionId, completereg_event_id: cregEventId, ...(getUtmData() ?? {}) });
       const t = setTimeout(() => navigate(`/waiting/${sessionId}`), 1500);
       return () => clearTimeout(t);
     }
-  }, [state, sessionId, navigate]);
+  }, [state, sessionId, navigate, cregEventId]);
 
   return (
     <div className="min-h-screen bg-white text-gray-900 font-[family-name:var(--font-body)] flex flex-col">

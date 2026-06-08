@@ -78,19 +78,22 @@ Deno.serve(async (req) => {
         });
       });
 
-      // ── Meta CAPI CompleteRegistration (CAPI-only, server-side) ──
-      // Recyklujeme matching data z Lead momentu (klik může přijít z jiného
-      // zařízení → čerstvá data by zhoršila attribution). Idempotence přes
+      // ── Meta CAPI CompleteRegistration (dual-fire s GTM Pixelem, sdílené event_id) ──
+      // PODMÍNĚNÉ příjmem completereg_event_id z klienta (symetrie s Lead).
+      // Bez něj NEstřílíme: browser Pixel CR (GTM tag Meta - CompleteRegistration)
+      // event dnes pokrývá; server-side fire bez sdíleného event_id by jen vytvořil
+      // nededuplikovaný duplikát na optimalizačním eventu kampaně. Recyklujeme všech
+      // 5 matching polí z Lead momentu (max match). Idempotence přes
       // completereg_event_id. Non-blocking.
-      if (!session.completereg_event_id) {
-        const crEventId = crypto.randomUUID();
-        await supa.from("lm_sessions").update({ completereg_event_id: crEventId }).eq("id", session.id);
+      const completeRegEventId: string | undefined = body.completereg_event_id;
+      if (completeRegEventId && !session.completereg_event_id) {
+        await supa.from("lm_sessions").update({ completereg_event_id: completeRegEventId }).eq("id", session.id);
         await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/meta-capi`, {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` },
           body: JSON.stringify({
             event_name: "CompleteRegistration",
-            event_id: crEventId,
+            event_id: completeRegEventId,
             event_source_url: `${SITE_URL}/verify`,
             email: session.email ?? undefined,
             fbp: session.fbp ?? undefined,
