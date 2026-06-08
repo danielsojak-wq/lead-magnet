@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
 
     const { data: session, error: sessErr } = await supa
       .from("lm_sessions")
-      .select("id, status, token_expires_at, email_verified_at, email, eshop_url")
+      .select("id, status, token_expires_at, email_verified_at, email, eshop_url, fbp, fbc, client_ip, client_user_agent, completereg_event_id")
       .eq("verification_token", token)
       .maybeSingle();
 
@@ -77,6 +77,29 @@ Deno.serve(async (req) => {
           error: String(e),
         });
       });
+
+      // ── Meta CAPI CompleteRegistration (CAPI-only, server-side) ──
+      // Recyklujeme matching data z Lead momentu (klik může přijít z jiného
+      // zařízení → čerstvá data by zhoršila attribution). Idempotence přes
+      // completereg_event_id. Non-blocking.
+      if (!session.completereg_event_id) {
+        const crEventId = crypto.randomUUID();
+        await supa.from("lm_sessions").update({ completereg_event_id: crEventId }).eq("id", session.id);
+        await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/meta-capi`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` },
+          body: JSON.stringify({
+            event_name: "CompleteRegistration",
+            event_id: crEventId,
+            event_source_url: `${SITE_URL}/verify`,
+            email: session.email ?? undefined,
+            fbp: session.fbp ?? undefined,
+            fbc: session.fbc ?? undefined,
+            client_ip: session.client_ip ?? undefined,
+            client_user_agent: session.client_user_agent ?? undefined,
+          }),
+        }).catch((e) => console.error("meta-capi CompleteRegistration failed:", String(e)));
+      }
     }
 
     return ok({ session_id: session.id });
