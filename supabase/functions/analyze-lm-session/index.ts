@@ -28,7 +28,8 @@ function extractJson(text: string): unknown {
 }
 
 const RETRY_DELAYS = [2000, 5000, 10000];   // callAI: 3 pokusy, max ~17s čekání — vejde se do 150s budgetu i při 429
-const AI_TIMEOUT_MS = 25000;                 // callAI: per-request strop, ať hangující Gemini call nesežere celý budget
+const AI_TIMEOUT_MS = 40000;                 // callAI: per-request strop, ať hangující Gemini call nesežere celý budget
+                                             // (40s — největší L1 prompt potřebuje víc; 4 paralelní L1 + L2 se i tak vejdou do 150s)
 
 async function callAI(apiKey: string, system: string, user: string, maxTokens = 8000): Promise<unknown> {
   for (let attempt = 0; attempt < RETRY_DELAYS.length; attempt++) {
