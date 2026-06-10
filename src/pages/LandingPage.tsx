@@ -45,13 +45,13 @@ const STEPS = [
   },
   {
     num: "02",
-    title: "Ověříte svůj email",
-    body: "Zašleme vám ověřovací odkaz do e-mailu. 30 sekund práce, chráníme tak systém před boty.",
+    title: "Sken konkurence a analýza",
+    body: "Systém proskenuje reklamy konkurence a na základě našich frameworků je porovná s vašimi.",
   },
   {
     num: "03",
     title: "Výsledky do 5 minut",
-    body: "Systém proskenuje reklamy konkurence, porovná je s vašimi a vrátí konkrétní doporučení přímo v prohlížeči. Můžete si je nechat poslat na email.",
+    body: "Uvidíte reklamy konkurence, analýzu jejich strategie a slabá místa. Dostanete konkrétní doporučení přímo v prohlížeči.",
   },
 ];
 
