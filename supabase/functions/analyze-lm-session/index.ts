@@ -148,6 +148,15 @@ function computeAvgDuration(ads: any[]): number {
   return Math.round(days.reduce((s: number, d: number) => s + d, 0) / days.length);
 }
 
+// Deterministický per-ad ad_type (bez API) — garantuje UI pills i bez AI classify.
+// Akvizice = nabídka/cena/CTA; retargeting = připomínka/košík; jinak brand.
+function localAdType(ad: any): "brand" | "sales" | "retargeting" {
+  const t = String(ad?.primary_text || "").toLowerCase();
+  if (/košík|nezapomeň|nedokončen|vraťte se|stále (čeká|máte)|čeká na vás|dokonči|zapomněl/.test(t)) return "retargeting";
+  if (/sleva|výprodej|akční|akce |%|\bkč\b|zdarma|koupit|objednej|nakup|ušetř|jen za|black friday|doprava zdarma/.test(t)) return "sales";
+  return "brand";
+}
+
 function adMixFromAds(ads: any[]): { brand: number; sales: number; retargeting: number } {
   const counts = { brand: 0, sales: 0, retargeting: 0 };
   for (const a of ads) {
@@ -167,13 +176,16 @@ function adMixFromAds(ads: any[]): { brand: number; sales: number; retargeting: 
 // ─── Classify ads ────────────────────────────────────────────────────────────
 
 async function classifyAds(apiKey: string, supa: ReturnType<typeof admin>, sessionId: string): Promise<void> {
+  // Refine pass — klasifikuj všechny reklamy s textem a PŘEPIŠ heuristik AI typem.
+  // Heuristik už dal každé reklamě baseline ad_type (pills existují), takže když tahle
+  // best-effort pasáž pod throttlingem proběhne jen částečně, nic se nerozbije.
   const { data: ads } = await supa
     .from("lm_session_ads")
     .select("id, primary_text")
     .eq("session_id", sessionId)
-    .is("ad_type", null);
+    .not("primary_text", "is", null);
   if (!ads?.length) return;
-  console.log(`classifyAds: ${ads.length} unclassified ads in session ${sessionId}`);
+  console.log(`classifyAds (refine): ${ads.length} ads in session ${sessionId}`);
 
   const BATCH = 5;        // reklam na 1 Gemini call
   const CONCURRENCY = 5;  // max paralelních callů (pojistka proti Gemini rate-limitu)
@@ -486,18 +498,28 @@ export async function runAnalysis(sessionId: string, apiKey: string, finalize = 
   const eshopComp = allComps.find((c: any) => c.position === 0);
   const comps = allComps.filter((c: any) => c.position > 0);
 
-  // classifyAds and landing page fetches run in parallel — biggest time saver
+  // Landing page fetche pro L1 web kontext. classifyAds ZÁMĚRNĚ NENÍ tady —
+  // přesunuta až ZA L1/L2 (best-effort), ať neukrade Gemini rate-limit budget
+  // důležitým voláním (L1 si ad_mix odhaduje sám, ad_type je jen UI kosmetika).
   const allUrls = [session.eshop_url || "", ...comps.map((c: any) => c.url)];
-  const [, webResults] = await Promise.all([
-    classifyAds(apiKey, supa, sessionId),
-    Promise.all(allUrls.map(url => url ? fetchWebsiteContent(url) : Promise.resolve({ content: "", rawTitle: "" }))),
-  ]);
+  const webResults = await Promise.all(
+    allUrls.map(url => url ? fetchWebsiteContent(url) : Promise.resolve({ content: "", rawTitle: "" })),
+  );
   const eshopWeb = webResults[0].content;
   const compWebs = webResults.slice(1).map(r => r.content);
-  console.log(`classifyAds + ${allUrls.length} landing pages done`);
+  console.log(`${allUrls.length} landing pages done`);
 
-  // Reload ads after classification
+  // Načti reklamy. Per-ad ad_type GARANTUJ heuristikou (instant, bez API) → UI pills
+  // VŽDY existují; AI classify na konci je best-effort upřesní. L1 dostane typy místo null.
   const { data: classifiedAds } = await supa.from("lm_session_ads").select("*").eq("session_id", sessionId);
+  const needType = (classifiedAds ?? []).filter((a: any) => !a.ad_type);
+  if (needType.length) {
+    const byType: Record<string, string[]> = { brand: [], sales: [], retargeting: [] };
+    for (const a of needType) { const t = localAdType(a); a.ad_type = t; byType[t].push(a.id); }
+    await Promise.all(Object.entries(byType).filter(([, ids]) => ids.length).map(([t, ids]) =>
+      supa.from("lm_session_ads").update({ ad_type: t }).in("id", ids)));
+    console.log(`heuristic ad_type: ${needType.length} reklam`);
+  }
   const classifiedMap = new Map<string, any[]>();
   for (const ad of classifiedAds ?? []) {
     const list = classifiedMap.get(ad.competitor_id) ?? [];
@@ -572,8 +594,34 @@ export async function runAnalysis(sessionId: string, apiKey: string, finalize = 
   );
 
   console.log(`L1: firing ${1 + comps.length} calls in parallel`);
-  const [eshopL1, ...compL1s] = await Promise.all([runEshopL1, ...runCompL1s]);
+  let [eshopL1, ...compL1s] = await Promise.all([runEshopL1, ...runCompL1s]);
   console.log(`L1: all done`);
+
+  // ── In-invocation L1 retry — padlé hráče zkus znovu (classify už o budget nesoupeří) ──
+  // Resilience proti transientnímu Gemini 429: úspěch přepíše 'failed' → 'ready'.
+  if (!finalize) {
+    const retries: Promise<void>[] = [];
+    if (eshopComp && eshopL1 === null) {
+      retries.push((async () => {
+        await new Promise(r => setTimeout(r, 1500));
+        const r = await callAI(apiKey, L1_SYSTEM, l1User(eshopName, session.eshop_url || "", eshopAds, eshopWeb)).catch(() => null);
+        if (r) { await saveL1(eshopComp.id, r, eshopAds); eshopL1 = r; }
+      })());
+    }
+    comps.forEach((c: any, i: number) => {
+      if (compL1s[i] === null && !(c as any).ai_analysis) {
+        retries.push((async () => {
+          await new Promise(r => setTimeout(r, 1500));
+          const r = await callAI(apiKey, L1_SYSTEM, l1User(domainName(c.url), c.url, compAdsFiltered[i], compWebs[i])).catch(() => null);
+          if (r) { await saveL1(c.id, r, classifiedMap.get(c.id) ?? []); compL1s[i] = r; }
+        })());
+      }
+    });
+    if (retries.length) {
+      console.log(`L1 retry: ${retries.length} padlý/ch hráč/ů`);
+      await Promise.all(retries);
+    }
+  }
 
   // ── L2 synthesis ─────────────────────────────────────────────────────────
   console.log("L2: cross-analysis synthesis");
@@ -583,8 +631,13 @@ export async function runAnalysis(sessionId: string, apiKey: string, finalize = 
     adsCount: compAdsFiltered[i]?.length ?? 0,
   }));
   const advertiserName = eshopName;
-  const l2 = await callAI(apiKey, L2_SYSTEM, l2User(advertiserName, eshopL1, compsForL2), 8000)
+  let l2 = await callAI(apiKey, L2_SYSTEM, l2User(advertiserName, eshopL1, compsForL2), 8000)
     .catch(e => { console.error("L2 failed:", e); return null; });
+  // L2 retry — bez classify konkurence je budget; cross_summary=null = zaseklá „Syntéza se generuje…".
+  if (!l2 && !finalize) {
+    await new Promise(r => setTimeout(r, 2000));
+    l2 = await callAI(apiKey, L2_SYSTEM, l2User(advertiserName, eshopL1, compsForL2), 8000).catch(() => null);
+  }
 
   await supa.from("lm_sessions").update({
     ai_cross_analysis: l2 ?? null,
@@ -597,6 +650,11 @@ export async function runAnalysis(sessionId: string, apiKey: string, finalize = 
   syncToEcomail(sessionId, session.email ?? "", session.eshop_url ?? "", allComps).catch((e: unknown) => {
     console.log(JSON.stringify({ level: "error", message: "ecomail_sync_error", session_id: sessionId, error: String(e) }));
   });
+
+  // classifyAds AŽ TEĎ (best-effort) — per-ad ad_type pills pro UI. Běží ZA status=ready
+  // i ecomailem, takže ani když ji throttling sebere, dashboard je kompletní a nurturing
+  // odešel. Jádro (L1 ad_mix + L2) na classify nezávisí.
+  await classifyAds(apiKey, supa, sessionId).catch((e: unknown) => console.error("classifyAds (best-effort) failed:", String(e)));
 }
 
 // ─── Edge Function handler ────────────────────────────────────────────────────

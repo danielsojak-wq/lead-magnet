@@ -369,12 +369,14 @@ function WowNumber({ eshopName, eshopCompetitor, competitors }: {
   eshopCompetitor: CompetitorResult | null | undefined;
   competitors: CompetitorResult[];
 }) {
-  const eshopActive = eshopCompetitor?.ai_analysis?.aktivita.pocet_aktivnich_reklam
-    ?? (eshopCompetitor ? eshopCompetitor.ads.filter(a => a.is_active).length : null);
+  // Reálný scrapnutý počet (ads_count) — NE ai_analysis.aktivita.pocet_aktivnich_reklam,
+  // ten je odhad AI z max 30 viditelných reklam → podhodnocoval hráče s >30 reklamami.
+  // Scrape jede activeStatus=active, takže ads_count = počet aktivních reklam.
+  const eshopActive = eshopCompetitor?.ads_count ?? null;
 
   const compActives = competitors
-    .map(c => c.ai_analysis?.aktivita.pocet_aktivnich_reklam)
-    .filter((n): n is number => n != null);
+    .map(c => c.ads_count)
+    .filter((n): n is number => n != null && n > 0);
   const compAvg = compActives.length
     ? Math.round(compActives.reduce((s, n) => s + n, 0) / compActives.length)
     : 0;
