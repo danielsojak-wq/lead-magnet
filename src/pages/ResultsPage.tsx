@@ -412,32 +412,34 @@ function AdVolumeDonut({ eshopCompetitor, competitors }: {
   return (
     <div className="rounded-3xl bg-white border border-gray-100 shadow-sm p-6 sm:p-8">
       <div className="flex flex-col sm:flex-row items-center gap-6 sm:gap-10">
-        {/* Donut s velkým číslem ve středu (kotva) */}
-        <div className="relative shrink-0 w-[180px] h-[180px] sm:w-[200px] sm:h-[200px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={players}
-                dataKey="count"
-                nameKey="name"
-                cx="50%"
-                cy="50%"
-                innerRadius="70%"
-                outerRadius="96%"
-                paddingAngle={players.length > 1 ? 2 : 0}
-                startAngle={90}
-                endAngle={-270}
-                stroke="none"
-                isAnimationActive={false}
-              >
-                {players.map((p, i) => <Cell key={i} fill={p.color} />)}
-              </Pie>
-            </PieChart>
-          </ResponsiveContainer>
-          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-            <div className="font-[family-name:var(--font-heading)] text-4xl sm:text-5xl font-bold text-gray-900 leading-none tabular-nums">{total}</div>
-            <div className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mt-1 text-center px-2">Reklam analyzováno</div>
+        {/* Donut s velkým číslem ve středu (kotva) + label POD donutem (ať nepřetéká dírou) */}
+        <div className="shrink-0 flex flex-col items-center gap-2">
+          <div className="relative w-[180px] h-[180px] sm:w-[200px] sm:h-[200px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={players}
+                  dataKey="count"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  innerRadius="70%"
+                  outerRadius="96%"
+                  paddingAngle={players.length > 1 ? 2 : 0}
+                  startAngle={90}
+                  endAngle={-270}
+                  stroke="none"
+                  isAnimationActive={false}
+                >
+                  {players.map((p, i) => <Cell key={i} fill={p.color} />)}
+                </Pie>
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="font-[family-name:var(--font-heading)] text-4xl sm:text-5xl font-bold text-gray-900 leading-none tabular-nums">{total}</div>
+            </div>
           </div>
+          <div className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 text-center">Reklam analyzováno</div>
         </div>
         {/* Legenda: doména · počet */}
         <ul className="flex-1 w-full space-y-3 min-w-0">
