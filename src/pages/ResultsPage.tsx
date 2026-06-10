@@ -364,69 +364,92 @@ function PositioningRadar({ eshopName, eshopCompetitor, competitors }: {
   );
 }
 
-function WowNumber({ eshopName, eshopCompetitor, competitors }: {
-  eshopName: string;
+// JEDINÝ zdroj pravdy pro objem reklam v horní sekci: hráč = doména + reálný ads_count
+// (barvy = sdílené PLAYER_COLORS výše: zadavatel fialová, k1 modrá, k2 oranžová)
+// + barva. Zadavatel první (fialová), konkurenti dle pozice (modrá, oranžová).
+// Hráče s 0 reklamami vynech (žádný prázdný segment).
+function adVolumePlayers(
+  eshopCompetitor: CompetitorResult | null | undefined,
+  competitors: CompetitorResult[],
+): { name: string; count: number; color: string }[] {
+  const players: { name: string; count: number; color: string }[] = [];
+  if (eshopCompetitor && eshopCompetitor.ads_count > 0) {
+    players.push({
+      name: extractDomain(eshopCompetitor.website_url ?? "") || eshopCompetitor.name,
+      count: eshopCompetitor.ads_count,
+      color: PLAYER_COLORS[0],
+    });
+  }
+  competitors.forEach((c, i) => {
+    if (c.ads_count > 0) {
+      players.push({
+        name: extractDomain(c.website_url ?? "") || c.name,
+        count: c.ads_count,
+        color: PLAYER_COLORS[i + 1] ?? PLAYER_COLORS[PLAYER_COLORS.length - 1],
+      });
+    }
+  });
+  return players;
+}
+
+function adVolumeTotal(
+  eshopCompetitor: CompetitorResult | null | undefined,
+  competitors: CompetitorResult[],
+): number {
+  return adVolumePlayers(eshopCompetitor, competitors).reduce((s, p) => s + p.count, 0);
+}
+
+// Horní sekce: neutrální přehled objemu reklam — velké číslo (součet napříč VŠEMI hráči)
+// jako kotva ve středu donutu + rozpad po hráčích. Žádná interpretace (méně/více/lepší).
+function AdVolumeDonut({ eshopCompetitor, competitors }: {
   eshopCompetitor: CompetitorResult | null | undefined;
   competitors: CompetitorResult[];
 }) {
-  // Reálný scrapnutý počet (ads_count) — NE ai_analysis.aktivita.pocet_aktivnich_reklam,
-  // ten je odhad AI z max 30 viditelných reklam → podhodnocoval hráče s >30 reklamami.
-  // Scrape jede activeStatus=active, takže ads_count = počet aktivních reklam.
-  const eshopActive = eshopCompetitor?.ads_count ?? null;
-
-  const compActives = competitors
-    .map(c => c.ads_count)
-    .filter((n): n is number => n != null && n > 0);
-  const compAvg = compActives.length
-    ? Math.round(compActives.reduce((s, n) => s + n, 0) / compActives.length)
-    : 0;
-
-  if (eshopActive != null && eshopActive > 0 && compAvg > 0) {
-    const diff = (compAvg - eshopActive) / compAvg;
-    if (Math.abs(diff) > 0.2) {
-      const isLess = diff > 0;
-      const ratio = isLess
-        ? (compAvg / eshopActive).toFixed(1)
-        : (eshopActive / compAvg).toFixed(1);
-      return (
-        <div className="rounded-3xl bg-white border border-gray-100 shadow-sm p-6 sm:p-8 flex flex-col sm:flex-row items-start sm:items-center gap-6">
-          <div className="shrink-0">
-            <div className="font-[family-name:var(--font-heading)] text-5xl sm:text-6xl font-bold text-[#4f11ff] leading-none">{ratio}×</div>
-            <div className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mt-1">Wow číslo</div>
-          </div>
-          <div className="hidden sm:block h-16 w-px bg-gray-100 shrink-0" />
-          <p className="text-sm sm:text-base text-gray-700 leading-relaxed">
-            {isLess ? (
-              <><strong className="text-gray-900">{eshopName}</strong> má {eshopActive} aktivních reklam. Konkurence průměrně {compAvg}. To je <strong className="text-[#4f11ff]">{ratio}× méně</strong> kreativního testování.</>
-            ) : (
-              <><strong className="text-gray-900">{eshopName}</strong> testuje <strong className="text-[#4f11ff]">{ratio}× více kreativy</strong> než průměr konkurence ({eshopActive} vs. {compAvg} aktivních reklam).</>
-            )}
-          </p>
-        </div>
-      );
-    }
-  }
-
-  const durations = competitors
-    .map(c => c.ai_analysis?.aktivita.prumerna_delka_behu_dni)
-    .filter((n): n is number => n != null && n > 0);
-  const avgDuration = durations.length
-    ? Math.round(durations.reduce((s, n) => s + n, 0) / durations.length)
-    : 0;
-
-  if (!avgDuration) return null;
+  const players = adVolumePlayers(eshopCompetitor, competitors);
+  const total = players.reduce((s, p) => s + p.count, 0);
+  if (!players.length || total === 0) return null;
 
   return (
-    <div className="rounded-3xl bg-white border border-gray-100 shadow-sm p-6 sm:p-8 flex flex-col sm:flex-row items-start sm:items-center gap-6">
-      <div className="shrink-0">
-        <div className="font-[family-name:var(--font-heading)] text-5xl sm:text-6xl font-bold text-[#4f11ff] leading-none">{avgDuration}</div>
-        <div className="text-xs font-medium text-gray-500 mt-0.5">dní průměrně</div>
-        <div className="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Wow číslo</div>
+    <div className="rounded-3xl bg-white border border-gray-100 shadow-sm p-6 sm:p-8">
+      <div className="flex flex-col sm:flex-row items-center gap-6 sm:gap-10">
+        {/* Donut s velkým číslem ve středu (kotva) */}
+        <div className="relative shrink-0 w-[180px] h-[180px] sm:w-[200px] sm:h-[200px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={players}
+                dataKey="count"
+                nameKey="name"
+                cx="50%"
+                cy="50%"
+                innerRadius="70%"
+                outerRadius="96%"
+                paddingAngle={players.length > 1 ? 2 : 0}
+                startAngle={90}
+                endAngle={-270}
+                stroke="none"
+                isAnimationActive={false}
+              >
+                {players.map((p, i) => <Cell key={i} fill={p.color} />)}
+              </Pie>
+            </PieChart>
+          </ResponsiveContainer>
+          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+            <div className="font-[family-name:var(--font-heading)] text-4xl sm:text-5xl font-bold text-gray-900 leading-none tabular-nums">{total}</div>
+            <div className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mt-1 text-center px-2">Reklam analyzováno</div>
+          </div>
+        </div>
+        {/* Legenda: doména · počet */}
+        <ul className="flex-1 w-full space-y-3 min-w-0">
+          {players.map((p, i) => (
+            <li key={i} className="flex items-center gap-3">
+              <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: p.color }} aria-hidden />
+              <span className="text-sm font-medium text-gray-900 truncate min-w-0">{p.name}</span>
+              <span className="ml-auto text-sm font-semibold text-gray-500 tabular-nums shrink-0">{p.count}</span>
+            </li>
+          ))}
+        </ul>
       </div>
-      <div className="hidden sm:block h-16 w-px bg-gray-100 shrink-0" />
-      <p className="text-sm sm:text-base text-gray-700 leading-relaxed">
-        Průměrná délka aktivní reklamy u vaší konkurence. Reklamy, které běží déle, zpravidla přinášejí lepší výsledky — nejde o počet, ale o výdrž.
-      </p>
     </div>
   );
 }
@@ -1060,8 +1083,8 @@ export default function ResultsPage() {
             Vaše konkurence<br className="sm:hidden" /> pod lupou
           </h1>
           <p className="text-gray-500 text-sm max-w-md mx-auto">
-            Nascrapovali jsme {results.competitors.reduce((s, c) => s + c.ads_count, 0)} reklam
-            od {results.competitors.length} konkurentů a analyzovali je pomocí AI.
+            Nascrapovali jsme {adVolumeTotal(results.eshop_competitor, results.competitors)} aktivních reklam
+            (vaše i {results.competitors.length} konkurentů) a analyzovali je pomocí AI.
           </p>
         </div>
 
@@ -1082,8 +1105,8 @@ export default function ResultsPage() {
           </div>
         )}
 
-        {/* Wow number */}
-        <WowNumber eshopName={results.eshop_name} eshopCompetitor={results.eshop_competitor} competitors={results.competitors} />
+        {/* Objem reklam — neutrální přehled (velké číslo + donut po hráčích) */}
+        <AdVolumeDonut eshopCompetitor={results.eshop_competitor} competitors={results.competitors} />
 
         {/* Cross synthesis */}
         <CrossAnalysisHero cross={cross ?? null} eshopName={results.eshop_name} competitors={results.competitors} />
