@@ -27,10 +27,13 @@ function extractJson(text: string): unknown {
   return JSON.parse(match[0]);
 }
 
-const RETRY_DELAYS = [8000, 16000, 32000, 48000];
+const RETRY_DELAYS = [2000, 5000, 10000];   // callAI: 3 pokusy, max ~17s čekání — vejde se do 150s budgetu i při 429
+const AI_TIMEOUT_MS = 40000;                 // callAI: per-request strop, ať hangující Gemini call nesežere celý budget
+                                             // (40s — největší L1 prompt potřebuje víc; 4 paralelní L1 + L2 se i tak vejdou do 150s)
 
 async function callAI(apiKey: string, system: string, user: string, maxTokens = 8000): Promise<unknown> {
-  for (let attempt = 0; attempt < 4; attempt++) {
+  for (let attempt = 0; attempt < RETRY_DELAYS.length; attempt++) {
+    const isLast = attempt === RETRY_DELAYS.length - 1;
     try {
       const res = await fetch(AI_URL, {
         method: "POST",
@@ -45,11 +48,14 @@ async function callAI(apiKey: string, system: string, user: string, maxTokens = 
             { role: "user", content: user },
           ],
         }),
+        signal: AbortSignal.timeout(AI_TIMEOUT_MS),
       });
       if (res.status === 429) {
-        const wait = RETRY_DELAYS[attempt] ?? 48000;
-        console.warn(`callAI rate limited, waiting ${wait}ms (attempt ${attempt + 1})`);
-        await new Promise(r => setTimeout(r, wait));
+        // Poslední pokus na 429 → throw (ne tiché čekání), ať caller uloží 'failed'
+        // a self-heal to dožene v čerstvém budgetu místo hangu do finalize.
+        if (isLast) throw new Error("AI rate limited — out of retries");
+        console.warn(`callAI rate limited, waiting ${RETRY_DELAYS[attempt]}ms (attempt ${attempt + 1})`);
+        await new Promise(r => setTimeout(r, RETRY_DELAYS[attempt]));
         continue;
       }
       if (!res.ok) {
@@ -61,8 +67,8 @@ async function callAI(apiKey: string, system: string, user: string, maxTokens = 
       return extractJson(content);
     } catch (e) {
       console.error(`callAI attempt ${attempt + 1} failed:`, e);
-      if (attempt === 3) throw e;
-      await new Promise(r => setTimeout(r, RETRY_DELAYS[attempt] ?? 8000));
+      if (isLast) throw e;
+      await new Promise(r => setTimeout(r, RETRY_DELAYS[attempt]));
     }
   }
 }
@@ -179,49 +185,56 @@ async function classifyAds(apiKey: string, supa: ReturnType<typeof admin>, sessi
   // Jeden batch: výsledky se přiřazují per-batch (results[idx] → batch[idx].id),
   // takže paralelizace mezi batchi NEovlivní správnost přiřazení.
   const classifyBatch = async (batch: Array<{ id: string; primary_text: string | null }>): Promise<void> => {
-    try {
-      const res = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "gemini-2.5-flash",
-          max_tokens: 200,
-          messages: [
-            { role: "system", content: "Klasifikuj každou reklamu: brand = budování značky; sales = přímá konverze; retargeting = připomenutí. Zavolej classify_batch." },
-            { role: "user", content: batch.map((ad, idx) => `--- Reklama ${idx + 1} ---\nText: ${(ad.primary_text || "—").slice(0, 300)}`).join("\n") },
-          ],
-          tools: [{
-            type: "function",
-            function: {
-              name: "classify_batch",
-              parameters: {
-                type: "object",
-                properties: {
-                  results: {
-                    type: "array",
-                    items: { type: "object", properties: { ad_type: { type: "string", enum: ["brand", "sales", "retargeting"] } }, required: ["ad_type"] },
+    for (let attempt = 0; attempt < 2; attempt++) {   // 1 retry na 429/transient místo tichého zahození
+      try {
+        const res = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "gemini-2.5-flash",
+            max_tokens: 200,
+            messages: [
+              { role: "system", content: "Klasifikuj každou reklamu: brand = budování značky; sales = přímá konverze; retargeting = připomenutí. Zavolej classify_batch." },
+              { role: "user", content: batch.map((ad, idx) => `--- Reklama ${idx + 1} ---\nText: ${(ad.primary_text || "—").slice(0, 300)}`).join("\n") },
+            ],
+            tools: [{
+              type: "function",
+              function: {
+                name: "classify_batch",
+                parameters: {
+                  type: "object",
+                  properties: {
+                    results: {
+                      type: "array",
+                      items: { type: "object", properties: { ad_type: { type: "string", enum: ["brand", "sales", "retargeting"] } }, required: ["ad_type"] },
+                    },
                   },
+                  required: ["results"],
                 },
-                required: ["results"],
               },
-            },
-          }],
-          tool_choice: { type: "function", function: { name: "classify_batch" } },
-        }),
-      });
-      if (!res.ok) { console.warn(`classifyAds batch HTTP ${res.status}`); return; }
-      const d = await res.json();
-      const args = d?.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
-      if (!args) return;
-      const results: { ad_type: string }[] = JSON.parse(args)?.results ?? [];
-      await Promise.all(batch.map(async (ad, idx) => {
-        const t = results[idx]?.ad_type;
-        if (t === "brand" || t === "sales" || t === "retargeting") {
-          await supa.from("lm_session_ads").update({ ad_type: t }).eq("id", ad.id);
-        }
-      }));
-    } catch (e) {
-      console.error("classifyAds batch error:", e);
+            }],
+            tool_choice: { type: "function", function: { name: "classify_batch" } },
+          }),
+          signal: AbortSignal.timeout(15000),
+        });
+        if (res.status === 429 && attempt === 0) { await new Promise(r => setTimeout(r, 3000)); continue; }
+        if (!res.ok) { console.warn(`classifyAds batch HTTP ${res.status}`); return; }
+        const d = await res.json();
+        const args = d?.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
+        if (!args) return;
+        const results: { ad_type: string }[] = JSON.parse(args)?.results ?? [];
+        await Promise.all(batch.map(async (ad, idx) => {
+          const t = results[idx]?.ad_type;
+          if (t === "brand" || t === "sales" || t === "retargeting") {
+            await supa.from("lm_session_ads").update({ ad_type: t }).eq("id", ad.id);
+          }
+        }));
+        return;
+      } catch (e) {
+        if (attempt === 0) { await new Promise(r => setTimeout(r, 1500)); continue; }
+        console.error("classifyAds batch error:", e);
+        return;
+      }
     }
   };
 

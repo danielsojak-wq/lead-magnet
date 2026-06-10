@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
 
     const { data: session, error: sessErr } = await supa
       .from("lm_sessions")
-      .select("id, status, token_expires_at, email_verified_at, email, eshop_url")
+      .select("id, status, token_expires_at, email_verified_at, email, eshop_url, fbp, fbc, client_ip, client_user_agent, completereg_event_id")
       .eq("verification_token", token)
       .maybeSingle();
 
@@ -77,6 +77,32 @@ Deno.serve(async (req) => {
           error: String(e),
         });
       });
+
+      // ── Meta CAPI CompleteRegistration (dual-fire s GTM Pixelem, sdílené event_id) ──
+      // PODMÍNĚNÉ příjmem completereg_event_id z klienta (symetrie s Lead).
+      // Bez něj NEstřílíme: browser Pixel CR (GTM tag Meta - CompleteRegistration)
+      // event dnes pokrývá; server-side fire bez sdíleného event_id by jen vytvořil
+      // nededuplikovaný duplikát na optimalizačním eventu kampaně. Recyklujeme všech
+      // 5 matching polí z Lead momentu (max match). Idempotence přes
+      // completereg_event_id. Non-blocking.
+      const completeRegEventId: string | undefined = body.completereg_event_id;
+      if (completeRegEventId && !session.completereg_event_id) {
+        await supa.from("lm_sessions").update({ completereg_event_id: completeRegEventId }).eq("id", session.id);
+        await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/meta-capi`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` },
+          body: JSON.stringify({
+            event_name: "CompleteRegistration",
+            event_id: completeRegEventId,
+            event_source_url: `${SITE_URL}/verify`,
+            email: session.email ?? undefined,
+            fbp: session.fbp ?? undefined,
+            fbc: session.fbc ?? undefined,
+            client_ip: session.client_ip ?? undefined,
+            client_user_agent: session.client_user_agent ?? undefined,
+          }),
+        }).catch((e) => console.error("meta-capi CompleteRegistration failed:", String(e)));
+      }
     }
 
     return ok({ session_id: session.id });

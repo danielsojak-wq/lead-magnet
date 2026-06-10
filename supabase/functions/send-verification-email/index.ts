@@ -107,6 +107,15 @@ Deno.serve(async (req) => {
     const eshop_fb_slug: string | undefined = body.eshop_fb_slug;
     const competitors: Array<{ url: string; meta_url?: string; fb_slug?: string; position: number }> = body.competitors ?? [];
 
+    // ── Meta CAPI Lead — matching data + sdílené event_id (z klienta) ──
+    const lead_event_id: string | undefined = body.lead_event_id;
+    const fbp: string | null = (body.fbp as string | undefined) ?? null;
+    const fbc: string | null = (body.fbc as string | undefined) ?? null;
+    const event_source_url: string | undefined = body.event_source_url;
+    // IP/UA UŽIVATELE (z jeho requestu na tuhle fn), ne ze server-to-server CAPI callu.
+    const client_ip: string | null = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
+    const client_user_agent: string | null = req.headers.get("user-agent") ?? null;
+
     const supa = admin();
 
     // ── Rate limit CHECK (skip for test emails) ────────────────────────────────
@@ -132,12 +141,18 @@ Deno.serve(async (req) => {
 
     const { data: existing } = await supa
       .from("lm_sessions")
-      .select("id, status")
+      .select("id, status, lead_event_id")
       .eq("email", email)
       .maybeSingle();
 
     let sessionId: string;
     let token: string;
+
+    // Idempotence: Lead střílíme jen když session ještě nemá lead_event_id.
+    const alreadyFiredLead = !!existing?.lead_event_id && !TEST_EMAILS.includes(email);
+    const captureLead = lead_event_id && !alreadyFiredLead
+      ? { lead_event_id, fbp, fbc, client_ip, client_user_agent }
+      : {};
 
     const nonResettableStatuses = ["urls_pending", "processing", "ready", "failed"];
     if (existing && nonResettableStatuses.includes(existing.status) && !TEST_EMAILS.includes(email)) {
@@ -158,6 +173,7 @@ Deno.serve(async (req) => {
           eshop_url: eshop_url ?? null,
           eshop_meta_library_url: eshop_meta_url ?? null,
           eshop_fb_slug: eshop_fb_slug ?? null,
+          ...captureLead,
         })
         .eq("id", existing.id);
       sessionId = existing.id;
@@ -172,6 +188,7 @@ Deno.serve(async (req) => {
           eshop_url: eshop_url ?? null,
           eshop_meta_library_url: eshop_meta_url ?? null,
           eshop_fb_slug: eshop_fb_slug ?? null,
+          ...captureLead,
         })
         .select()
         .single();
@@ -209,6 +226,22 @@ Deno.serve(async (req) => {
       const detail = await resendRes.text();
       console.error("Resend error:", detail);
       return err("Nepodařilo se odeslat email", 502);
+    }
+
+    // ── Meta CAPI Lead (dual-fire s GTM Pixelem, sdílené event_id) ──
+    // Idempotence: jen poprvé (když jsme teď uložili lead_event_id). Non-blocking.
+    if (lead_event_id && !alreadyFiredLead) {
+      await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/meta-capi`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` },
+        body: JSON.stringify({
+          event_name: "Lead",
+          event_id: lead_event_id,
+          event_source_url: event_source_url ?? SITE_URL,
+          email,
+          fbp, fbc, client_ip, client_user_agent,
+        }),
+      }).catch((e) => console.error("meta-capi Lead failed:", String(e)));
     }
 
     return ok({ ok: true, session_id: sessionId });

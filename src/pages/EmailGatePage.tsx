@@ -275,7 +275,15 @@ export default function EmailGatePage() {
         : []),
     ];
 
-    trackEvent({ event: "email_submitted", session_id: null, ...(getUtmData() ?? {}) });
+    // Sdílené event_id pro Meta dedup: stejné jde do Pixelu (GTM přes dataLayer)
+    // i do CAPI (přes send-verification-email). _fbp/_fbc z cookie pro lepší match.
+    const leadEventId = crypto.randomUUID();
+    const getCookie = (n: string) =>
+      document.cookie.match("(?:^|; )" + n.replace(/([.$?*|{}()[\]\\/+^])/g, "\\$1") + "=([^;]*)")?.[1];
+    const fbp = getCookie("_fbp");
+    const fbc = getCookie("_fbc");
+
+    trackEvent({ event: "email_submitted", session_id: null, lead_event_id: leadEventId, ...(getUtmData() ?? {}) });
 
     const { data, error: fnErr } = await supabase.functions.invoke("send-verification-email", {
       body: {
@@ -285,6 +293,10 @@ export default function EmailGatePage() {
         eshop_fb_slug: urlData.eshop.fbSlug || undefined,
         competitors,
         website: honeypotRef.current?.value ?? "",
+        lead_event_id: leadEventId,
+        fbp,
+        fbc,
+        event_source_url: window.location.href,
       },
     });
 
