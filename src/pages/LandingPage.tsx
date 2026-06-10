@@ -140,15 +140,24 @@ export default function LandingPage() {
             Pro CZ a SK e-shopy s obratem 5–50 M Kč
           </div>
 
+          {/* Klikatelný hero text → /analyze (interní React Router navigace) */}
+          <div
+            role="link"
+            tabIndex={0}
+            onClick={() => navigate("/analyze")}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); navigate("/analyze"); } }}
+            className="group cursor-pointer"
+          >
           <h1 className="font-[family-name:var(--font-heading)] text-4xl sm:text-5xl lg:text-[3.25rem] font-bold leading-[1.12] tracking-tight mb-10 text-white">
             Proč vás konkurence v reklamě 
             <br />
             na Metě předbíhá?
           </h1>
 
-          <p className="font-[family-name:var(--font-heading)] text-2xl sm:text-3xl font-semibold text-white/70 mb-8 leading-snug">
+          <p className="font-[family-name:var(--font-heading)] text-2xl sm:text-3xl font-semibold text-white/70 group-hover:text-white/90 transition-colors mb-8 leading-snug">
             Odhalte jejich strategii za 5 minut
           </p>
+          </div>
 
           <p className="text-white/50 text-lg max-w-xl mx-auto mb-10 leading-relaxed">
             Proskenujeme každou aktivní reklamu vašich 2 hlavních konkurentů, vyhodnotíme strategii a najdeme mezery, které můžete využít.
