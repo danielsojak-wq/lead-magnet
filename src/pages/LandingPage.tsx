@@ -8,7 +8,6 @@ import performindLogo from "@/assets/performind-logo-dark.svg";
 import { AuthorBio } from "@/components/landing/AuthorBio";
 import { ClientLogosMarquee } from "@/components/landing/ClientLogosMarquee";
 import { FloatingIcons } from "@/components/landing/FloatingIcons";
-import { ResultPreviewTeaser } from "@/components/landing/ResultPreviewTeaser";
 import { ProblemSection } from "@/components/landing/ProblemSection";
 
 /* ─── Data ─────────────────────────────────────────────────────────────────── */
@@ -240,23 +239,6 @@ export default function LandingPage() {
           <div className="mt-12 flex justify-center">
             <CtaButton size="sm" label="Spustit analýzu zdarma" subText="1 analýza zdarma" />
           </div>
-        </div>
-      </section>
-
-      {/* ── What you'll get ────────────────────────────────────────────────── */}
-      <section className="py-20 sm:py-28 bg-gray-50 border-y border-gray-100">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-14">
-            <p className="text-[#4f11ff] text-sm font-semibold tracking-wide uppercase mb-3">JAK VYPADÁ VÝSTUP</p>
-            <h2 className="font-[family-name:var(--font-heading)] text-3xl sm:text-4xl font-bold text-gray-900 mb-3">
-              Přehled marketingové strategie konkurence zdarma
-            </h2>
-            <p className="text-gray-500 max-w-xl mx-auto whitespace-pre-line">
-              Za podobné analýzy si agentury běžně účtují 10 000 Kč a více{"\n\n"}
-            </p>
-          </div>
-
-          <ResultPreviewTeaser />
         </div>
       </section>
 
