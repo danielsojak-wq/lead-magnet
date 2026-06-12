@@ -48,6 +48,14 @@ Tyto 4 pravidla platí pro každý prompt v `analyze-lm-session` a související
 3. **Nikdy nepoužívej slovo "zadavatel" ani "Konkurent A/B"** ve výstupu zobrazeném uživateli. Vždy reálné názvy domén (`vaskyboots.cz`, ne "zadavatel").
 4. **Reálné názvy domén z `lm_session_competitors`** musí být v promptu i ve výstupu konzistentně. Pokud doména v promptu chybí, AI si název vymyslí.
 
+## Meta scraping — pravidla
+
+**Meta scraping — pravidla:** Veškerý scraping Meta Ads Library jde VÝHRADNĚ přes
+Apify actor. Nikdy neobcházej anti-bot/captcha ochrany Mety (headless browser přes
+challenge apod.) — riziko penalizace IP/Business Manageru. Pokud je potřeba ručně
+ověřit reklamu, vypiš ad_archive_id + deeplink a požádej Daniela o ruční kontrolu
+v prohlížeči.
+
 ## Brand barvy hráčů (UI)
 
 - Zadavatel: fialová `#6B46C1`
@@ -89,3 +97,17 @@ Použij CSS variables (`--color-zadavatel`, `--color-k1`, `--color-k2`), ne hard
 - Auth systém / user accounts (lead magnet je anonymní)
 - Multi-tenancy nebo white-label (to je Performind Studio, jiný projekt)
 - Změny v Lovable visual stylu (to dělá Daniel sám)
+
+## discover-meta-url — aktivní flow
+- Graph API (Step 2, resolveViaGraphApi): NEAKTIVNÍ — fbToken=null 
+  bez FB_APP_ID/SECRET. Tichý skip, ne error.
+- Reálný výsledek: Step 3 keyword search přes buildMetaUrl(searchQ, null).
+- searchQ priorita: sameAsSlugs > otherSlugs > brandName > domain.
+- Limitace: keyword search ≠ přesný lookup. Přesnost až s Graph API 
+  page ID (view_all_page_id).
+
+  ## discover-meta-url logika
+- Graph API Step 2: KÓD EXISTUJE, ale NIKDY nesuspěje (#100, bez Meta review). Dormant, neopravovat.
+- Reálná discovery: q=<og:site_name> → Apify scrape → pickDominantPage validace
+  (vanity_exact > brand_exact > containment, >1 kandidát = fallback)
+- page_id se čte z výsledků scrapu (snapshot.page_profile_uri), NE z Graph API
