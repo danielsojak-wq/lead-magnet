@@ -11,6 +11,7 @@ import {
   ExternalLink, Globe, Layers, Video, Image as ImageIcon,
   ArrowRight, RefreshCw, Mail, CalendarCheck, X, Check,
   Zap, Target, MessageSquare, Activity, Lightbulb, AlertCircle,
+  ChevronLeft, ChevronRight,
 } from "lucide-react";
 import * as Dialog from "@radix-ui/react-dialog";
 import performindLogo from "@/assets/performind-logo-dark.svg";
@@ -717,7 +718,22 @@ function PositioningSection({ cross, eshopName, eshopCompetitor, competitors }: 
 }
 
 
-function AdModal({ ad, onClose }: { ad: AdItem; onClose: () => void }) {
+function AdModal({ ads, index, onClose, onNavigate }: { ads: AdItem[]; index: number; onClose: () => void; onNavigate: (i: number) => void }) {
+  const ad = ads[index];
+  const hasPrev = index > 0;
+  const hasNext = index < ads.length - 1;
+
+  // Šipky vlevo/vpravo na klávesnici listují mezi reklamami hráče.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "ArrowLeft" && index > 0) onNavigate(index - 1);
+      if (e.key === "ArrowRight" && index < ads.length - 1) onNavigate(index + 1);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [index, ads.length, onNavigate]);
+
+  if (!ad) return null;
   return (
     <Dialog.Root open onOpenChange={o => !o && onClose()}>
       <Dialog.Portal>
@@ -725,20 +741,34 @@ function AdModal({ ad, onClose }: { ad: AdItem; onClose: () => void }) {
         <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-2xl z-50 w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in-0 zoom-in-95 max-h-[92vh] flex flex-col">
           <div className="relative bg-black flex items-center justify-center" style={{ maxHeight: "60vh" }}>
             {ad.video_url
-              ? <video src={ad.video_url} poster={ad.image_url || undefined} controls autoPlay className="w-full max-h-[60vh] object-contain" />
+              ? <video key={ad.id} src={ad.video_url} poster={ad.image_url || undefined} controls autoPlay className="w-full max-h-[60vh] object-contain" />
               : ad.image_url
                 ? <img src={ad.image_url} alt="" className="w-full max-h-[60vh] object-contain" />
                 : <div className="w-full h-48 flex items-center justify-center bg-gray-800"><ImageIcon className="h-12 w-12 text-gray-500" /></div>}
-            <button onClick={onClose} className="absolute top-3 right-3 w-8 h-8 bg-black/60 hover:bg-black/80 rounded-full flex items-center justify-center transition-colors">
+            <button onClick={onClose} className="absolute top-3 right-3 w-8 h-8 bg-black/60 hover:bg-black/80 rounded-full flex items-center justify-center transition-colors z-10">
               <X className="h-4 w-4 text-white" />
             </button>
             <div className="absolute top-3 left-3"><AdSourceBadge source={ad.ad_source} /></div>
             {ad.is_active && <div className="absolute bottom-3 right-3 flex items-center gap-1.5 bg-black/50 rounded-full px-2 py-0.5"><span className="w-1.5 h-1.5 rounded-full bg-[#b0f221]" /><span className="text-[10px] text-white font-medium">Aktivní</span></div>}
+            {/* Listování mezi reklamami hráče */}
+            {hasPrev && (
+              <button onClick={() => onNavigate(index - 1)} aria-label="Předchozí reklama"
+                className="absolute left-2 top-1/2 -translate-y-1/2 w-9 h-9 bg-black/55 hover:bg-black/80 rounded-full flex items-center justify-center transition-colors z-10">
+                <ChevronLeft className="h-5 w-5 text-white" />
+              </button>
+            )}
+            {hasNext && (
+              <button onClick={() => onNavigate(index + 1)} aria-label="Další reklama"
+                className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 bg-black/55 hover:bg-black/80 rounded-full flex items-center justify-center transition-colors z-10">
+                <ChevronRight className="h-5 w-5 text-white" />
+              </button>
+            )}
           </div>
           <div className="p-5 overflow-y-auto flex-1">
             <div className="flex flex-wrap items-center gap-2 mb-3">
               <AdTypePill type={ad.ad_type} />
               {ad.ad_start_date && <span className="text-xs text-gray-400">spuštěna {ad.ad_start_date}</span>}
+              <span className="ml-auto text-xs text-gray-400 tabular-nums">{index + 1} / {ads.length}</span>
             </div>
             {adDisplayText(ad)
               ? <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">{adDisplayText(ad)}</p>
@@ -751,7 +781,7 @@ function AdModal({ ad, onClose }: { ad: AdItem; onClose: () => void }) {
 }
 
 function CompetitorSection({ competitor, index, isEshop }: { competitor: CompetitorResult; index: number; isEshop?: boolean }) {
-  const [selectedAd, setSelectedAd] = useState<AdItem | null>(null);
+  const [selectedAdIdx, setSelectedAdIdx] = useState<number | null>(null);
   const color = playerColor(!!isEshop, index);
   const label = isEshop ? "Vy" : String(index + 1);
   const ai = competitor.ai_analysis;
@@ -939,7 +969,7 @@ function CompetitorSection({ competitor, index, isEshop }: { competitor: Competi
             <div className="flex gap-4 items-start">
               {topAd && (topAd.image_url || topAd.video_url) ? (
                 <button
-                  onClick={() => setSelectedAd(topAd)}
+                  onClick={() => setSelectedAdIdx(competitor.ads.findIndex(a => a.id === topAd.id))}
                   className="shrink-0 w-[100px] h-[100px] rounded-xl overflow-hidden bg-gray-200 border border-gray-200 hover:border-[#4f11ff]/40 hover:shadow-md transition-all"
                 >
                   {topAd.video_url
@@ -1002,10 +1032,10 @@ function CompetitorSection({ competitor, index, isEshop }: { competitor: Competi
               Všechny reklamy ({competitor.ads.length})
             </h3>
             <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-              {competitor.ads.map(ad => (
+              {competitor.ads.map((ad, i) => (
                 <button
                   key={ad.id}
-                  onClick={() => setSelectedAd(ad)}
+                  onClick={() => setSelectedAdIdx(i)}
                   className="group relative rounded-xl overflow-hidden bg-gray-100 aspect-square border border-gray-200 hover:border-[#4f11ff]/40 hover:shadow-md transition-all text-left"
                 >
                   {ad.video_url
@@ -1038,7 +1068,9 @@ function CompetitorSection({ competitor, index, isEshop }: { competitor: Competi
         )}
       </div>
 
-      {selectedAd && <AdModal ad={selectedAd} onClose={() => setSelectedAd(null)} />}
+      {selectedAdIdx !== null && competitor.ads[selectedAdIdx] && (
+        <AdModal ads={competitor.ads} index={selectedAdIdx} onClose={() => setSelectedAdIdx(null)} onNavigate={setSelectedAdIdx} />
+      )}
     </section>
   );
 }
