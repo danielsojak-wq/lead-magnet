@@ -250,8 +250,10 @@ function adDisplayText(ad: AdItem): string | null {
 function AdTypePill({ type }: { type: string | null }) {
   if (!type) return null;
   const label = TYPE_LABELS[type as keyof typeof TYPE_LABELS] || type;
-  const bg = type === "brand" ? "bg-[#4f11ff]/10 text-[#4f11ff]" : type === "sales" ? "bg-[#b0f221]/30 text-gray-800" : "bg-amber-100 text-amber-700";
-  return <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${bg}`}>{label}</span>;
+  // Plné barvy + kontrastní text + stín — pill je v galerii na obrázku, průhledné
+  // pozadí (/10, /30) bylo nečitelné. Limetková (sales) je světlá → tmavý text.
+  const bg = type === "brand" ? "bg-[#4f11ff] text-white" : type === "sales" ? "bg-[#b0f221] text-gray-900" : "bg-[#f59e0b] text-white";
+  return <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full shadow-sm ${bg}`}>{label}</span>;
 }
 
 function playerColor(isEshop: boolean, index: number): string {
