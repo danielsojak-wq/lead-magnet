@@ -281,6 +281,15 @@ Zavolej classify_batch s výsledkem pro každou reklamu v pořadí.` },
 
 // ─── Prompt builders ─────────────────────────────────────────────────────────
 
+const DATA_GUARDRAILS = `ZAKÁZANÁ TVRZENÍ — pro tato data NEMÁME zdroj, jejich uvedení je halucinace (stejně závažná jako smyšlený údaj):
+- PLACEMENT/UMÍSTĚNÍ: nikdy netvrď ani nedoporučuj stories, reels, feed, in-stream apod. Z Ads Library nevíme, kde se reklama zobrazuje.
+- ROZPOČET/SPEND/INVESTICE: nikdy. Scrapeme jen počty a typy reklam, žádné % rozpočtu ani alokaci.
+- CÍLENÍ/AUDIENCE/DEMOGRAFIKA: nikdy. Nemáme.
+- VÝSLEDKY/VÝKON: nikdy nezmiňuj ROI, konverze, CTR, dosah (reach) ani frekvenci zobrazení. Měříme jen počet reklam a dobu běhu.
+- LANDING PAGES konkurenta a A/B TESTY: nikdy netvrď, že někdo testuje/netestuje landing pages ani jaký má typ LP.
+- GOOGLE ADS: nikdy (analyzujeme výhradně Meta).
+- POZOROVÁNÍ, NE SOUD O STRATEGII: piš o tom, co je VIDĚT v aktivních reklamách, ne o domněnkách o celkové strategii. "V aktivních reklamách jsme nezachytili retargetingové sdělení" ANO; "konkurent nedělá retargeting" NE — nemusí být v Ads Library vidět.`;
+
 const L1_SYSTEM = `Jsi senior marketingový stratég specializující se na digitální reklamu.
 Analyzuj reklamní data a vrať POUZE validní JSON bez markdown bloků ani backtickú.
 
@@ -289,12 +298,13 @@ PRAVIDLA:
 - Pokud je k dispozici méně než 5 reklam, nastav messaging.hlavni_claim na "Nedostatek dat pro spolehlivou analýzu" a buď konzervativní u všech odhadů
 - top_reklama.popis a proc_funguje musí vycházet z konkrétní reklamy z dat — pokud taková není, napiš "Bez dat"
 - aktivita.pocet_aktivnich_reklam vyplň přesně dle dat (počet kde is_active=true)
-- Analyzuj VÝHRADNĚ Meta reklamy — máme data pouze z Meta Ads Library. Google Ads data NEMÁME. V poli reklamni_mix.google vyplň všechna čísla nulami.
-- reklamni_mix.meta: POČÍTEJ PŘESNĚ z pole "format" každé reklamy v datech. "video" → přičti k video, "carousel" → přičti k carousel, "single_image" → přičti k single_image. Nikdy neodhaduj ani nedoplňuj formát, který v datech není. stories vždy 0. Čísla jsou absolutní počty reklam, ne procenta.
-- NIKDY nezmiňuj procenta rozpočtu, alokaci investic ani % výdajů — tato data nemáme. Místo toho vždy uváděj počty reklam: "X z Y reklam jsou retargetingové povahy"
+- Analyzuj VÝHRADNĚ Meta reklamy — máme data pouze z Meta Ads Library. V poli reklamni_mix.google vyplň všechna čísla nulami.
+- reklamni_mix.meta: POČÍTEJ PŘESNĚ z pole "format" každé reklamy v datech. "video" → přičti k video, "carousel" → přičti k carousel, "single_image" → přičti k single_image, "catalog" → přičti k catalog. Nikdy neodhaduj ani nedoplňuj formát, který v datech není. Čísla jsou absolutní počty reklam, ne procenta.
 - messaging.tema_komunikace: Jedno krátké téma komunikace v max. 10 slovech (např. "Outdoorové vybavení pro náročné turisty"), vycházej výhradně z reklam a landing page dat
-- messaging.strategie_uctu: 1-2 věty popisující JAK účet přemýšlí o Meta reklamě. ODVOZUJ VÝHRADNĚ Z CHOVÁNÍ V DATECH: mix formátů (kolik video/carousel/single_image), mix ad_type (kolik brand/sales/retargeting), frekvence nových reklam, délka rotace, přítomnost slev. Příklady: "Brand-first launch: 70% video, žádný retargeting, žádné slevy, dlouhá rotace." / "Performance akvizice: 100% single image, slevy v každé reklamě, krátká rotace pod 30 dní." NESMÍ citovat copy z reklam, parafrázovat USP ani fabulovat motivy bez datové opory.
-- Nikdy nevymýšlej strategie, claimy ani vzorce bez datové opory`;
+- messaging.strategie_uctu: 1-2 věty popisující JAK účet přemýšlí o Meta reklamě. ODVOZUJ VÝHRADNĚ Z CHOVÁNÍ V DATECH: mix formátů (kolik video/carousel/single_image/catalog), mix ad_type (kolik brand/sales/retargeting), frekvence nových reklam, délka rotace, přítomnost slev. Příklady: "Brand-first launch: 70 % video, žádný retargeting, žádné slevy, dlouhá rotace." / "Výkonnostní akvizice: většina katalog a single image, slevy v každé druhé reklamě, krátká rotace pod 30 dní." NESMÍ citovat copy z reklam, parafrázovat USP ani fabulovat motivy bez datové opory.
+- Nikdy nevymýšlej strategie, claimy ani vzorce bez datové opory
+
+${DATA_GUARDRAILS}`;
 
 function l1User(playerName: string, playerUrl: string, ads: any[], websiteContent = ""): string {
   const adRows = ads.slice(0, 30).map(a => ({
@@ -321,7 +331,7 @@ Vrať JSON v přesně tomto formátu (ad_mix_pct: odhadni % rozdělení reklam n
 {
   "ad_mix_pct": { "brand": 0, "sales": 0, "retargeting": 0 },
   "reklamni_mix": {
-    "meta": { "single_image": 0, "carousel": 0, "video": 0, "stories": 0 },
+    "meta": { "single_image": 0, "carousel": 0, "video": 0, "catalog": 0 },
     "google": { "search": 0, "display": 0, "video": 0, "pmax": 0 }
   },
   "aktivita": {
@@ -345,8 +355,6 @@ Vrať JSON v přesně tomto formátu (ad_mix_pct: odhadni % rozdělení reklam n
     "top_reklama": { "popis": "", "proc_funguje": "" }
   },
   "landing_pages": {
-    "typ": "mix",
-    "testuje_ab": false,
     "pouziva_slevy": false
   }
 }`;
@@ -357,15 +365,16 @@ const L2_SYSTEM = `Jsi senior marketingový stratég. Na základě L1 analýz hr
 PRAVIDLA PRO KVALITU INSIGHTŮ:
 - category_truths: Konkrétní OPAKUJÍCÍ SE vzorce z dat — ne obecné marketingové pravdy. Vzor musí být viditelný u zadavatele nebo alespoň jednoho konkurenta.
 - co_funguje_vsem: Co konkrétního (formát, hook, délka, emoce) mají společné — s příklady z dat
-- mezery_prilezitosti: Konkrétní témata, formáty nebo segmenty, které NIKDO nepoužívá — přímé obchodní příležitosti
-- quick_wins: Každá akce musí být specifická a přímo vycházet z analýzy, ne generické rady
+- mezery_prilezitosti: Konkrétní téma, formát nebo typ sdělení, který v aktivních reklamách nikdo nepoužívá — přímá obchodní příležitost. Smí čerpat JEN ze scrapovaných dimenzí: formát (single_image/carousel/video/catalog), typ sdělení (brand/sales/retargeting), téma/claim, doba běhu, kreativní přístup, sociální důkaz v copy. NIKDY mezeru nestav na placementu, rozpočtu, cílení, výsledcích ani landing pages.
+- quick_wins: Každá akce musí být specifická a přímo vycházet z pozorování v reklamách, ne generická rada. Smí doporučovat JEN změny v dimenzích, které reálně vidíme (formát, typ sdělení, téma, hook, doba běhu/rotace, sociální důkaz v copy). NIKDY nedoporučuj placement (stories/reels/feed), rozpočet, cílení, ani „otestujte landing page".
 - Pokud data jsou slabá nebo chybí, zdůvodnění musí explicitně uvést "data chybí — doporučení vychází z obecných vzorců segmentu"
 - Vždy uveď aspoň 2 položky v každém poli
 - V textech VŽDY používej skutečné názvy — hodnotu z ADVERTISER_NAME pro zadavatele, doménu ze závorek pro každého konkurenta. NIKDY nepoužívej slova "zadavatel", "Hráč 1", "HRÁČ_1" ani jiná zástupná označení
-- Vycházej VÝHRADNĚ z Meta Ads dat. NIKDY nezmiňuj Google Ads, Google kampaně, Google Search ani Display v analýze.
 - NIKDY nezmiňuj procenta rozpočtu, alokaci investic ani % výdajů. Místo toho vždy uváděj počty reklam: "X z Y reklam jsou retargetingové povahy"
 - POČTY REKLAM MUSÍ BÝT JEDNOZNAČNÉ: každý počet vždy ukotvi k typu/formátu a k celku — např. "14 z 50 reklam je carousel". NIKDY nepiš holý počet v závorce za jménem hráče (např. "vikio.cz (14 reklam)") — čtenář by si ho spletl s celkovým počtem reklam hráče, který je uveden v jeho sekci. Číslo za jménem hráče smí být jen celkový počet z hodnoty "X reklam" v jeho HRÁČ_ řádku, nic jiného.
-- quick_wins.obtiznost musí být správně klasifikována: "jednoduche" = lze udělat do 1 týdne bez velkých zdrojů; "stredni" = vyžaduje 1–2 týdny a koordinaci; "komplexni" = strategická změna vyžadující měsíc+. POVINNĚ musí být zastoupena aspoň 1 "jednoduche" a 1 "komplexni" obtiznost`;
+- quick_wins.obtiznost musí být správně klasifikována: "jednoduche" = lze udělat do 1 týdne bez velkých zdrojů; "stredni" = vyžaduje 1–2 týdny a koordinaci; "komplexni" = strategická změna vyžadující měsíc+. POVINNĚ musí být zastoupena aspoň 1 "jednoduche" a 1 "komplexni" obtiznost
+
+${DATA_GUARDRAILS}`;
 
 function domainName(url: string): string {
   try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return url; }

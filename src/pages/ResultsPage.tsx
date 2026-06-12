@@ -33,7 +33,7 @@ interface AdItem {
 
 interface AiAnalysis {
   reklamni_mix: {
-    meta: { single_image: number; carousel: number; video: number; stories: number };
+    meta: { single_image: number; carousel: number; video: number; catalog: number };
     google: { search: number; display: number; video: number; pmax: number };
   };
   aktivita: {
@@ -57,8 +57,6 @@ interface AiAnalysis {
     top_reklama: { popis: string; proc_funguje: string };
   };
   landing_pages: {
-    typ: string;
-    testuje_ab: boolean;
     pouziva_slevy: boolean;
   };
 }
@@ -143,11 +141,11 @@ const MOCK: AnalysisResults = {
       status: "ready", ads_count: 42, summary: null,
       ad_mix: { brand: 38, sales: 48, retargeting: 14 },
       ai_analysis: {
-        reklamni_mix: { meta: { single_image: 40, carousel: 20, video: 35, stories: 5 }, google: { search: 50, display: 30, video: 10, pmax: 10 } },
+        reklamni_mix: { meta: { single_image: 40, carousel: 20, video: 35, catalog: 5 }, google: { search: 50, display: 30, video: 10, pmax: 10 } },
         aktivita: { pocet_aktivnich_reklam: 28, prumerna_delka_behu_dni: 45, frekvence_novych_reklam: "vysoka" },
         messaging: { hlavni_claim: "Výsledky do 14 dní nebo vrátíme peníze", dominantni_emocni_apel: "logika", funnel_faze: "conversion", osloveni: "tykani", pouziva_emoji: true, socialni_dukaz: ["cisla", "recenze"] },
         kreativni_vzorce: { nejcastejsi_hook: "cislo", prumerna_delka_textu: "kratky", top_reklama: { popis: "Testimonial video s číselným výsledkem v titulku", proc_funguje: "Číslo v prvních 3 sekundách = zástava scrollu. Běží 67 dní." } },
-        landing_pages: { typ: "dedicated_lp", testuje_ab: true, pouziva_slevy: false },
+        landing_pages: { pouziva_slevy: false },
       },
       ads: [
         { id: "a1", image_url: "https://picsum.photos/seed/ad1/400/400", video_url: null, primary_text: "93 % zákazníků vidí výsledky do 14 dní.", ad_type: "sales", ad_source: "meta", is_active: true, ad_start_date: "2026-03-01" },
@@ -163,11 +161,11 @@ const MOCK: AnalysisResults = {
       status: "ready", ads_count: 31, summary: null,
       ad_mix: { brand: 55, sales: 32, retargeting: 13 },
       ai_analysis: {
-        reklamni_mix: { meta: { single_image: 20, carousel: 45, video: 30, stories: 5 }, google: { search: 40, display: 40, video: 15, pmax: 5 } },
+        reklamni_mix: { meta: { single_image: 20, carousel: 45, video: 30, catalog: 5 }, google: { search: 40, display: 40, video: 15, pmax: 5 } },
         aktivita: { pocet_aktivnich_reklam: 19, prumerna_delka_behu_dni: 62, frekvence_novych_reklam: "nizka" },
         messaging: { hlavni_claim: "Konečně produkt, který opravdu funguje", dominantni_emocni_apel: "touha", funnel_faze: "awareness", osloveni: "tykani", pouziva_emoji: false, socialni_dukaz: ["ugc", "recenze"] },
         kreativni_vzorce: { nejcastejsi_hook: "otazka", prumerna_delka_textu: "dlouhy", top_reklama: { popis: "UGC video 'Den se zákaznicí'", proc_funguje: "Autentičnost překonává produkci v brand kampani. Běží 89 dní." } },
-        landing_pages: { typ: "homepage", testuje_ab: false, pouziva_slevy: true },
+        landing_pages: { pouziva_slevy: true },
       },
       ads: [
         { id: "b1", image_url: "https://picsum.photos/seed/b1/400/400", video_url: null, primary_text: "Znáte ten pocit, když konečně najdete to pravé?", ad_type: "brand", ad_source: "meta", is_active: true, ad_start_date: "2026-02-01" },
@@ -269,7 +267,6 @@ const apeLabel = (a: string) => (({ strach: "Strach", touha: "Touha", logika: "L
 const funnelLabel = (f: string) => (({ awareness: "Awareness", consideration: "Consideration", conversion: "Conversion", mix: "Celý funnel" } as Record<string, string>)[f] ?? f);
 const textLengthLabel = (t: string) => (({ kratky: "Krátký", stredni: "Střední", dlouhy: "Dlouhý" } as Record<string, string>)[t] ?? t);
 const freqLabel = (f: string) => (({ vysoka: "Vysoká", stredni: "Střední", nizka: "Nízká" } as Record<string, string>)[f] ?? f);
-const lpLabel = (t: string) => (({ dedicated_lp: "LP", homepage: "Homepage", category: "Kategorie", product: "Produkt", mix: "Mix" } as Record<string, string>)[t] ?? t);
 
 // ─── Charts ───────────────────────────────────────────────────────────────────
 
@@ -321,8 +318,8 @@ function calcPlayerRadarValues(p: CompetitorResult, rawVolume: number, maxVolume
   const objem = Math.round((rawVolume / maxVolume) * 100);
 
   const fmeta = ai?.reklamni_mix.meta;
-  const formatCount = fmeta ? [fmeta.single_image, fmeta.carousel, fmeta.video].filter(v => v > 0).length : 0;
-  const kreativa = Math.round(formatCount * 100 / 3);
+  const formatCount = fmeta ? [fmeta.single_image, fmeta.carousel, fmeta.video, fmeta.catalog].filter(v => v > 0).length : 0;
+  const kreativa = Math.round(formatCount * 100 / 4);
 
   const funnelCount = [mix.brand > 0, mix.sales > 0, mix.retargeting > 0].filter(Boolean).length;
   const funnel = Math.round(funnelCount * 100 / 3);
@@ -689,6 +686,7 @@ function CompetitorSection({ competitor, index, isEshop }: { competitor: Competi
         fmeta.single_image > 0 ? `${fmeta.single_image} obr.` : null,
         fmeta.video > 0 ? `${fmeta.video} video` : null,
         fmeta.carousel > 0 ? `${fmeta.carousel} karusel` : null,
+        fmeta.catalog > 0 ? `${fmeta.catalog} katalog` : null,
       ] as (string | null)[]).filter(Boolean).join(" · ")
     : null;
 
@@ -818,17 +816,10 @@ function CompetitorSection({ competitor, index, isEshop }: { competitor: Competi
                 <div className="flex justify-between gap-2">
                   <span>Délka textu</span><span className="font-medium text-gray-700 text-right">{textLengthLabel(ai.kreativni_vzorce.prumerna_delka_textu)}</span>
                 </div>
-                {ai.landing_pages && (
-                  <>
-                    <div className="flex justify-between gap-2">
-                      <span>Landing page</span><span className="font-medium text-gray-700 text-right">{lpLabel(ai.landing_pages.typ)}</span>
-                    </div>
-                    {ai.landing_pages.pouziva_slevy && (
-                      <div className="flex justify-between gap-2">
-                        <span>Slevy</span><span className="font-medium text-[#4f11ff]">Ano</span>
-                      </div>
-                    )}
-                  </>
+                {ai.landing_pages?.pouziva_slevy && (
+                  <div className="flex justify-between gap-2">
+                    <span>Slevy</span><span className="font-medium text-[#4f11ff]">Ano</span>
+                  </div>
                 )}
               </div>
             </div>
