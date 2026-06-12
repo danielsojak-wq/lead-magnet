@@ -223,9 +223,18 @@ async function classifyAds(apiKey: string, supa: ReturnType<typeof admin>, sessi
               // protiřečit heuristice na jasných případech (nabídky, košík, čistý awareness).
               { role: "system", content: `Jsi klasifikátor Meta reklam pro konkurenční analýzu českých e-shopů. Každou reklamu zařaď do právě jedné kategorie:
 
-sales (akvizice) — reklama prodává konkrétní produkt nebo kategorii: pojmenovaný produkt + jeho benefit/použití, varianty či odstíny, cena, sleva, nabídka, výzva koupit/vyzkoušet/objevit produkt. Patří sem i měkká produktová copy bez ceny a CTA: „Korektory Závoj umí zázraky. Nejen, že hezky kryjí a jemně sjednocují…" → sales. „Krémový korektor Závoj, 5 odstínů, zakrývá kruhy" → sales. Texty katalogových karet (název produktu + popis + varianty) → sales.
+ROZHODOVACÍ TEST (proveď ho první): Pojmenovává reklama KONKRÉTNÍ produkt (vlastní název produktu, např. BalanceCream, IntenseCream, korektor Závoj, fluid Nádech) A popisuje, co ten produkt dělá nebo komu pomáhá? Pokud ANO → je to sales, BEZ OHLEDU na měkkou, wellness či příběhovou tonalitu okolo. Fráze jako „respektuje ženské tělo" nebo „pro novou fázi života" jsou obal, NE důvod pro brand.
 
-brand — čistý awareness, edukace, hodnoty nebo příběh značky BEZ pushe konkrétního produktu k nákupu: „Krása, která dává smysl. Funkční, čistá a vědomá kosmetika." → brand. Sezónní či edukativní obsah bez konkrétního produktu („Dnes začíná jaro. Vaše pleť má šanci začít znovu…") → brand. POZOR: nepřeklápěj do sales jen kvůli zmínce značky nebo obecné kategorie — bez konkrétního produktu zůstává brand.
+sales (akvizice) — reklama prodává konkrétní produkt nebo kategorii: pojmenovaný produkt + jeho benefit/funkce/použití, varianty či odstíny, cena, sleva, nabídka, výzva koupit/vyzkoušet/objevit produkt. Patří sem i měkká produktová copy bez ceny a CTA.
+  • „Korektory Závoj umí zázraky. Nejen, že hezky kryjí a jemně sjednocují…" → sales
+  • „Krémový korektor Závoj, 5 odstínů, zakrývá kruhy" → sales
+  • „Pleť v rovnováze během cyklu. BalanceCream reaguje na hormonální změny a pomáhá pleti zůstat v rovnováze. Chytrý anti-aging, který respektuje ženské tělo." → sales (pojmenovaný produkt BalanceCream + jeho funkce; wellness tonalita nerozhoduje)
+  • Texty katalogových karet (název produktu + popis + varianty) → sales
+
+brand — čistý awareness, edukace, hodnoty nebo příběh ZNAČKY, který NEpojmenovává konkrétní produkt: mluví o značce, jejích hodnotách nebo kategorii obecně.
+  • „Krása, která dává smysl. Funkční, čistá a vědomá kosmetika." → brand (žádný konkrétní produkt, jen hodnota značky)
+  • „Dnes začíná jaro. Vaše pleť má šanci začít znovu…" → brand (edukace/sezóna bez konkrétního produktu)
+  POZOR: brand je JEN tehdy, když chybí konkrétní pojmenovaný produkt. Jakmile reklama jmenuje produkt a říká, co dělá, je to sales — i kdyby zněla jako příběh nebo manifest.
 
 retargeting — připomenutí: návrat ke košíku či prohlíženému zboží, dokončení nákupu („Váš košík na vás čeká", „Nezapomněli jste na něco?").
 
