@@ -188,40 +188,9 @@ function adMixFromAds(ads: any[]): { brand: number; sales: number; retargeting: 
 
 // ─── Classify ads ────────────────────────────────────────────────────────────
 
-async function classifyAds(apiKey: string, supa: ReturnType<typeof admin>, sessionId: string): Promise<void> {
-  // Refine pass — klasifikuj všechny reklamy s textem a PŘEPIŠ heuristik AI typem.
-  // Heuristik už dal každé reklamě baseline ad_type (pills existují), takže když tahle
-  // best-effort pasáž pod throttlingem proběhne jen částečně, nic se nerozbije.
-  const { data: ads } = await supa
-    .from("lm_session_ads")
-    .select("id, primary_text")
-    .eq("session_id", sessionId)
-    .not("primary_text", "is", null);
-  if (!ads?.length) return;
-  console.log(`classifyAds (refine): ${ads.length} ads in session ${sessionId}`);
-
-  const BATCH = 5;        // reklam na 1 Gemini call
-  const CONCURRENCY = 5;  // max paralelních callů (pojistka proti Gemini rate-limitu)
-
-  // Rozsekej na nezávislé batche (každý klasifikuje vlastních max 5 reklam)
-  const batches: Array<Array<{ id: string; primary_text: string | null }>> = [];
-  for (let i = 0; i < ads.length; i += BATCH) batches.push(ads.slice(i, i + BATCH) as any);
-
-  // Jeden batch: výsledky se přiřazují per-batch (results[idx] → batch[idx].id),
-  // takže paralelizace mezi batchi NEovlivní správnost přiřazení.
-  const classifyBatch = async (batch: Array<{ id: string; primary_text: string | null }>): Promise<void> => {
-    for (let attempt = 0; attempt < 2; attempt++) {   // 1 retry na 429/transient místo tichého zahození
-      try {
-        const res = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-          body: JSON.stringify({
-            model: "gemini-2.5-flash",
-            max_tokens: 200,
-            messages: [
-              // Definice DRŽET KONZISTENTNÍ s localAdType — AI refine nesmí systematicky
-              // protiřečit heuristice na jasných případech (nabídky, košík, čistý awareness).
-              { role: "system", content: `Jsi klasifikátor Meta reklam pro konkurenční analýzu českých e-shopů. Každou reklamu zařaď do právě jedné kategorie:
+// Definice DRŽET KONZISTENTNÍ s localAdType — AI refine nesmí systematicky protiřečit
+// heuristice na jasných případech (nabídky, košík, čistý awareness).
+const CLASSIFY_SYSTEM = `Jsi klasifikátor Meta reklam pro konkurenční analýzu českých e-shopů. Každou reklamu zařaď do právě jedné kategorie:
 
 ROZHODOVACÍ TEST (proveď ho první): Pojmenovává reklama KONKRÉTNÍ produkt (vlastní název produktu, např. BalanceCream, IntenseCream, korektor Závoj, fluid Nádech) A popisuje, co ten produkt dělá nebo komu pomáhá? Pokud ANO → je to sales, BEZ OHLEDU na měkkou, wellness či příběhovou tonalitu okolo. Fráze jako „respektuje ženské tělo" nebo „pro novou fázi života" jsou obal, NE důvod pro brand.
 
@@ -238,37 +207,63 @@ brand — čistý awareness, edukace, hodnoty nebo příběh ZNAČKY, který NEp
 
 retargeting — připomenutí: návrat ke košíku či prohlíženému zboží, dokončení nákupu („Váš košík na vás čeká", „Nezapomněli jste na něco?").
 
-Zavolej classify_batch s výsledkem pro každou reklamu v pořadí.` },
-              { role: "user", content: batch.map((ad, idx) => `--- Reklama ${idx + 1} ---\nText: ${(ad.primary_text || "—").slice(0, 500)}`).join("\n") },
-            ],
-            tools: [{
-              type: "function",
-              function: {
-                name: "classify_batch",
-                parameters: {
-                  type: "object",
-                  properties: {
-                    results: {
-                      type: "array",
-                      items: { type: "object", properties: { ad_type: { type: "string", enum: ["brand", "sales", "retargeting"] } }, required: ["ad_type"] },
-                    },
-                  },
-                  required: ["results"],
-                },
-              },
-            }],
-            tool_choice: { type: "function", function: { name: "classify_batch" } },
+LINIE BRAND vs SALES (rozhodující pravidlo): E-shopové reklamy jsou v drtivé většině akviziční. Při JAKÉKOLI nejistotě mezi sales a brand zvol sales. Brand je úzká kategorie vyhrazená POUZE pro reklamy zcela bez konkrétního produktu, jeho benefitu/účinku, produktové kategorie nebo nabídky — tedy čistou značkovou awareness, hodnoty či manifest. Jakmile reklama zmiňuje konkrétní produkt, jeho účinek/benefit, produktovou kategorii nebo nabídku, je to sales — i kdyby tonalita byla měkká, edukativní nebo příběhová.`;
+
+async function classifyAds(apiKey: string, supa: ReturnType<typeof admin>, sessionId: string): Promise<void> {
+  // Refine pass — klasifikuj všechny reklamy s textem a PŘEPIŠ heuristik AI typem.
+  // Heuristik už dal každé reklamě baseline ad_type (pills existují), takže když tahle
+  // best-effort pasáž pod throttlingem proběhne jen částečně, nic se nerozbije.
+  const { data: ads } = await supa
+    .from("lm_session_ads")
+    .select("id, primary_text")
+    .eq("session_id", sessionId)
+    .not("primary_text", "is", null);
+  if (!ads?.length) return;
+  console.log(`classifyAds (refine): ${ads.length} ads in session ${sessionId}`);
+
+  const BATCH = 6;        // reklam na 1 Gemini call (menší batch = response se vejde do max_tokens)
+  const CONCURRENCY = 4;  // max paralelních callů
+
+  // Rozsekej na nezávislé batche (každý klasifikuje vlastních max BATCH reklam)
+  const batches: Array<Array<{ id: string; primary_text: string | null }>> = [];
+  for (let i = 0; i < ads.length; i += BATCH) batches.push(ads.slice(i, i + BATCH) as any);
+
+  // Jeden batch: výsledky se přiřazují per-batch (results[idx] → batch[idx].id),
+  // takže paralelizace mezi batchi NEovlivní správnost přiřazení.
+  // VLASTNÍ fetch JSON mode (ne callAI) — callAI má retry delays [2s,5s,10s], které pod
+  // throttlingem (classify běží paralelně s L2 Pro) přetáhnou 150s budget. Tady 1 pokus,
+  // krátký timeout, best-effort: padlý batch nechá heuristiku, ale nezdrží pipeline.
+  // (Dřív tool-calling přes openai-compat vracel prázdno → classify byl de facto mrtvý.)
+  const classifyBatch = async (batch: Array<{ id: string; primary_text: string | null }>): Promise<void> => {
+    const userText = batch.map((ad, idx) => `--- Reklama ${idx + 1} ---\nText: ${(ad.primary_text || "—").slice(0, 500)}`).join("\n")
+      + `\n\nVrať POUZE JSON v přesně tomto tvaru: {"results":[{"ad_type":"brand|sales|retargeting"}, ...]} — právě ${batch.length} položek, ve stejném pořadí jako reklamy výše.`;
+    for (let attempt = 0; attempt < 2; attempt++) {   // 1 retry na 429/transient
+      try {
+        const res = await fetch(AI_URL, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: AI_MODEL,
+            max_tokens: 2000,
+            temperature: 0.1,
+            response_format: { type: "json_object" },
+            messages: [{ role: "system", content: CLASSIFY_SYSTEM }, { role: "user", content: userText }],
           }),
-          signal: AbortSignal.timeout(15000),
+          signal: AbortSignal.timeout(22000),
         });
-        if (res.status === 429 && attempt === 0) { await new Promise(r => setTimeout(r, 3000)); continue; }
-        if (!res.ok) { console.warn(`classifyAds batch HTTP ${res.status}`); return; }
+        if (res.status === 429 && attempt === 0) { await new Promise(r => setTimeout(r, 2500)); continue; }
+        if (!res.ok) { console.warn(`classifyBatch HTTP ${res.status}`); return; }
         const d = await res.json();
-        const args = d?.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
-        if (!args) return;
-        const results: { ad_type: string }[] = JSON.parse(args)?.results ?? [];
+        const content: string = d?.choices?.[0]?.message?.content ?? "";
+        // Robustní parse — Gemini nemusí dodržet přesný tvar {results:[...]}; akceptuj
+        // results pole, holé pole, nebo první pole nalezené v objektu.
+        let parsed: any = null;
+        try { parsed = extractJson(content); } catch (e) { console.warn("classifyBatch parse fail:", String(e)); return; }
+        const results: Array<{ ad_type?: string }> = Array.isArray(parsed?.results) ? parsed.results
+          : Array.isArray(parsed) ? parsed
+          : (Object.values(parsed ?? {}).find((v) => Array.isArray(v)) as any) ?? [];
         await Promise.all(batch.map(async (ad, idx) => {
-          const t = results[idx]?.ad_type;
+          const t = typeof results[idx] === "string" ? results[idx] : results[idx]?.ad_type;
           if (t === "brand" || t === "sales" || t === "retargeting") {
             await supa.from("lm_session_ads").update({ ad_type: t }).eq("id", ad.id);
           }
@@ -276,7 +271,7 @@ Zavolej classify_batch s výsledkem pro každou reklamu v pořadí.` },
         return;
       } catch (e) {
         if (attempt === 0) { await new Promise(r => setTimeout(r, 1500)); continue; }
-        console.error("classifyAds batch error:", e);
+        console.warn("classifyBatch error:", String(e));
         return;
       }
     }
@@ -702,10 +697,21 @@ export async function runAnalysis(sessionId: string, apiKey: string, finalize = 
     console.log(JSON.stringify({ level: "error", message: "ecomail_sync_error", session_id: sessionId, error: String(e) }));
   });
 
-  // classifyAds AŽ TEĎ (best-effort) — per-ad ad_type pills pro UI. Běží ZA status=ready
-  // i ecomailem, takže ani když ji throttling sebere, dashboard je kompletní a nurturing
-  // odešel. Jádro (L1 ad_mix + L2) na classify nezávisí.
-  await classifyAds(apiKey, supa, sessionId).catch((e: unknown) => console.error("classifyAds (best-effort) failed:", String(e)));
+  // ── classify v SAMOSTATNÉ invokaci (čerstvý 150s budget) ──────────────────
+  // 122 reklam se nevejde do hlavního budgetu vedle L1+L2 Pro: sériově přetáhne 150s,
+  // paralelně dostane Gemini 429. Vlastní invokace má celý budget a nekonkuruje.
+  // Status už ready (dashboard kompletní z heuristiky), classify jen upřesní ad_type pills.
+  if (!finalize) {
+    const classifyUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/analyze-lm-session`;
+    // AWAIT — bez něj se fetch v doběhu background tasku (waitUntil) nestihne odeslat
+    // a classify-only invokace se vůbec nespustí. Classify-only vrací ok hned (vlastní
+    // waitUntil), takže await čeká jen na potvrzení triggeru, ne na celou klasifikaci.
+    await fetch(classifyUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` },
+      body: JSON.stringify({ session_id: sessionId, mode: "classify" }),
+    }).catch((e) => console.error("classify trigger failed:", e));
+  }
 }
 
 // ─── Edge Function handler ────────────────────────────────────────────────────
@@ -717,10 +723,20 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const sessionId = body.session_id as string | undefined;
     const finalize = body.finalize === true;
+    const mode = body.mode as string | undefined;
     if (!sessionId) return err("session_id required");
 
     const apiKey = Deno.env.get("GEMINI_API_KEY");
     if (!apiKey) return err("GEMINI_API_KEY not configured", 500);
+
+    // mode=classify — samostatná invokace jen pro AI klasifikaci ad_type (čerstvý budget,
+    // spuštěná z runAnalysis ZA status=ready). Nikdy nemění status ani jiná pole.
+    if (mode === "classify") {
+      const task = classifyAds(apiKey, admin(), sessionId)
+        .catch((e: unknown) => console.error("classify-only failed:", String(e)));
+      (globalThis as any).EdgeRuntime?.waitUntil?.(task);
+      return ok({ ok: true, mode: "classify" });
+    }
 
     // Run analysis in background — return 202 immediately so poll-lm-pipeline isn't blocked
     const task = runAnalysis(sessionId, apiKey, finalize).catch(async (e) => {
