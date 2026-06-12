@@ -23,6 +23,7 @@ interface AdItem {
   image_url: string | null;
   video_url: string | null;
   primary_text: string | null;
+  is_catalog?: boolean;
   ad_type: "brand" | "sales" | "retargeting" | null;
   ad_source: "meta" | "google";
   is_active: boolean;
@@ -233,6 +234,19 @@ function AdSourceBadge({ source }: { source: "meta" | "google" }) {
   return source === "google"
     ? <span className="absolute top-2 left-2 text-[10px] font-bold bg-blue-500 text-white px-1.5 py-0.5 rounded">Google</span>
     : <span className="absolute top-2 left-2 text-[10px] font-bold bg-[#1877F2] text-white px-1.5 py-0.5 rounded">Meta</span>;
+}
+
+// Poslední obrana: {{product.brand}} placeholdery z katalogových reklam se nesmí
+// nikdy vyrenderovat (get-lm-results už sanituje, tohle kryje stale cache/starší API).
+// Katalogovka bez jakéhokoli reálného textu → neutrální popisek místo prázdna.
+const CATALOG_FALLBACK_TEXT = "Dynamická katalogová reklama";
+function adDisplayText(ad: AdItem): string | null {
+  const cleaned = (ad.primary_text ?? "")
+    .replace(/\{\{[^{}]*\}\}/g, " ")
+    .replace(/[ \t]+/g, " ")
+    .trim();
+  if (/[\p{L}\p{N}]/u.test(cleaned)) return cleaned;
+  return ad.is_catalog ? CATALOG_FALLBACK_TEXT : null;
 }
 
 function AdTypePill({ type }: { type: string | null }) {
@@ -639,8 +653,8 @@ function AdModal({ ad, onClose }: { ad: AdItem; onClose: () => void }) {
               <AdTypePill type={ad.ad_type} />
               {ad.ad_start_date && <span className="text-xs text-gray-400">spuštěna {ad.ad_start_date}</span>}
             </div>
-            {ad.primary_text
-              ? <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">{ad.primary_text}</p>
+            {adDisplayText(ad)
+              ? <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">{adDisplayText(ad)}</p>
               : <p className="text-sm text-gray-400 italic">Žádný text</p>}
           </div>
         </Dialog.Content>
@@ -940,7 +954,7 @@ function CompetitorSection({ competitor, index, isEshop }: { competitor: Competi
                   {ad.is_active && <div className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#b0f221] shadow-sm" />}
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-all flex flex-col justify-end p-1.5 opacity-0 group-hover:opacity-100">
                     <AdTypePill type={ad.ad_type} />
-                    {ad.primary_text && <p className="text-white text-[9px] mt-0.5 line-clamp-2 leading-tight">{ad.primary_text}</p>}
+                    {adDisplayText(ad) && <p className="text-white text-[9px] mt-0.5 line-clamp-2 leading-tight">{adDisplayText(ad)}</p>}
                   </div>
                 </button>
               ))}
