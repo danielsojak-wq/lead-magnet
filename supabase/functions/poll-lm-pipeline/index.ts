@@ -168,6 +168,83 @@ function pickDominantPage(
   return null;
 }
 
+// ─── Text extraction & placeholder sanitization ──────────────────────────────
+
+// Katalogové reklamy (Advantage+ / DCO / DPA) mají v body/title/link_description
+// nerenderované placeholdery "{{product.brand}}" — reálná copy je v cards[].
+const PLACEHOLDER_RE = /\{\{[^{}]*\}\}/g;
+
+function hasPlaceholder(v: unknown): boolean {
+  return typeof v === "string" && /\{\{[^{}]*\}\}/.test(v);
+}
+
+// Placeholder uvnitř delšího reálného textu se odstraní; čistý placeholder
+// (i vícenásobný "{{a}} {{b}}") → null. Výsledek musí obsahovat písmeno/číslici.
+function sanitizeText(v: unknown): string | null {
+  if (typeof v !== "string") return null;
+  const cleaned = v
+    .replace(PLACEHOLDER_RE, " ")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\s*\n\s*/g, "\n")
+    .trim();
+  return /[\p{L}\p{N}]/u.test(cleaned) ? cleaned : null;
+}
+
+// Caption bývá jen holá doména ("klararott.cz") — ta do copy nepatří.
+function looksLikeBareUrl(v: unknown): boolean {
+  return typeof v === "string" && /^(https?:\/\/)?[\w.-]+\.[a-z]{2,}(\/\S*)?$/i.test(v.trim());
+}
+
+// Složí composite text ze VŠECH reálných polí: body → title → link_description →
+// caption → unikátní karty (title, body, link_description). Dedupe řeší DCO
+// duplikáty karet i karty opakující hlavní body. isCatalog = DCO/DPA display
+// format NEBO placeholder v raw polích (interní signál, ne nová kategorie).
+function buildAdText(snapshot: any, it: any): { text: string | null; isCatalog: boolean } {
+  const cards = snapshot?.cards || it?.cards || [];
+  const bodyRaw = snapshot?.body?.text ?? (typeof snapshot?.body === "string" ? snapshot.body : null) ?? it?.body?.text;
+  const displayFormat = String(snapshot?.display_format ?? it?.display_format ?? "").toLowerCase();
+  let isCatalog = displayFormat === "dco" || displayFormat === "dpa";
+
+  const units: string[] = [];
+  const seen: string[] = [];
+  const push = (v: unknown) => {
+    if (hasPlaceholder(v)) isCatalog = true;
+    const s = sanitizeText(v);
+    if (!s) return;
+    const key = s.toLowerCase().replace(/\s+/g, " ");
+    // přesný duplikát NEBO text už obsažený v delším přidaném celku → skip
+    if (seen.some(k => k === key || k.includes(key))) return;
+    seen.push(key);
+    units.push(s);
+  };
+
+  push(bodyRaw);
+  push(snapshot?.title ?? it?.title);
+  push(snapshot?.link_description ?? it?.link_description);
+  const caption = snapshot?.caption ?? it?.caption;
+  if (!looksLikeBareUrl(caption)) push(caption);
+  for (const c of cards) {
+    push(c?.title);
+    push(c?.body?.text ?? (typeof c?.body === "string" ? c.body : null));
+    push(c?.link_description);
+  }
+
+  // Akční (nákupní) CTA je funnel signál → do textu pro klasifikaci. Generické
+  // "Další informace"/LEARN_MORE se ignoruje (nenese akviziční signál).
+  const ACTION_CTA_TYPES = new Set([
+    "SHOP_NOW", "BUY_NOW", "ORDER_NOW", "GET_OFFER", "ADD_TO_CART",
+    "SUBSCRIBE", "SIGN_UP", "BOOK_NOW", "BOOK_TRAVEL", "GET_QUOTE",
+  ]);
+  const ctaText = snapshot?.cta_text ?? it?.cta_text;
+  const ctaType = String(snapshot?.cta_type ?? it?.cta_type ?? "").toUpperCase();
+  const isActionCta = ACTION_CTA_TYPES.has(ctaType) ||
+    /koupit|objednat|objednej|nakup|do košíku|pořídit|objevit|vyzkoušet|rezervovat|získat/i.test(String(ctaText ?? ""));
+  if (isActionCta) push(ctaText);
+
+  const text = units.join("\n").slice(0, 1500).trim() || null;
+  return { text, isCatalog };
+}
+
 // ─── Ad mappers ───────────────────────────────────────────────────────────────
 
 function mapMetaItem(it: any, sessionId: string, competitorId: string) {
@@ -197,9 +274,17 @@ function mapMetaItem(it: any, sessionId: string, competitorId: string) {
     videos[0]?.videoSdUrl  || videos[0]?.video_sd_url  ||
     cardWithVid?.video_hd_url || cardWithVid?.videoHdUrl ||
     cardWithVid?.video_sd_url || cardWithVid?.videoSdUrl || null;
+  const { text: adText, isCatalog } = buildAdText(snapshot, it);
+  // Formát z display_format (čistý signál) — počet karet je u DCO/DPA zavádějící
+  // (produktové varianty z feedu, ne carousel slides). Video má vždy přednost;
+  // katalog (DCO/DPA, signál z buildAdText) je vlastní formát "catalog" → badge "Katalog".
+  const df = String(snapshot?.display_format ?? it?.display_format ?? "").toUpperCase();
   const adFormat: string =
     videos.length > 0 || !!cardWithVid ? "video" :
-    cards.length > 1 ? "carousel" : "single_image";
+    isCatalog                          ? "catalog" :
+    df === "CAROUSEL"                  ? "carousel" :
+    df === "IMAGE"                     ? "single_image" :
+    cards.length > 1                   ? "carousel" : "single_image";  // fallback bez display_format
   return {
     session_id:    sessionId,
     competitor_id: competitorId,
@@ -208,69 +293,15 @@ function mapMetaItem(it: any, sessionId: string, competitorId: string) {
     image_url:     firstImg,
     video_url:     firstVid,
     format:        adFormat,
-    primary_text:  snapshot?.body?.text || snapshot?.title || it?.primary_text || null,
+    primary_text:  adText ?? sanitizeText(it?.primary_text),
     is_active:     it?.is_active ?? true,
     ad_start_date: toDate(it?.start_date || it?.startDate || snapshot?.creation_time),
-    ad_type:       null,
+    // Deterministicky: katalogovka úplně bez reálného textu → sales (akvizice).
+    // Ostatní nechává null — klasifikuje analyze-lm-session (heuristika + AI).
+    ad_type:       isCatalog && !adText ? "sales" : null,
     page_id:       String(it?.page_id || snapshot?.page_id || "").replace(/\D/g, "") || null,
     page_name:     it?.page_name || snapshot?.page_name || null,
   };
-}
-
-// ─── Classify ads ─────────────────────────────────────────────────────────────
-
-async function classifyAds(apiKey: string, supa: ReturnType<typeof admin>, sessionId: string, competitorId: string) {
-  const { data: ads } = await supa
-    .from("lm_session_ads")
-    .select("id, primary_text")
-    .eq("session_id", sessionId)
-    .eq("competitor_id", competitorId)
-    .is("ad_type", null);
-  if (!ads?.length) return;
-
-  const BATCH = 5;
-  for (let i = 0; i < ads.length; i += BATCH) {
-    const batch = ads.slice(i, i + BATCH);
-    try {
-      const res = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "gemini-2.5-flash",
-          max_tokens: 200,
-          messages: [
-            { role: "system", content: "Klasifikuj každou reklamu: brand = budování značky; sales = přímá konverze; retargeting = připomenutí. Zavolej classify_batch." },
-            { role: "user", content: batch.map((ad: any, idx: number) => ({ type: "text", text: `--- Reklama ${idx + 1} ---\nText: ${(ad.primary_text || "—").slice(0, 300)}` })) },
-          ],
-          tools: [{
-            type: "function",
-            function: {
-              name: "classify_batch",
-              parameters: {
-                type: "object",
-                properties: { results: { type: "array", items: { type: "object", properties: { ad_type: { type: "string", enum: ["brand", "sales", "retargeting"] } }, required: ["ad_type"] } } },
-                required: ["results"],
-              },
-            },
-          }],
-          tool_choice: { type: "function", function: { name: "classify_batch" } },
-        }),
-      });
-      if (!res.ok) continue;
-      const d = await res.json();
-      const args = d?.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
-      if (!args) continue;
-      const results: { ad_type: string }[] = JSON.parse(args)?.results ?? [];
-      await Promise.all(batch.map(async (ad: any, idx: number) => {
-        const t = results[idx]?.ad_type;
-        if (t === "brand" || t === "sales" || t === "retargeting") {
-          await supa.from("lm_session_ads").update({ ad_type: t }).eq("id", ad.id);
-        }
-      }));
-    } catch (e) {
-      console.error("classify batch error:", e);
-    }
-  }
 }
 
 // ─── Download one Apify dataset ───────────────────────────────────────────────
@@ -454,6 +485,13 @@ Deno.serve(async (req) => {
               const winnerUrl = buildPageUrl(match.pageId);
               const displayName = deriveDisplayName(match.pageName, comp.url);
               const rows = match.filtered.map(it => mapMetaItem(it, session_id, comp.id));
+              // Fallback "katalog bez textu → sales" má být VZÁCNÝ — vyšší počet
+              // znamená rozbitý parse (texty se nenačetly z cards[]).
+              const catalogNoText = rows.filter(r => r.ad_type === "sales" && !r.primary_text).length;
+              if (catalogNoText > 0) {
+                console.log(JSON.stringify({ level: "warn", message: "catalog_no_text_fallback",
+                  session_id, competitor_id: comp.id, count: catalogNoText, total: rows.length }));
+              }
               await supa.from("lm_session_ads").upsert(rows, { onConflict: "session_id,ad_archive_id", ignoreDuplicates: false });
               totalAds = rows.length;
               scrapeStatus = "scraped";

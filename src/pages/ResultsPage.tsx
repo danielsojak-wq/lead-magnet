@@ -23,6 +23,7 @@ interface AdItem {
   image_url: string | null;
   video_url: string | null;
   primary_text: string | null;
+  is_catalog?: boolean;
   ad_type: "brand" | "sales" | "retargeting" | null;
   ad_source: "meta" | "google";
   is_active: boolean;
@@ -32,7 +33,7 @@ interface AdItem {
 
 interface AiAnalysis {
   reklamni_mix: {
-    meta: { single_image: number; carousel: number; video: number; stories: number };
+    meta: { single_image: number; carousel: number; video: number; catalog: number };
     google: { search: number; display: number; video: number; pmax: number };
   };
   aktivita: {
@@ -56,8 +57,6 @@ interface AiAnalysis {
     top_reklama: { popis: string; proc_funguje: string };
   };
   landing_pages: {
-    typ: string;
-    testuje_ab: boolean;
     pouziva_slevy: boolean;
   };
 }
@@ -142,11 +141,11 @@ const MOCK: AnalysisResults = {
       status: "ready", ads_count: 42, summary: null,
       ad_mix: { brand: 38, sales: 48, retargeting: 14 },
       ai_analysis: {
-        reklamni_mix: { meta: { single_image: 40, carousel: 20, video: 35, stories: 5 }, google: { search: 50, display: 30, video: 10, pmax: 10 } },
+        reklamni_mix: { meta: { single_image: 40, carousel: 20, video: 35, catalog: 5 }, google: { search: 50, display: 30, video: 10, pmax: 10 } },
         aktivita: { pocet_aktivnich_reklam: 28, prumerna_delka_behu_dni: 45, frekvence_novych_reklam: "vysoka" },
         messaging: { hlavni_claim: "Výsledky do 14 dní nebo vrátíme peníze", dominantni_emocni_apel: "logika", funnel_faze: "conversion", osloveni: "tykani", pouziva_emoji: true, socialni_dukaz: ["cisla", "recenze"] },
-        kreativni_vzorce: { nejcastejsi_hook: "cislo", prumerna_delka_textu: "kratky", top_reklama: { popis: "Testimonial video s číselným výsledkem v titulku", proc_funguje: "Číslo v prvních 3 sekundách = zástava scrollu. Běží 67 dní." } },
-        landing_pages: { typ: "dedicated_lp", testuje_ab: true, pouziva_slevy: false },
+        kreativni_vzorce: { nejcastejsi_hook: "statistika", prumerna_delka_textu: "kratky", top_reklama: { popis: "Testimonial video s číselným výsledkem v titulku", proc_funguje: "Číslo v prvních 3 sekundách = zástava scrollu. Běží 67 dní." } },
+        landing_pages: { pouziva_slevy: false },
       },
       ads: [
         { id: "a1", image_url: "https://picsum.photos/seed/ad1/400/400", video_url: null, primary_text: "93 % zákazníků vidí výsledky do 14 dní.", ad_type: "sales", ad_source: "meta", is_active: true, ad_start_date: "2026-03-01" },
@@ -162,11 +161,11 @@ const MOCK: AnalysisResults = {
       status: "ready", ads_count: 31, summary: null,
       ad_mix: { brand: 55, sales: 32, retargeting: 13 },
       ai_analysis: {
-        reklamni_mix: { meta: { single_image: 20, carousel: 45, video: 30, stories: 5 }, google: { search: 40, display: 40, video: 15, pmax: 5 } },
+        reklamni_mix: { meta: { single_image: 20, carousel: 45, video: 30, catalog: 5 }, google: { search: 40, display: 40, video: 15, pmax: 5 } },
         aktivita: { pocet_aktivnich_reklam: 19, prumerna_delka_behu_dni: 62, frekvence_novych_reklam: "nizka" },
         messaging: { hlavni_claim: "Konečně produkt, který opravdu funguje", dominantni_emocni_apel: "touha", funnel_faze: "awareness", osloveni: "tykani", pouziva_emoji: false, socialni_dukaz: ["ugc", "recenze"] },
         kreativni_vzorce: { nejcastejsi_hook: "otazka", prumerna_delka_textu: "dlouhy", top_reklama: { popis: "UGC video 'Den se zákaznicí'", proc_funguje: "Autentičnost překonává produkci v brand kampani. Běží 89 dní." } },
-        landing_pages: { typ: "homepage", testuje_ab: false, pouziva_slevy: true },
+        landing_pages: { pouziva_slevy: true },
       },
       ads: [
         { id: "b1", image_url: "https://picsum.photos/seed/b1/400/400", video_url: null, primary_text: "Znáte ten pocit, když konečně najdete to pravé?", ad_type: "brand", ad_source: "meta", is_active: true, ad_start_date: "2026-02-01" },
@@ -235,6 +234,19 @@ function AdSourceBadge({ source }: { source: "meta" | "google" }) {
     : <span className="absolute top-2 left-2 text-[10px] font-bold bg-[#1877F2] text-white px-1.5 py-0.5 rounded">Meta</span>;
 }
 
+// Poslední obrana: {{product.brand}} placeholdery z katalogových reklam se nesmí
+// nikdy vyrenderovat (get-lm-results už sanituje, tohle kryje stale cache/starší API).
+// Katalogovka bez jakéhokoli reálného textu → neutrální popisek místo prázdna.
+const CATALOG_FALLBACK_TEXT = "Dynamická katalogová reklama";
+function adDisplayText(ad: AdItem): string | null {
+  const cleaned = (ad.primary_text ?? "")
+    .replace(/\{\{[^{}]*\}\}/g, " ")
+    .replace(/[ \t]+/g, " ")
+    .trim();
+  if (/[\p{L}\p{N}]/u.test(cleaned)) return cleaned;
+  return ad.is_catalog ? CATALOG_FALLBACK_TEXT : null;
+}
+
 function AdTypePill({ type }: { type: string | null }) {
   if (!type) return null;
   const label = TYPE_LABELS[type as keyof typeof TYPE_LABELS] || type;
@@ -251,11 +263,17 @@ function extractDomain(url: string): string {
   try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return url; }
 }
 
-const apeLabel = (a: string) => (({ strach: "Strach", touha: "Touha", logika: "Logika", humor: "Humor", komunita: "Komunita" } as Record<string, string>)[a] ?? a);
+// Enum → český label s diakritikou. AI vrací lowercase hodnoty bez diakritiky
+// (ukotvené v L1 promptu); fallback `?? a` kryje neočekávané hodnoty.
+const apeLabel = (a: string) => (({ strach: "Strach", touha: "Touha", logika: "Logika", humor: "Humor", komunita: "Komunita", duvera: "Důvěra" } as Record<string, string>)[a] ?? a);
 const funnelLabel = (f: string) => (({ awareness: "Awareness", consideration: "Consideration", conversion: "Conversion", mix: "Celý funnel" } as Record<string, string>)[f] ?? f);
 const textLengthLabel = (t: string) => (({ kratky: "Krátký", stredni: "Střední", dlouhy: "Dlouhý" } as Record<string, string>)[t] ?? t);
 const freqLabel = (f: string) => (({ vysoka: "Vysoká", stredni: "Střední", nizka: "Nízká" } as Record<string, string>)[f] ?? f);
-const lpLabel = (t: string) => (({ dedicated_lp: "LP", homepage: "Homepage", category: "Kategorie", product: "Produkt", mix: "Mix" } as Record<string, string>)[t] ?? t);
+const oslovaniLabel = (o: string) => (({ tykani: "Tykání", vykani: "Vykání" } as Record<string, string>)[o] ?? o);
+const hookLabel = (h: string) => (({ otazka: "Otázka", statistika: "Statistika", tvrzeni: "Tvrzení", pribeh: "Příběh", problem_reseni: "Problém–řešení", socialni_dukaz: "Sociální důkaz" } as Record<string, string>)[h] ?? h);
+// Formát kreativy — počeštěné a sjednocené. catalog = DPA/DCO dynamický katalog
+// (Meta ho renderuje i jako jeden banner, ale technicky má připojený produktový feed).
+const formatLabel = (f: string | null | undefined) => (({ single_image: "Baner", catalog: "Katalog", video: "Video", carousel: "Karusel" } as Record<string, string>)[f ?? ""] ?? f ?? "");
 
 // ─── Charts ───────────────────────────────────────────────────────────────────
 
@@ -307,8 +325,8 @@ function calcPlayerRadarValues(p: CompetitorResult, rawVolume: number, maxVolume
   const objem = Math.round((rawVolume / maxVolume) * 100);
 
   const fmeta = ai?.reklamni_mix.meta;
-  const formatCount = fmeta ? [fmeta.single_image, fmeta.carousel, fmeta.video].filter(v => v > 0).length : 0;
-  const kreativa = Math.round(formatCount * 100 / 3);
+  const formatCount = fmeta ? [fmeta.single_image, fmeta.carousel, fmeta.video, fmeta.catalog].filter(v => v > 0).length : 0;
+  const kreativa = Math.round(formatCount * 100 / 4);
 
   const funnelCount = [mix.brand > 0, mix.sales > 0, mix.retargeting > 0].filter(Boolean).length;
   const funnel = Math.round(funnelCount * 100 / 3);
@@ -639,8 +657,8 @@ function AdModal({ ad, onClose }: { ad: AdItem; onClose: () => void }) {
               <AdTypePill type={ad.ad_type} />
               {ad.ad_start_date && <span className="text-xs text-gray-400">spuštěna {ad.ad_start_date}</span>}
             </div>
-            {ad.primary_text
-              ? <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">{ad.primary_text}</p>
+            {adDisplayText(ad)
+              ? <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">{adDisplayText(ad)}</p>
               : <p className="text-sm text-gray-400 italic">Žádný text</p>}
           </div>
         </Dialog.Content>
@@ -675,6 +693,7 @@ function CompetitorSection({ competitor, index, isEshop }: { competitor: Competi
         fmeta.single_image > 0 ? `${fmeta.single_image} obr.` : null,
         fmeta.video > 0 ? `${fmeta.video} video` : null,
         fmeta.carousel > 0 ? `${fmeta.carousel} karusel` : null,
+        fmeta.catalog > 0 ? `${fmeta.catalog} katalog` : null,
       ] as (string | null)[]).filter(Boolean).join(" · ")
     : null;
 
@@ -779,7 +798,7 @@ function CompetitorSection({ competitor, index, isEshop }: { competitor: Competi
                   <span>Funnel</span><span className="font-medium text-gray-700 text-right">{funnelLabel(ai.messaging.funnel_faze)}</span>
                 </div>
                 <div className="flex justify-between gap-2">
-                  <span>Oslovení</span><span className="font-medium text-gray-700 text-right">{ai.messaging.osloveni}</span>
+                  <span>Oslovení</span><span className="font-medium text-gray-700 text-right">{oslovaniLabel(ai.messaging.osloveni)}</span>
                 </div>
                 {ai.messaging.socialni_dukaz?.length > 0 && (
                   <div className="flex justify-between gap-2">
@@ -799,22 +818,15 @@ function CompetitorSection({ competitor, index, isEshop }: { competitor: Competi
               )}
               <div className="space-y-1.5 text-xs text-gray-500">
                 <div className="flex justify-between gap-2">
-                  <span>Hook</span><span className="font-medium text-gray-700 text-right capitalize">{ai.kreativni_vzorce.nejcastejsi_hook}</span>
+                  <span>Hook</span><span className="font-medium text-gray-700 text-right">{hookLabel(ai.kreativni_vzorce.nejcastejsi_hook)}</span>
                 </div>
                 <div className="flex justify-between gap-2">
                   <span>Délka textu</span><span className="font-medium text-gray-700 text-right">{textLengthLabel(ai.kreativni_vzorce.prumerna_delka_textu)}</span>
                 </div>
-                {ai.landing_pages && (
-                  <>
-                    <div className="flex justify-between gap-2">
-                      <span>Landing page</span><span className="font-medium text-gray-700 text-right">{lpLabel(ai.landing_pages.typ)}</span>
-                    </div>
-                    {ai.landing_pages.pouziva_slevy && (
-                      <div className="flex justify-between gap-2">
-                        <span>Slevy</span><span className="font-medium text-[#4f11ff]">Ano</span>
-                      </div>
-                    )}
-                  </>
+                {ai.landing_pages?.pouziva_slevy && (
+                  <div className="flex justify-between gap-2">
+                    <span>Slevy</span><span className="font-medium text-[#4f11ff]">Ano</span>
+                  </div>
                 )}
               </div>
             </div>
@@ -883,7 +895,7 @@ function CompetitorSection({ competitor, index, isEshop }: { competitor: Competi
                 <p className="text-xs text-gray-500 leading-relaxed">{ai!.kreativni_vzorce.top_reklama.proc_funguje}</p>
                 <div className="flex gap-2 flex-wrap">
                   <span className="text-[10px] px-2 py-0.5 rounded-full font-medium" style={{ background: `${color}15`, color }}>
-                    Hook: {ai!.kreativni_vzorce.nejcastejsi_hook}
+                    Hook: {hookLabel(ai!.kreativni_vzorce.nejcastejsi_hook)}
                   </span>
                   <span className="text-[10px] bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full">
                     Text: {textLengthLabel(ai!.kreativni_vzorce.prumerna_delka_textu)}
@@ -932,15 +944,18 @@ function CompetitorSection({ competitor, index, isEshop }: { competitor: Competi
                       <Video className="h-2.5 w-2.5 text-white" />
                     </div>
                   )}
+                  {/* ad_type štítek — VŽDY viditelný (nahoře vlevo) pro rychlý přehled mixu */}
+                  {ad.ad_type && (
+                    <div className="absolute top-1.5 left-1.5"><AdTypePill type={ad.ad_type} /></div>
+                  )}
                   {ad.format && (
                     <div className="absolute bottom-1.5 left-1.5 text-white font-medium leading-none" style={{ background: "rgba(0,0,0,0.7)", fontSize: 11, padding: "4px 8px", borderRadius: 4 }}>
-                      {ad.format === "single_image" ? "Image" : ad.format === "video" ? "Video" : ad.format === "carousel" ? "Carousel" : ad.format}
+                      {formatLabel(ad.format)}
                     </div>
                   )}
                   {ad.is_active && <div className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#b0f221] shadow-sm" />}
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-all flex flex-col justify-end p-1.5 opacity-0 group-hover:opacity-100">
-                    <AdTypePill type={ad.ad_type} />
-                    {ad.primary_text && <p className="text-white text-[9px] mt-0.5 line-clamp-2 leading-tight">{ad.primary_text}</p>}
+                    {adDisplayText(ad) && <p className="text-white text-[9px] line-clamp-2 leading-tight">{adDisplayText(ad)}</p>}
                   </div>
                 </button>
               ))}

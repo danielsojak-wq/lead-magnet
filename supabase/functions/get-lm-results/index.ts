@@ -26,6 +26,22 @@ function domainName(url: string): string {
   try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return url; }
 }
 
+// Legacy řádky z doby před parse fixem můžou nést {{product.brand}} placeholdery
+// z katalogových reklam — do UI nesmí nikdy odejít. Placeholder uvnitř delšího
+// textu se odstraní; placeholder-only → text null + is_catalog pro fallback label.
+const PLACEHOLDER_RE = /\{\{[^{}]*\}\}/g;
+
+function sanitizeAdText(v: unknown): { text: string | null; hadPlaceholder: boolean } {
+  if (typeof v !== "string") return { text: null, hadPlaceholder: false };
+  const hadPlaceholder = /\{\{[^{}]*\}\}/.test(v);
+  const cleaned = v
+    .replace(PLACEHOLDER_RE, " ")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\s*\n\s*/g, "\n")
+    .trim();
+  return { text: /[\p{L}\p{N}]/u.test(cleaned) ? cleaned : null, hadPlaceholder };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -91,17 +107,21 @@ Deno.serve(async (req) => {
         status: c.status as "ready" | "processing" | "failed" | "empty" | "scrape_failed",
         ads_count: c.ads_count,
         ad_mix: c.ad_mix ?? { brand: 0, sales: 0, retargeting: 0 },
-        ads: (adsByCompetitor.get(c.id) ?? []).map((a: any) => ({
-          id: a.id,
-          image_url: a.image_url ?? null,
-          video_url: a.video_url ?? null,
-          primary_text: a.primary_text ?? null,
-          ad_type: a.ad_type ?? null,
-          ad_source: a.ad_source as "meta" | "google",
-          is_active: a.is_active,
-          ad_start_date: a.ad_start_date ?? null,
-          format: a.format ?? null,
-        })),
+        ads: (adsByCompetitor.get(c.id) ?? []).map((a: any) => {
+          const { text, hadPlaceholder } = sanitizeAdText(a.primary_text);
+          return {
+            id: a.id,
+            image_url: a.image_url ?? null,
+            video_url: a.video_url ?? null,
+            primary_text: text,
+            is_catalog: hadPlaceholder,
+            ad_type: a.ad_type ?? null,
+            ad_source: a.ad_source as "meta" | "google",
+            is_active: a.is_active,
+            ad_start_date: a.ad_start_date ?? null,
+            format: a.format ?? null,
+          };
+        }),
       };
     }
 

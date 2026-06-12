@@ -1,8 +1,9 @@
 import { corsHeaders } from "../_shared/cors.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const AI_URL   = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
-const AI_MODEL = "gemini-2.5-flash";
+const AI_URL    = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+const AI_MODEL  = "gemini-2.5-flash";   // L1 (4 paralelní) + classify — rychlost, vejde se do 150s
+const AI_MODEL_L2 = "gemini-2.5-pro";   // L2 syntéza — jediný call, senior kvalita insightů/quick-wins
 
 function admin() {
   return createClient(
@@ -31,7 +32,7 @@ const RETRY_DELAYS = [2000, 5000, 10000];   // callAI: 3 pokusy, max ~17s čeká
 const AI_TIMEOUT_MS = 40000;                 // callAI: per-request strop, ať hangující Gemini call nesežere celý budget
                                              // (40s — největší L1 prompt potřebuje víc; 4 paralelní L1 + L2 se i tak vejdou do 150s)
 
-async function callAI(apiKey: string, system: string, user: string, maxTokens = 8000): Promise<unknown> {
+async function callAI(apiKey: string, system: string, user: string, maxTokens = 8000, model = AI_MODEL, timeoutMs = AI_TIMEOUT_MS): Promise<unknown> {
   for (let attempt = 0; attempt < RETRY_DELAYS.length; attempt++) {
     const isLast = attempt === RETRY_DELAYS.length - 1;
     try {
@@ -39,7 +40,7 @@ async function callAI(apiKey: string, system: string, user: string, maxTokens = 
         method: "POST",
         headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: AI_MODEL,
+          model,
           max_tokens: maxTokens,
           temperature: 0.3,
           response_format: { type: "json_object" },
@@ -48,7 +49,7 @@ async function callAI(apiKey: string, system: string, user: string, maxTokens = 
             { role: "user", content: user },
           ],
         }),
-        signal: AbortSignal.timeout(AI_TIMEOUT_MS),
+        signal: AbortSignal.timeout(timeoutMs),
       });
       if (res.status === 429) {
         // Poslední pokus na 429 → throw (ne tiché čekání), ať caller uloží 'failed'
@@ -149,11 +150,23 @@ function computeAvgDuration(ads: any[]): number {
 }
 
 // Deterministický per-ad ad_type (bez API) — garantuje UI pills i bez AI classify.
-// Akvizice = nabídka/cena/CTA; retargeting = připomínka/košík; jinak brand.
+// Pořadí: katalogový placeholder (legacy řádky) → retargeting → sales → brand default.
+// Definice DRŽET KONZISTENTNÍ s AI promptem v classifyAds (sales = konkrétní produkt
+// + benefit/varianty/nabídka; brand = čistý awareness/edukace bez produktového pushe).
 function localAdType(ad: any): "brand" | "sales" | "retargeting" {
   const t = String(ad?.primary_text || "").toLowerCase();
+  // Legacy katalogovka s nerenderovaným placeholderem ({{product.brand}}) — nové
+  // parsování už placeholder neukládá, ale starší řádky ho mít můžou → akvizice.
+  if (/\{\{[^{}]*\}\}/.test(t)) return "sales";
   if (/košík|nezapomeň|nedokončen|vraťte se|stále (čeká|máte)|čeká na vás|dokonči|zapomněl/.test(t)) return "retargeting";
-  if (/sleva|výprodej|akční|akce |%|\bkč\b|zdarma|koupit|objednej|nakup|ušetř|jen za|black friday|doprava zdarma/.test(t)) return "sales";
+  if (
+    // nabídka / cena / nákupní CTA
+    /sleva|výprodej|akční|akce |%|\bkč\b|zdarma|koupit|kupte|pořiďte|objednej|objednávejte|nakup|ušetř|jen za|black friday|doprava zdarma|\bkód\b|\bcen(a|u|y|ě|ou)\b/.test(t) ||
+    // produktové signály: vyzkoušení produktu, novinky, varianty/odstíny, dostupnost.
+    // Záměrně BEZ "objevte" — pálí i na čisté awareness ("objevte umění péče");
+    // měkkou produktovou copy bez keywordů doklasifikuje AI refine (classifyAds).
+    /vyzkoušej|novink|skladem|odstín|variant|balení|kolekce|edice/.test(t)
+  ) return "sales";
   return "brand";
 }
 
@@ -175,6 +188,27 @@ function adMixFromAds(ads: any[]): { brand: number; sales: number; retargeting: 
 
 // ─── Classify ads ────────────────────────────────────────────────────────────
 
+// Definice DRŽET KONZISTENTNÍ s localAdType — AI refine nesmí systematicky protiřečit
+// heuristice na jasných případech (nabídky, košík, čistý awareness).
+const CLASSIFY_SYSTEM = `Jsi klasifikátor Meta reklam pro konkurenční analýzu českých e-shopů. Každou reklamu zařaď do právě jedné kategorie:
+
+ROZHODOVACÍ TEST (proveď ho první): Pojmenovává reklama KONKRÉTNÍ produkt (vlastní název produktu, např. BalanceCream, IntenseCream, korektor Závoj, fluid Nádech) A popisuje, co ten produkt dělá nebo komu pomáhá? Pokud ANO → je to sales, BEZ OHLEDU na měkkou, wellness či příběhovou tonalitu okolo. Fráze jako „respektuje ženské tělo" nebo „pro novou fázi života" jsou obal, NE důvod pro brand.
+
+sales (akvizice) — reklama prodává konkrétní produkt nebo kategorii: pojmenovaný produkt + jeho benefit/funkce/použití, varianty či odstíny, cena, sleva, nabídka, výzva koupit/vyzkoušet/objevit produkt. Patří sem i měkká produktová copy bez ceny a CTA.
+  • „Korektory Závoj umí zázraky. Nejen, že hezky kryjí a jemně sjednocují…" → sales
+  • „Krémový korektor Závoj, 5 odstínů, zakrývá kruhy" → sales
+  • „Pleť v rovnováze během cyklu. BalanceCream reaguje na hormonální změny a pomáhá pleti zůstat v rovnováze. Chytrý anti-aging, který respektuje ženské tělo." → sales (pojmenovaný produkt BalanceCream + jeho funkce; wellness tonalita nerozhoduje)
+  • Texty katalogových karet (název produktu + popis + varianty) → sales
+
+brand — čistý awareness, edukace, hodnoty nebo příběh ZNAČKY, který NEpojmenovává konkrétní produkt: mluví o značce, jejích hodnotách nebo kategorii obecně.
+  • „Krása, která dává smysl. Funkční, čistá a vědomá kosmetika." → brand (žádný konkrétní produkt, jen hodnota značky)
+  • „Dnes začíná jaro. Vaše pleť má šanci začít znovu…" → brand (edukace/sezóna bez konkrétního produktu)
+  POZOR: brand je JEN tehdy, když chybí konkrétní pojmenovaný produkt. Jakmile reklama jmenuje produkt a říká, co dělá, je to sales — i kdyby zněla jako příběh nebo manifest.
+
+retargeting — připomenutí: návrat ke košíku či prohlíženému zboží, dokončení nákupu („Váš košík na vás čeká", „Nezapomněli jste na něco?").
+
+LINIE BRAND vs SALES (rozhodující pravidlo): E-shopové reklamy jsou v drtivé většině akviziční. Při JAKÉKOLI nejistotě mezi sales a brand zvol sales. Brand je úzká kategorie vyhrazená POUZE pro reklamy zcela bez konkrétního produktu, jeho benefitu/účinku, produktové kategorie nebo nabídky — tedy čistou značkovou awareness, hodnoty či manifest. Jakmile reklama zmiňuje konkrétní produkt, jeho účinek/benefit, produktovou kategorii nebo nabídku, je to sales — i kdyby tonalita byla měkká, edukativní nebo příběhová.`;
+
 async function classifyAds(apiKey: string, supa: ReturnType<typeof admin>, sessionId: string): Promise<void> {
   // Refine pass — klasifikuj všechny reklamy s textem a PŘEPIŠ heuristik AI typem.
   // Heuristik už dal každé reklamě baseline ad_type (pills existují), takže když tahle
@@ -187,56 +221,49 @@ async function classifyAds(apiKey: string, supa: ReturnType<typeof admin>, sessi
   if (!ads?.length) return;
   console.log(`classifyAds (refine): ${ads.length} ads in session ${sessionId}`);
 
-  const BATCH = 5;        // reklam na 1 Gemini call
-  const CONCURRENCY = 5;  // max paralelních callů (pojistka proti Gemini rate-limitu)
+  const BATCH = 6;        // reklam na 1 Gemini call (menší batch = response se vejde do max_tokens)
+  const CONCURRENCY = 4;  // max paralelních callů
 
-  // Rozsekej na nezávislé batche (každý klasifikuje vlastních max 5 reklam)
+  // Rozsekej na nezávislé batche (každý klasifikuje vlastních max BATCH reklam)
   const batches: Array<Array<{ id: string; primary_text: string | null }>> = [];
   for (let i = 0; i < ads.length; i += BATCH) batches.push(ads.slice(i, i + BATCH) as any);
 
   // Jeden batch: výsledky se přiřazují per-batch (results[idx] → batch[idx].id),
   // takže paralelizace mezi batchi NEovlivní správnost přiřazení.
+  // VLASTNÍ fetch JSON mode (ne callAI) — callAI má retry delays [2s,5s,10s], které pod
+  // throttlingem (classify běží paralelně s L2 Pro) přetáhnou 150s budget. Tady 1 pokus,
+  // krátký timeout, best-effort: padlý batch nechá heuristiku, ale nezdrží pipeline.
+  // (Dřív tool-calling přes openai-compat vracel prázdno → classify byl de facto mrtvý.)
   const classifyBatch = async (batch: Array<{ id: string; primary_text: string | null }>): Promise<void> => {
-    for (let attempt = 0; attempt < 2; attempt++) {   // 1 retry na 429/transient místo tichého zahození
+    const userText = batch.map((ad, idx) => `--- Reklama ${idx + 1} ---\nText: ${(ad.primary_text || "—").slice(0, 500)}`).join("\n")
+      + `\n\nVrať POUZE JSON v přesně tomto tvaru: {"results":[{"ad_type":"brand|sales|retargeting"}, ...]} — právě ${batch.length} položek, ve stejném pořadí jako reklamy výše.`;
+    for (let attempt = 0; attempt < 2; attempt++) {   // 1 retry na 429/transient
       try {
-        const res = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
+        const res = await fetch(AI_URL, {
           method: "POST",
           headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
           body: JSON.stringify({
-            model: "gemini-2.5-flash",
-            max_tokens: 200,
-            messages: [
-              { role: "system", content: "Klasifikuj každou reklamu: brand = budování značky; sales = přímá konverze; retargeting = připomenutí. Zavolej classify_batch." },
-              { role: "user", content: batch.map((ad, idx) => `--- Reklama ${idx + 1} ---\nText: ${(ad.primary_text || "—").slice(0, 300)}`).join("\n") },
-            ],
-            tools: [{
-              type: "function",
-              function: {
-                name: "classify_batch",
-                parameters: {
-                  type: "object",
-                  properties: {
-                    results: {
-                      type: "array",
-                      items: { type: "object", properties: { ad_type: { type: "string", enum: ["brand", "sales", "retargeting"] } }, required: ["ad_type"] },
-                    },
-                  },
-                  required: ["results"],
-                },
-              },
-            }],
-            tool_choice: { type: "function", function: { name: "classify_batch" } },
+            model: AI_MODEL,
+            max_tokens: 2000,
+            temperature: 0.1,
+            response_format: { type: "json_object" },
+            messages: [{ role: "system", content: CLASSIFY_SYSTEM }, { role: "user", content: userText }],
           }),
-          signal: AbortSignal.timeout(15000),
+          signal: AbortSignal.timeout(22000),
         });
-        if (res.status === 429 && attempt === 0) { await new Promise(r => setTimeout(r, 3000)); continue; }
-        if (!res.ok) { console.warn(`classifyAds batch HTTP ${res.status}`); return; }
+        if (res.status === 429 && attempt === 0) { await new Promise(r => setTimeout(r, 2500)); continue; }
+        if (!res.ok) { console.warn(`classifyBatch HTTP ${res.status}`); return; }
         const d = await res.json();
-        const args = d?.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
-        if (!args) return;
-        const results: { ad_type: string }[] = JSON.parse(args)?.results ?? [];
+        const content: string = d?.choices?.[0]?.message?.content ?? "";
+        // Robustní parse — Gemini nemusí dodržet přesný tvar {results:[...]}; akceptuj
+        // results pole, holé pole, nebo první pole nalezené v objektu.
+        let parsed: any = null;
+        try { parsed = extractJson(content); } catch (e) { console.warn("classifyBatch parse fail:", String(e)); return; }
+        const results: Array<{ ad_type?: string }> = Array.isArray(parsed?.results) ? parsed.results
+          : Array.isArray(parsed) ? parsed
+          : (Object.values(parsed ?? {}).find((v) => Array.isArray(v)) as any) ?? [];
         await Promise.all(batch.map(async (ad, idx) => {
-          const t = results[idx]?.ad_type;
+          const t = typeof results[idx] === "string" ? results[idx] : results[idx]?.ad_type;
           if (t === "brand" || t === "sales" || t === "retargeting") {
             await supa.from("lm_session_ads").update({ ad_type: t }).eq("id", ad.id);
           }
@@ -244,7 +271,7 @@ async function classifyAds(apiKey: string, supa: ReturnType<typeof admin>, sessi
         return;
       } catch (e) {
         if (attempt === 0) { await new Promise(r => setTimeout(r, 1500)); continue; }
-        console.error("classifyAds batch error:", e);
+        console.warn("classifyBatch error:", String(e));
         return;
       }
     }
@@ -259,6 +286,15 @@ async function classifyAds(apiKey: string, supa: ReturnType<typeof admin>, sessi
 
 // ─── Prompt builders ─────────────────────────────────────────────────────────
 
+const DATA_GUARDRAILS = `ZAKÁZANÁ TVRZENÍ — pro tato data NEMÁME zdroj, jejich uvedení je halucinace (stejně závažná jako smyšlený údaj):
+- PLACEMENT/UMÍSTĚNÍ: nikdy netvrď ani nedoporučuj stories, reels, feed, in-stream apod. Z Ads Library nevíme, kde se reklama zobrazuje.
+- ROZPOČET/SPEND/INVESTICE: nikdy. Scrapeme jen počty a typy reklam, žádné % rozpočtu ani alokaci.
+- CÍLENÍ/AUDIENCE/DEMOGRAFIKA: nikdy. Nemáme.
+- VÝSLEDKY/VÝKON: nikdy nezmiňuj ROI, konverze, CTR, dosah (reach) ani frekvenci zobrazení. Měříme jen počet reklam a dobu běhu.
+- LANDING PAGES konkurenta a A/B TESTY: nikdy netvrď, že někdo testuje/netestuje landing pages ani jaký má typ LP.
+- GOOGLE ADS: nikdy (analyzujeme výhradně Meta).
+- POZOROVÁNÍ, NE SOUD O STRATEGII: piš o tom, co je VIDĚT v aktivních reklamách, ne o domněnkách o celkové strategii. "V aktivních reklamách jsme nezachytili retargetingové sdělení" ANO; "konkurent nedělá retargeting" NE — nemusí být v Ads Library vidět.`;
+
 const L1_SYSTEM = `Jsi senior marketingový stratég specializující se na digitální reklamu.
 Analyzuj reklamní data a vrať POUZE validní JSON bez markdown bloků ani backtickú.
 
@@ -267,12 +303,20 @@ PRAVIDLA:
 - Pokud je k dispozici méně než 5 reklam, nastav messaging.hlavni_claim na "Nedostatek dat pro spolehlivou analýzu" a buď konzervativní u všech odhadů
 - top_reklama.popis a proc_funguje musí vycházet z konkrétní reklamy z dat — pokud taková není, napiš "Bez dat"
 - aktivita.pocet_aktivnich_reklam vyplň přesně dle dat (počet kde is_active=true)
-- Analyzuj VÝHRADNĚ Meta reklamy — máme data pouze z Meta Ads Library. Google Ads data NEMÁME. V poli reklamni_mix.google vyplň všechna čísla nulami.
-- reklamni_mix.meta: POČÍTEJ PŘESNĚ z pole "format" každé reklamy v datech. "video" → přičti k video, "carousel" → přičti k carousel, "single_image" → přičti k single_image. Nikdy neodhaduj ani nedoplňuj formát, který v datech není. stories vždy 0. Čísla jsou absolutní počty reklam, ne procenta.
-- NIKDY nezmiňuj procenta rozpočtu, alokaci investic ani % výdajů — tato data nemáme. Místo toho vždy uváděj počty reklam: "X z Y reklam jsou retargetingové povahy"
+- Analyzuj VÝHRADNĚ Meta reklamy — máme data pouze z Meta Ads Library. V poli reklamni_mix.google vyplň všechna čísla nulami.
+- reklamni_mix.meta: POČÍTEJ PŘESNĚ z pole "format" každé reklamy v datech. "video" → přičti k video, "carousel" → přičti k carousel, "single_image" → přičti k single_image, "catalog" → přičti k catalog. Nikdy neodhaduj ani nedoplňuj formát, který v datech není. Čísla jsou absolutní počty reklam, ne procenta.
 - messaging.tema_komunikace: Jedno krátké téma komunikace v max. 10 slovech (např. "Outdoorové vybavení pro náročné turisty"), vycházej výhradně z reklam a landing page dat
-- messaging.strategie_uctu: 1-2 věty popisující JAK účet přemýšlí o Meta reklamě. ODVOZUJ VÝHRADNĚ Z CHOVÁNÍ V DATECH: mix formátů (kolik video/carousel/single_image), mix ad_type (kolik brand/sales/retargeting), frekvence nových reklam, délka rotace, přítomnost slev. Příklady: "Brand-first launch: 70% video, žádný retargeting, žádné slevy, dlouhá rotace." / "Performance akvizice: 100% single image, slevy v každé reklamě, krátká rotace pod 30 dní." NESMÍ citovat copy z reklam, parafrázovat USP ani fabulovat motivy bez datové opory.
-- Nikdy nevymýšlej strategie, claimy ani vzorce bez datové opory`;
+- messaging.strategie_uctu: 1-2 věty senior stratéga popisující JAK účet přemýšlí o Meta reklamě. ODVOZUJ VÝHRADNĚ Z CHOVÁNÍ V DATECH: mix formátů (kolik video/carousel/single_image/catalog), mix ad_type (kolik brand/sales/retargeting), frekvence nových reklam, délka rotace, přítomnost slev. Pojmenuj strategii ostře a konkrétně. Příklady: "Brand-first launch: 70 % video, žádný retargeting, žádné slevy, dlouhá rotace." / "Výkonnostní akvizice přes katalog: většina katalogových a single image reklam, slevy v každé druhé reklamě, krátká rotace pod 30 dní." NESMÍ citovat copy z reklam, parafrázovat USP ani fabulovat motivy bez datové opory.
+- Nikdy nevymýšlej strategie, claimy ani vzorce bez datové opory
+- ENUM POLE — používej VÝHRADNĚ tyto hodnoty (přesně tyto řetězce, lowercase bez diakritiky):
+  • dominantni_emocni_apel: logika | touha | strach | humor | komunita | duvera
+  • funnel_faze: awareness | consideration | conversion | mix
+  • osloveni: tykani | vykani
+  • nejcastejsi_hook: otazka | statistika | tvrzeni | pribeh | problem_reseni | socialni_dukaz
+  • prumerna_delka_textu: kratky | stredni | dlouhy
+  • frekvence_novych_reklam: vysoka | stredni | nizka
+
+${DATA_GUARDRAILS}`;
 
 function l1User(playerName: string, playerUrl: string, ads: any[], websiteContent = ""): string {
   const adRows = ads.slice(0, 30).map(a => ({
@@ -299,7 +343,7 @@ Vrať JSON v přesně tomto formátu (ad_mix_pct: odhadni % rozdělení reklam n
 {
   "ad_mix_pct": { "brand": 0, "sales": 0, "retargeting": 0 },
   "reklamni_mix": {
-    "meta": { "single_image": 0, "carousel": 0, "video": 0, "stories": 0 },
+    "meta": { "single_image": 0, "carousel": 0, "video": 0, "catalog": 0 },
     "google": { "search": 0, "display": 0, "video": 0, "pmax": 0 }
   },
   "aktivita": {
@@ -318,32 +362,32 @@ Vrať JSON v přesně tomto formátu (ad_mix_pct: odhadni % rozdělení reklam n
     "socialni_dukaz": []
   },
   "kreativni_vzorce": {
-    "nejcastejsi_hook": "statement",
+    "nejcastejsi_hook": "tvrzeni",
     "prumerna_delka_textu": "stredni",
     "top_reklama": { "popis": "", "proc_funguje": "" }
   },
   "landing_pages": {
-    "typ": "mix",
-    "testuje_ab": false,
     "pouziva_slevy": false
   }
 }`;
 }
 
-const L2_SYSTEM = `Jsi senior marketingový stratég. Na základě L1 analýz hráčů vrať syntézu. POUZE validní JSON bez markdown bloků.
+const L2_SYSTEM = `Jsi senior growth/performance stratég, který e-commerce zakladateli prezentuje konkurenční analýzu Meta reklam. Mluvíš ostře, konkrétně a bez vaty — každá věta nese informaci, kterou by laik z dat sám nevyčetl. Žádné obecné marketingové fráze. Na základě L1 analýz hráčů vrať syntézu. POUZE validní JSON bez markdown bloků.
 
 PRAVIDLA PRO KVALITU INSIGHTŮ:
+- KAŽDÉ číslo musí pocházet z dat, která REÁLNĚ máme (počet reklam podle typu/formátu, doba běhu). NIKDY si nevymýšlej procenta, násobky ani metriky výkonu. Senior stratég radši řekne méně, ale pravdivě — nepředstírá data, která nemá.
 - category_truths: Konkrétní OPAKUJÍCÍ SE vzorce z dat — ne obecné marketingové pravdy. Vzor musí být viditelný u zadavatele nebo alespoň jednoho konkurenta.
 - co_funguje_vsem: Co konkrétního (formát, hook, délka, emoce) mají společné — s příklady z dat
-- mezery_prilezitosti: Konkrétní témata, formáty nebo segmenty, které NIKDO nepoužívá — přímé obchodní příležitosti
-- quick_wins: Každá akce musí být specifická a přímo vycházet z analýzy, ne generické rady
+- mezery_prilezitosti: Konkrétní téma, formát nebo typ sdělení, který v aktivních reklamách nikdo nepoužívá — přímá obchodní příležitost. Smí čerpat JEN ze scrapovaných dimenzí: formát (single_image/carousel/video/catalog), typ sdělení (brand/sales/retargeting), téma/claim, doba běhu, kreativní přístup, sociální důkaz v copy. NIKDY mezeru nestav na placementu, rozpočtu, cílení, výsledcích ani landing pages.
+- quick_wins: Každá akce musí být specifická a přímo vycházet z pozorování v reklamách, ne generická rada. Smí doporučovat JEN změny v dimenzích, které reálně vidíme (formát, typ sdělení, téma, hook, doba běhu/rotace, sociální důkaz v copy). NIKDY nedoporučuj placement (stories/reels/feed), rozpočet, cílení, ani „otestujte landing page".
 - Pokud data jsou slabá nebo chybí, zdůvodnění musí explicitně uvést "data chybí — doporučení vychází z obecných vzorců segmentu"
 - Vždy uveď aspoň 2 položky v každém poli
 - V textech VŽDY používej skutečné názvy — hodnotu z ADVERTISER_NAME pro zadavatele, doménu ze závorek pro každého konkurenta. NIKDY nepoužívej slova "zadavatel", "Hráč 1", "HRÁČ_1" ani jiná zástupná označení
-- Vycházej VÝHRADNĚ z Meta Ads dat. NIKDY nezmiňuj Google Ads, Google kampaně, Google Search ani Display v analýze.
 - NIKDY nezmiňuj procenta rozpočtu, alokaci investic ani % výdajů. Místo toho vždy uváděj počty reklam: "X z Y reklam jsou retargetingové povahy"
 - POČTY REKLAM MUSÍ BÝT JEDNOZNAČNÉ: každý počet vždy ukotvi k typu/formátu a k celku — např. "14 z 50 reklam je carousel". NIKDY nepiš holý počet v závorce za jménem hráče (např. "vikio.cz (14 reklam)") — čtenář by si ho spletl s celkovým počtem reklam hráče, který je uveden v jeho sekci. Číslo za jménem hráče smí být jen celkový počet z hodnoty "X reklam" v jeho HRÁČ_ řádku, nic jiného.
-- quick_wins.obtiznost musí být správně klasifikována: "jednoduche" = lze udělat do 1 týdne bez velkých zdrojů; "stredni" = vyžaduje 1–2 týdny a koordinaci; "komplexni" = strategická změna vyžadující měsíc+. POVINNĚ musí být zastoupena aspoň 1 "jednoduche" a 1 "komplexni" obtiznost`;
+- quick_wins.obtiznost musí být správně klasifikována: "jednoduche" = lze udělat do 1 týdne bez velkých zdrojů; "stredni" = vyžaduje 1–2 týdny a koordinaci; "komplexni" = strategická změna vyžadující měsíc+. POVINNĚ musí být zastoupena aspoň 1 "jednoduche" a 1 "komplexni" obtiznost
+
+${DATA_GUARDRAILS}`;
 
 function domainName(url: string): string {
   try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return url; }
@@ -631,9 +675,11 @@ export async function runAnalysis(sessionId: string, apiKey: string, finalize = 
     adsCount: compAdsFiltered[i]?.length ?? 0,
   }));
   const advertiserName = eshopName;
-  let l2 = await callAI(apiKey, L2_SYSTEM, l2User(advertiserName, eshopL1, compsForL2), 8000)
-    .catch(e => { console.error("L2 failed:", e); return null; });
-  // L2 retry — bez classify konkurence je budget; cross_summary=null = zaseklá „Syntéza se generuje…".
+  // L2 jede na Pro (senior kvalita) s delším timeoutem — jediný call, L1 už doběhly.
+  let l2 = await callAI(apiKey, L2_SYSTEM, l2User(advertiserName, eshopL1, compsForL2), 8000, AI_MODEL_L2, 60000)
+    .catch(e => { console.error("L2 (Pro) failed:", e); return null; });
+  // L2 retry na Flash — rychlejší fallback, ať Pro timeout/throttle nenechá zaseklou
+  // „Syntéza se generuje…" (cross_summary=null).
   if (!l2 && !finalize) {
     await new Promise(r => setTimeout(r, 2000));
     l2 = await callAI(apiKey, L2_SYSTEM, l2User(advertiserName, eshopL1, compsForL2), 8000).catch(() => null);
@@ -651,10 +697,21 @@ export async function runAnalysis(sessionId: string, apiKey: string, finalize = 
     console.log(JSON.stringify({ level: "error", message: "ecomail_sync_error", session_id: sessionId, error: String(e) }));
   });
 
-  // classifyAds AŽ TEĎ (best-effort) — per-ad ad_type pills pro UI. Běží ZA status=ready
-  // i ecomailem, takže ani když ji throttling sebere, dashboard je kompletní a nurturing
-  // odešel. Jádro (L1 ad_mix + L2) na classify nezávisí.
-  await classifyAds(apiKey, supa, sessionId).catch((e: unknown) => console.error("classifyAds (best-effort) failed:", String(e)));
+  // ── classify v SAMOSTATNÉ invokaci (čerstvý 150s budget) ──────────────────
+  // 122 reklam se nevejde do hlavního budgetu vedle L1+L2 Pro: sériově přetáhne 150s,
+  // paralelně dostane Gemini 429. Vlastní invokace má celý budget a nekonkuruje.
+  // Status už ready (dashboard kompletní z heuristiky), classify jen upřesní ad_type pills.
+  if (!finalize) {
+    const classifyUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/analyze-lm-session`;
+    // AWAIT — bez něj se fetch v doběhu background tasku (waitUntil) nestihne odeslat
+    // a classify-only invokace se vůbec nespustí. Classify-only vrací ok hned (vlastní
+    // waitUntil), takže await čeká jen na potvrzení triggeru, ne na celou klasifikaci.
+    await fetch(classifyUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` },
+      body: JSON.stringify({ session_id: sessionId, mode: "classify" }),
+    }).catch((e) => console.error("classify trigger failed:", e));
+  }
 }
 
 // ─── Edge Function handler ────────────────────────────────────────────────────
@@ -666,10 +723,20 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const sessionId = body.session_id as string | undefined;
     const finalize = body.finalize === true;
+    const mode = body.mode as string | undefined;
     if (!sessionId) return err("session_id required");
 
     const apiKey = Deno.env.get("GEMINI_API_KEY");
     if (!apiKey) return err("GEMINI_API_KEY not configured", 500);
+
+    // mode=classify — samostatná invokace jen pro AI klasifikaci ad_type (čerstvý budget,
+    // spuštěná z runAnalysis ZA status=ready). Nikdy nemění status ani jiná pole.
+    if (mode === "classify") {
+      const task = classifyAds(apiKey, admin(), sessionId)
+        .catch((e: unknown) => console.error("classify-only failed:", String(e)));
+      (globalThis as any).EdgeRuntime?.waitUntil?.(task);
+      return ok({ ok: true, mode: "classify" });
+    }
 
     // Run analysis in background — return 202 immediately so poll-lm-pipeline isn't blocked
     const task = runAnalysis(sessionId, apiKey, finalize).catch(async (e) => {
