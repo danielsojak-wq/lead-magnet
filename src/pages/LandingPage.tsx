@@ -105,7 +105,9 @@ export default function LandingPage() {
     <div className="min-h-screen bg-white text-gray-900 font-[family-name:var(--font-body)]">
 
       {/* ── Navbar ─────────────────────────────────────────────────────────── */}
-      <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-100">
+      {/* Na mobilu skrytý celý — obsahuje jen logo (badge i CTA jsou hidden sm:),
+          takže skrytí jen loga by nechalo prázdný bílý pruh. Uvolní první viewport. */}
+      <nav className="hidden md:block sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-100">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img src={performindLogo} alt="Performind Marketing" className="h-5 object-contain" />
