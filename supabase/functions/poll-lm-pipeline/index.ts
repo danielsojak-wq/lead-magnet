@@ -229,6 +229,18 @@ function buildAdText(snapshot: any, it: any): { text: string | null; isCatalog: 
     push(c?.link_description);
   }
 
+  // Akční (nákupní) CTA je funnel signál → do textu pro klasifikaci. Generické
+  // "Další informace"/LEARN_MORE se ignoruje (nenese akviziční signál).
+  const ACTION_CTA_TYPES = new Set([
+    "SHOP_NOW", "BUY_NOW", "ORDER_NOW", "GET_OFFER", "ADD_TO_CART",
+    "SUBSCRIBE", "SIGN_UP", "BOOK_NOW", "BOOK_TRAVEL", "GET_QUOTE",
+  ]);
+  const ctaText = snapshot?.cta_text ?? it?.cta_text;
+  const ctaType = String(snapshot?.cta_type ?? it?.cta_type ?? "").toUpperCase();
+  const isActionCta = ACTION_CTA_TYPES.has(ctaType) ||
+    /koupit|objednat|objednej|nakup|do košíku|pořídit|objevit|vyzkoušet|rezervovat|získat/i.test(String(ctaText ?? ""));
+  if (isActionCta) push(ctaText);
+
   const text = units.join("\n").slice(0, 1500).trim() || null;
   return { text, isCatalog };
 }
