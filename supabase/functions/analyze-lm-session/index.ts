@@ -149,11 +149,23 @@ function computeAvgDuration(ads: any[]): number {
 }
 
 // Deterministický per-ad ad_type (bez API) — garantuje UI pills i bez AI classify.
-// Akvizice = nabídka/cena/CTA; retargeting = připomínka/košík; jinak brand.
+// Pořadí: katalogový placeholder (legacy řádky) → retargeting → sales → brand default.
+// Definice DRŽET KONZISTENTNÍ s AI promptem v classifyAds (sales = konkrétní produkt
+// + benefit/varianty/nabídka; brand = čistý awareness/edukace bez produktového pushe).
 function localAdType(ad: any): "brand" | "sales" | "retargeting" {
   const t = String(ad?.primary_text || "").toLowerCase();
+  // Legacy katalogovka s nerenderovaným placeholderem ({{product.brand}}) — nové
+  // parsování už placeholder neukládá, ale starší řádky ho mít můžou → akvizice.
+  if (/\{\{[^{}]*\}\}/.test(t)) return "sales";
   if (/košík|nezapomeň|nedokončen|vraťte se|stále (čeká|máte)|čeká na vás|dokonči|zapomněl/.test(t)) return "retargeting";
-  if (/sleva|výprodej|akční|akce |%|\bkč\b|zdarma|koupit|objednej|nakup|ušetř|jen za|black friday|doprava zdarma/.test(t)) return "sales";
+  if (
+    // nabídka / cena / nákupní CTA
+    /sleva|výprodej|akční|akce |%|\bkč\b|zdarma|koupit|kupte|pořiďte|objednej|objednávejte|nakup|ušetř|jen za|black friday|doprava zdarma|\bkód\b|\bcen(a|u|y|ě|ou)\b/.test(t) ||
+    // produktové signály: vyzkoušení produktu, novinky, varianty/odstíny, dostupnost.
+    // Záměrně BEZ "objevte" — pálí i na čisté awareness ("objevte umění péče");
+    // měkkou produktovou copy bez keywordů doklasifikuje AI refine (classifyAds).
+    /vyzkoušej|novink|skladem|odstín|variant|balení|kolekce|edice/.test(t)
+  ) return "sales";
   return "brand";
 }
 
@@ -206,8 +218,18 @@ async function classifyAds(apiKey: string, supa: ReturnType<typeof admin>, sessi
             model: "gemini-2.5-flash",
             max_tokens: 200,
             messages: [
-              { role: "system", content: "Klasifikuj každou reklamu: brand = budování značky; sales = přímá konverze; retargeting = připomenutí. Zavolej classify_batch." },
-              { role: "user", content: batch.map((ad, idx) => `--- Reklama ${idx + 1} ---\nText: ${(ad.primary_text || "—").slice(0, 300)}`).join("\n") },
+              // Definice DRŽET KONZISTENTNÍ s localAdType — AI refine nesmí systematicky
+              // protiřečit heuristice na jasných případech (nabídky, košík, čistý awareness).
+              { role: "system", content: `Jsi klasifikátor Meta reklam pro konkurenční analýzu českých e-shopů. Každou reklamu zařaď do právě jedné kategorie:
+
+sales (akvizice) — reklama prodává konkrétní produkt nebo kategorii: pojmenovaný produkt + jeho benefit/použití, varianty či odstíny, cena, sleva, nabídka, výzva koupit/vyzkoušet/objevit produkt. Patří sem i měkká produktová copy bez ceny a CTA: „Korektory Závoj umí zázraky. Nejen, že hezky kryjí a jemně sjednocují…" → sales. „Krémový korektor Závoj, 5 odstínů, zakrývá kruhy" → sales. Texty katalogových karet (název produktu + popis + varianty) → sales.
+
+brand — čistý awareness, edukace, hodnoty nebo příběh značky BEZ pushe konkrétního produktu k nákupu: „Krása, která dává smysl. Funkční, čistá a vědomá kosmetika." → brand. Sezónní či edukativní obsah bez konkrétního produktu („Dnes začíná jaro. Vaše pleť má šanci začít znovu…") → brand. POZOR: nepřeklápěj do sales jen kvůli zmínce značky nebo obecné kategorie — bez konkrétního produktu zůstává brand.
+
+retargeting — připomenutí: návrat ke košíku či prohlíženému zboží, dokončení nákupu („Váš košík na vás čeká", „Nezapomněli jste na něco?").
+
+Zavolej classify_batch s výsledkem pro každou reklamu v pořadí.` },
+              { role: "user", content: batch.map((ad, idx) => `--- Reklama ${idx + 1} ---\nText: ${(ad.primary_text || "—").slice(0, 500)}`).join("\n") },
             ],
             tools: [{
               type: "function",
