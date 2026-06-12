@@ -271,6 +271,9 @@ const textLengthLabel = (t: string) => (({ kratky: "Krátký", stredni: "Středn
 const freqLabel = (f: string) => (({ vysoka: "Vysoká", stredni: "Střední", nizka: "Nízká" } as Record<string, string>)[f] ?? f);
 const oslovaniLabel = (o: string) => (({ tykani: "Tykání", vykani: "Vykání" } as Record<string, string>)[o] ?? o);
 const hookLabel = (h: string) => (({ otazka: "Otázka", statistika: "Statistika", tvrzeni: "Tvrzení", pribeh: "Příběh", problem_reseni: "Problém–řešení", socialni_dukaz: "Sociální důkaz" } as Record<string, string>)[h] ?? h);
+// Formát kreativy — počeštěné a sjednocené. catalog = DPA/DCO dynamický katalog
+// (Meta ho renderuje i jako jeden banner, ale technicky má připojený produktový feed).
+const formatLabel = (f: string | null | undefined) => (({ single_image: "Baner", catalog: "Katalog", video: "Video", carousel: "Karusel" } as Record<string, string>)[f ?? ""] ?? f ?? "");
 
 // ─── Charts ───────────────────────────────────────────────────────────────────
 
@@ -941,15 +944,18 @@ function CompetitorSection({ competitor, index, isEshop }: { competitor: Competi
                       <Video className="h-2.5 w-2.5 text-white" />
                     </div>
                   )}
+                  {/* ad_type štítek — VŽDY viditelný (nahoře vlevo) pro rychlý přehled mixu */}
+                  {ad.ad_type && (
+                    <div className="absolute top-1.5 left-1.5"><AdTypePill type={ad.ad_type} /></div>
+                  )}
                   {ad.format && (
                     <div className="absolute bottom-1.5 left-1.5 text-white font-medium leading-none" style={{ background: "rgba(0,0,0,0.7)", fontSize: 11, padding: "4px 8px", borderRadius: 4 }}>
-                      {ad.format === "single_image" ? "Image" : ad.format === "video" ? "Video" : ad.format === "carousel" ? "Carousel" : ad.format === "catalog" ? "Katalog" : ad.format}
+                      {formatLabel(ad.format)}
                     </div>
                   )}
                   {ad.is_active && <div className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#b0f221] shadow-sm" />}
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-all flex flex-col justify-end p-1.5 opacity-0 group-hover:opacity-100">
-                    <AdTypePill type={ad.ad_type} />
-                    {adDisplayText(ad) && <p className="text-white text-[9px] mt-0.5 line-clamp-2 leading-tight">{adDisplayText(ad)}</p>}
+                    {adDisplayText(ad) && <p className="text-white text-[9px] line-clamp-2 leading-tight">{adDisplayText(ad)}</p>}
                   </div>
                 </button>
               ))}
