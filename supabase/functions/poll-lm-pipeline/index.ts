@@ -262,10 +262,17 @@ function mapMetaItem(it: any, sessionId: string, competitorId: string) {
     videos[0]?.videoSdUrl  || videos[0]?.video_sd_url  ||
     cardWithVid?.video_hd_url || cardWithVid?.videoHdUrl ||
     cardWithVid?.video_sd_url || cardWithVid?.videoSdUrl || null;
+  const { text: adText, isCatalog } = buildAdText(snapshot, it);
+  // Formát z display_format (čistý signál) — počet karet je u DCO/DPA zavádějící
+  // (produktové varianty z feedu, ne carousel slides). Video má vždy přednost;
+  // katalog (DCO/DPA, signál z buildAdText) je vlastní formát "catalog" → badge "Katalog".
+  const df = String(snapshot?.display_format ?? it?.display_format ?? "").toUpperCase();
   const adFormat: string =
     videos.length > 0 || !!cardWithVid ? "video" :
-    cards.length > 1 ? "carousel" : "single_image";
-  const { text: adText, isCatalog } = buildAdText(snapshot, it);
+    isCatalog                          ? "catalog" :
+    df === "CAROUSEL"                  ? "carousel" :
+    df === "IMAGE"                     ? "single_image" :
+    cards.length > 1                   ? "carousel" : "single_image";  // fallback bez display_format
   return {
     session_id:    sessionId,
     competitor_id: competitorId,
