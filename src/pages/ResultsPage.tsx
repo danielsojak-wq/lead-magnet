@@ -144,7 +144,7 @@ const MOCK: AnalysisResults = {
         reklamni_mix: { meta: { single_image: 40, carousel: 20, video: 35, catalog: 5 }, google: { search: 50, display: 30, video: 10, pmax: 10 } },
         aktivita: { pocet_aktivnich_reklam: 28, prumerna_delka_behu_dni: 45, frekvence_novych_reklam: "vysoka" },
         messaging: { hlavni_claim: "Výsledky do 14 dní nebo vrátíme peníze", dominantni_emocni_apel: "logika", funnel_faze: "conversion", osloveni: "tykani", pouziva_emoji: true, socialni_dukaz: ["cisla", "recenze"] },
-        kreativni_vzorce: { nejcastejsi_hook: "cislo", prumerna_delka_textu: "kratky", top_reklama: { popis: "Testimonial video s číselným výsledkem v titulku", proc_funguje: "Číslo v prvních 3 sekundách = zástava scrollu. Běží 67 dní." } },
+        kreativni_vzorce: { nejcastejsi_hook: "statistika", prumerna_delka_textu: "kratky", top_reklama: { popis: "Testimonial video s číselným výsledkem v titulku", proc_funguje: "Číslo v prvních 3 sekundách = zástava scrollu. Běží 67 dní." } },
         landing_pages: { pouziva_slevy: false },
       },
       ads: [
@@ -263,10 +263,14 @@ function extractDomain(url: string): string {
   try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return url; }
 }
 
-const apeLabel = (a: string) => (({ strach: "Strach", touha: "Touha", logika: "Logika", humor: "Humor", komunita: "Komunita" } as Record<string, string>)[a] ?? a);
+// Enum → český label s diakritikou. AI vrací lowercase hodnoty bez diakritiky
+// (ukotvené v L1 promptu); fallback `?? a` kryje neočekávané hodnoty.
+const apeLabel = (a: string) => (({ strach: "Strach", touha: "Touha", logika: "Logika", humor: "Humor", komunita: "Komunita", duvera: "Důvěra" } as Record<string, string>)[a] ?? a);
 const funnelLabel = (f: string) => (({ awareness: "Awareness", consideration: "Consideration", conversion: "Conversion", mix: "Celý funnel" } as Record<string, string>)[f] ?? f);
 const textLengthLabel = (t: string) => (({ kratky: "Krátký", stredni: "Střední", dlouhy: "Dlouhý" } as Record<string, string>)[t] ?? t);
 const freqLabel = (f: string) => (({ vysoka: "Vysoká", stredni: "Střední", nizka: "Nízká" } as Record<string, string>)[f] ?? f);
+const oslovaniLabel = (o: string) => (({ tykani: "Tykání", vykani: "Vykání" } as Record<string, string>)[o] ?? o);
+const hookLabel = (h: string) => (({ otazka: "Otázka", statistika: "Statistika", tvrzeni: "Tvrzení", pribeh: "Příběh", problem_reseni: "Problém–řešení", socialni_dukaz: "Sociální důkaz" } as Record<string, string>)[h] ?? h);
 
 // ─── Charts ───────────────────────────────────────────────────────────────────
 
@@ -791,7 +795,7 @@ function CompetitorSection({ competitor, index, isEshop }: { competitor: Competi
                   <span>Funnel</span><span className="font-medium text-gray-700 text-right">{funnelLabel(ai.messaging.funnel_faze)}</span>
                 </div>
                 <div className="flex justify-between gap-2">
-                  <span>Oslovení</span><span className="font-medium text-gray-700 text-right">{ai.messaging.osloveni}</span>
+                  <span>Oslovení</span><span className="font-medium text-gray-700 text-right">{oslovaniLabel(ai.messaging.osloveni)}</span>
                 </div>
                 {ai.messaging.socialni_dukaz?.length > 0 && (
                   <div className="flex justify-between gap-2">
@@ -811,7 +815,7 @@ function CompetitorSection({ competitor, index, isEshop }: { competitor: Competi
               )}
               <div className="space-y-1.5 text-xs text-gray-500">
                 <div className="flex justify-between gap-2">
-                  <span>Hook</span><span className="font-medium text-gray-700 text-right capitalize">{ai.kreativni_vzorce.nejcastejsi_hook}</span>
+                  <span>Hook</span><span className="font-medium text-gray-700 text-right">{hookLabel(ai.kreativni_vzorce.nejcastejsi_hook)}</span>
                 </div>
                 <div className="flex justify-between gap-2">
                   <span>Délka textu</span><span className="font-medium text-gray-700 text-right">{textLengthLabel(ai.kreativni_vzorce.prumerna_delka_textu)}</span>
@@ -888,7 +892,7 @@ function CompetitorSection({ competitor, index, isEshop }: { competitor: Competi
                 <p className="text-xs text-gray-500 leading-relaxed">{ai!.kreativni_vzorce.top_reklama.proc_funguje}</p>
                 <div className="flex gap-2 flex-wrap">
                   <span className="text-[10px] px-2 py-0.5 rounded-full font-medium" style={{ background: `${color}15`, color }}>
-                    Hook: {ai!.kreativni_vzorce.nejcastejsi_hook}
+                    Hook: {hookLabel(ai!.kreativni_vzorce.nejcastejsi_hook)}
                   </span>
                   <span className="text-[10px] bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full">
                     Text: {textLengthLabel(ai!.kreativni_vzorce.prumerna_delka_textu)}

@@ -1,8 +1,9 @@
 import { corsHeaders } from "../_shared/cors.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const AI_URL   = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
-const AI_MODEL = "gemini-2.5-flash";
+const AI_URL    = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+const AI_MODEL  = "gemini-2.5-flash";   // L1 (4 paralelní) + classify — rychlost, vejde se do 150s
+const AI_MODEL_L2 = "gemini-2.5-pro";   // L2 syntéza — jediný call, senior kvalita insightů/quick-wins
 
 function admin() {
   return createClient(
@@ -31,7 +32,7 @@ const RETRY_DELAYS = [2000, 5000, 10000];   // callAI: 3 pokusy, max ~17s čeká
 const AI_TIMEOUT_MS = 40000;                 // callAI: per-request strop, ať hangující Gemini call nesežere celý budget
                                              // (40s — největší L1 prompt potřebuje víc; 4 paralelní L1 + L2 se i tak vejdou do 150s)
 
-async function callAI(apiKey: string, system: string, user: string, maxTokens = 8000): Promise<unknown> {
+async function callAI(apiKey: string, system: string, user: string, maxTokens = 8000, model = AI_MODEL, timeoutMs = AI_TIMEOUT_MS): Promise<unknown> {
   for (let attempt = 0; attempt < RETRY_DELAYS.length; attempt++) {
     const isLast = attempt === RETRY_DELAYS.length - 1;
     try {
@@ -39,7 +40,7 @@ async function callAI(apiKey: string, system: string, user: string, maxTokens = 
         method: "POST",
         headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: AI_MODEL,
+          model,
           max_tokens: maxTokens,
           temperature: 0.3,
           response_format: { type: "json_object" },
@@ -48,7 +49,7 @@ async function callAI(apiKey: string, system: string, user: string, maxTokens = 
             { role: "user", content: user },
           ],
         }),
-        signal: AbortSignal.timeout(AI_TIMEOUT_MS),
+        signal: AbortSignal.timeout(timeoutMs),
       });
       if (res.status === 429) {
         // Poslední pokus na 429 → throw (ne tiché čekání), ať caller uloží 'failed'
@@ -301,8 +302,15 @@ PRAVIDLA:
 - Analyzuj VÝHRADNĚ Meta reklamy — máme data pouze z Meta Ads Library. V poli reklamni_mix.google vyplň všechna čísla nulami.
 - reklamni_mix.meta: POČÍTEJ PŘESNĚ z pole "format" každé reklamy v datech. "video" → přičti k video, "carousel" → přičti k carousel, "single_image" → přičti k single_image, "catalog" → přičti k catalog. Nikdy neodhaduj ani nedoplňuj formát, který v datech není. Čísla jsou absolutní počty reklam, ne procenta.
 - messaging.tema_komunikace: Jedno krátké téma komunikace v max. 10 slovech (např. "Outdoorové vybavení pro náročné turisty"), vycházej výhradně z reklam a landing page dat
-- messaging.strategie_uctu: 1-2 věty popisující JAK účet přemýšlí o Meta reklamě. ODVOZUJ VÝHRADNĚ Z CHOVÁNÍ V DATECH: mix formátů (kolik video/carousel/single_image/catalog), mix ad_type (kolik brand/sales/retargeting), frekvence nových reklam, délka rotace, přítomnost slev. Příklady: "Brand-first launch: 70 % video, žádný retargeting, žádné slevy, dlouhá rotace." / "Výkonnostní akvizice: většina katalog a single image, slevy v každé druhé reklamě, krátká rotace pod 30 dní." NESMÍ citovat copy z reklam, parafrázovat USP ani fabulovat motivy bez datové opory.
+- messaging.strategie_uctu: 1-2 věty senior stratéga popisující JAK účet přemýšlí o Meta reklamě. ODVOZUJ VÝHRADNĚ Z CHOVÁNÍ V DATECH: mix formátů (kolik video/carousel/single_image/catalog), mix ad_type (kolik brand/sales/retargeting), frekvence nových reklam, délka rotace, přítomnost slev. Pojmenuj strategii ostře a konkrétně. Příklady: "Brand-first launch: 70 % video, žádný retargeting, žádné slevy, dlouhá rotace." / "Výkonnostní akvizice přes katalog: většina katalogových a single image reklam, slevy v každé druhé reklamě, krátká rotace pod 30 dní." NESMÍ citovat copy z reklam, parafrázovat USP ani fabulovat motivy bez datové opory.
 - Nikdy nevymýšlej strategie, claimy ani vzorce bez datové opory
+- ENUM POLE — používej VÝHRADNĚ tyto hodnoty (přesně tyto řetězce, lowercase bez diakritiky):
+  • dominantni_emocni_apel: logika | touha | strach | humor | komunita | duvera
+  • funnel_faze: awareness | consideration | conversion | mix
+  • osloveni: tykani | vykani
+  • nejcastejsi_hook: otazka | statistika | tvrzeni | pribeh | problem_reseni | socialni_dukaz
+  • prumerna_delka_textu: kratky | stredni | dlouhy
+  • frekvence_novych_reklam: vysoka | stredni | nizka
 
 ${DATA_GUARDRAILS}`;
 
@@ -350,7 +358,7 @@ Vrať JSON v přesně tomto formátu (ad_mix_pct: odhadni % rozdělení reklam n
     "socialni_dukaz": []
   },
   "kreativni_vzorce": {
-    "nejcastejsi_hook": "statement",
+    "nejcastejsi_hook": "tvrzeni",
     "prumerna_delka_textu": "stredni",
     "top_reklama": { "popis": "", "proc_funguje": "" }
   },
@@ -360,9 +368,10 @@ Vrať JSON v přesně tomto formátu (ad_mix_pct: odhadni % rozdělení reklam n
 }`;
 }
 
-const L2_SYSTEM = `Jsi senior marketingový stratég. Na základě L1 analýz hráčů vrať syntézu. POUZE validní JSON bez markdown bloků.
+const L2_SYSTEM = `Jsi senior growth/performance stratég, který e-commerce zakladateli prezentuje konkurenční analýzu Meta reklam. Mluvíš ostře, konkrétně a bez vaty — každá věta nese informaci, kterou by laik z dat sám nevyčetl. Žádné obecné marketingové fráze. Na základě L1 analýz hráčů vrať syntézu. POUZE validní JSON bez markdown bloků.
 
 PRAVIDLA PRO KVALITU INSIGHTŮ:
+- KAŽDÉ číslo musí pocházet z dat, která REÁLNĚ máme (počet reklam podle typu/formátu, doba běhu). NIKDY si nevymýšlej procenta, násobky ani metriky výkonu. Senior stratég radši řekne méně, ale pravdivě — nepředstírá data, která nemá.
 - category_truths: Konkrétní OPAKUJÍCÍ SE vzorce z dat — ne obecné marketingové pravdy. Vzor musí být viditelný u zadavatele nebo alespoň jednoho konkurenta.
 - co_funguje_vsem: Co konkrétního (formát, hook, délka, emoce) mají společné — s příklady z dat
 - mezery_prilezitosti: Konkrétní téma, formát nebo typ sdělení, který v aktivních reklamách nikdo nepoužívá — přímá obchodní příležitost. Smí čerpat JEN ze scrapovaných dimenzí: formát (single_image/carousel/video/catalog), typ sdělení (brand/sales/retargeting), téma/claim, doba běhu, kreativní přístup, sociální důkaz v copy. NIKDY mezeru nestav na placementu, rozpočtu, cílení, výsledcích ani landing pages.
@@ -662,9 +671,11 @@ export async function runAnalysis(sessionId: string, apiKey: string, finalize = 
     adsCount: compAdsFiltered[i]?.length ?? 0,
   }));
   const advertiserName = eshopName;
-  let l2 = await callAI(apiKey, L2_SYSTEM, l2User(advertiserName, eshopL1, compsForL2), 8000)
-    .catch(e => { console.error("L2 failed:", e); return null; });
-  // L2 retry — bez classify konkurence je budget; cross_summary=null = zaseklá „Syntéza se generuje…".
+  // L2 jede na Pro (senior kvalita) s delším timeoutem — jediný call, L1 už doběhly.
+  let l2 = await callAI(apiKey, L2_SYSTEM, l2User(advertiserName, eshopL1, compsForL2), 8000, AI_MODEL_L2, 60000)
+    .catch(e => { console.error("L2 (Pro) failed:", e); return null; });
+  // L2 retry na Flash — rychlejší fallback, ať Pro timeout/throttle nenechá zaseklou
+  // „Syntéza se generuje…" (cross_summary=null).
   if (!l2 && !finalize) {
     await new Promise(r => setTimeout(r, 2000));
     l2 = await callAI(apiKey, L2_SYSTEM, l2User(advertiserName, eshopL1, compsForL2), 8000).catch(() => null);
