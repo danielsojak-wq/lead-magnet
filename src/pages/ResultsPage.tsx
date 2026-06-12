@@ -273,6 +273,65 @@ const textLengthLabel = (t: string) => (({ kratky: "Krátký", stredni: "Středn
 const freqLabel = (f: string) => (({ vysoka: "Vysoká", stredni: "Střední", nizka: "Nízká" } as Record<string, string>)[f] ?? f);
 const oslovaniLabel = (o: string) => (({ tykani: "Tykání", vykani: "Vykání" } as Record<string, string>)[o] ?? o);
 const hookLabel = (h: string) => (({ otazka: "Otázka", statistika: "Statistika", tvrzeni: "Tvrzení", pribeh: "Příběh", problem_reseni: "Problém–řešení", socialni_dukaz: "Sociální důkaz" } as Record<string, string>)[h] ?? h);
+// Sociální důkaz: AI vrací nekonzistentně (slug klíče i citace z reklam). Slugy
+// lokalizuj, citace zachovej a zkrať. Voláno přes formatSocialProof (max 2).
+const SOC_DUKAZ_MAP: Record<string, string> = {
+  cisla: "Konkrétní čísla", recenze: "Recenze zákazníků", ugc: "UGC obsah",
+  expert_endorsement: "Doporučení experta", "expert endorsement": "Doporučení experta",
+  popularita_produktu: "Popularita produktu", klinicke_studie: "Klinické studie",
+  vedecke_studie: "Vědecké studie", "vědecké studie": "Vědecké studie",
+  hodnoceni_produktu: "Hodnocení produktů", "hodnocení produktů": "Hodnocení produktů",
+  pocet_zakazniku: "Počet zákazníků", testimonial: "Reference zákazníků", garance: "Garance",
+};
+function formatSocialProof(items: string[]): string[] {
+  return (items ?? [])
+    .map(s => {
+      const key = s.toLowerCase().trim();
+      if (SOC_DUKAZ_MAP[key]) return SOC_DUKAZ_MAP[key];        // slug → české
+      return s.length > 48 ? s.slice(0, 46).trimEnd() + "…" : s; // citace z reklamy → zkrátit
+    })
+    .slice(0, 2);
+}
+
+// Proporční formátový pruh — odstíny barvy hráče, největší formát plný.
+function FormatBar({ meta, color }: { meta: { single_image: number; video: number; carousel: number; catalog: number }; color: string }) {
+  const items = [
+    { label: "Video", v: meta.video },
+    { label: "Katalog", v: meta.catalog },
+    { label: "Baner", v: meta.single_image },
+    { label: "Karusel", v: meta.carousel },
+  ].filter(i => i.v > 0).sort((a, b) => b.v - a.v);
+  const total = items.reduce((s, i) => s + i.v, 0);
+  if (!total) return null;
+  const opac = [1, 0.6, 0.38, 0.22];
+  return (
+    <div className="space-y-2.5">
+      <div className="flex h-2.5 rounded-full overflow-hidden bg-gray-200">
+        {items.map((it, i) => (
+          <div key={it.label} style={{ width: `${(it.v / total) * 100}%`, background: color, opacity: opac[i] ?? 0.22 }} />
+        ))}
+      </div>
+      <div className="flex flex-wrap gap-x-3 gap-y-1">
+        {items.map((it, i) => (
+          <span key={it.label} className="inline-flex items-center gap-1.5 text-xs text-gray-500">
+            <span className="w-2 h-2 rounded-sm shrink-0" style={{ background: color, opacity: opac[i] ?? 0.22 }} />
+            <span className="font-bold text-gray-800">{it.v}</span> {it.label}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Kompaktní štítek "label: hodnota" — nahrazuje data-dump řádky v kartách.
+function MetaTag({ label, value }: { label: string; value: string }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 bg-white rounded-lg px-2 py-1 text-[11px] border border-gray-100">
+      <span className="text-gray-400">{label}</span>
+      <span className="font-semibold text-gray-800">{value}</span>
+    </span>
+  );
+}
 // Formát kreativy — počeštěné a sjednocené. catalog = DPA/DCO dynamický katalog
 // (Meta ho renderuje i jako jeden banner, ale technicky má připojený produktový feed).
 const formatLabel = (f: string | null | undefined) => (({ single_image: "Baner", catalog: "Katalog", video: "Video", carousel: "Karusel" } as Record<string, string>)[f ?? ""] ?? f ?? "");
@@ -690,14 +749,6 @@ function CompetitorSection({ competitor, index, isEshop }: { competitor: Competi
     : null;
 
   const fmeta = ai?.reklamni_mix.meta;
-  const formatStr = fmeta
-    ? ([
-        fmeta.single_image > 0 ? `${fmeta.single_image} obr.` : null,
-        fmeta.video > 0 ? `${fmeta.video} video` : null,
-        fmeta.carousel > 0 ? `${fmeta.carousel} karusel` : null,
-        fmeta.catalog > 0 ? `${fmeta.catalog} katalog` : null,
-      ] as (string | null)[]).filter(Boolean).join(" · ")
-    : null;
 
   const showTopReklama = ai
     && ai.kreativni_vzorce.top_reklama.popis
@@ -721,15 +772,6 @@ function CompetitorSection({ competitor, index, isEshop }: { competitor: Competi
                 <a href={competitor.website_url} target="_blank" rel="noreferrer"
                   className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-[#4f11ff] transition-colors">
                   <Globe className="h-3 w-3" />{competitor.website_url.replace(/^https?:\/\//, "")}<ExternalLink className="h-2.5 w-2.5" />
-                </a>
-                <a
-                  href={`https://adstransparency.google.com/?region=CZ&domain=${extractDomain(competitor.website_url)}`}
-                  target="_blank" rel="noreferrer"
-                  className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-[#4285f4] transition-colors"
-                  title="Google Ads Transparency"
-                >
-                  <svg className="h-3 w-3" viewBox="0 0 24 24" fill="currentColor"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
-                  Google Ads<ExternalLink className="h-2.5 w-2.5" />
                 </a>
               </div>
             )}
@@ -774,88 +816,90 @@ function CompetitorSection({ competitor, index, isEshop }: { competitor: Competi
         )}
 
         {/* 3-block grid: Strategie / Kreativa / Aktivita */}
-        {ai && (
+        {ai && (() => {
+          const soc = formatSocialProof(ai.messaging.socialni_dukaz ?? []);
+          return (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="bg-gray-50 rounded-2xl p-4 space-y-3">
+            {/* STRATEGIE — interpretace nahoře, metadata jako chipy */}
+            <div className="bg-gray-50 rounded-2xl p-5 space-y-4">
               <div className="flex items-center gap-2">
                 <MessageSquare className="h-3.5 w-3.5" style={{ color }} />
                 <span className="text-xs font-bold uppercase tracking-wide text-gray-500">Strategie</span>
               </div>
               {ai.messaging.strategie_uctu ? (
-                <p className="text-sm text-gray-700 leading-snug">{ai.messaging.strategie_uctu}</p>
+                <p className="text-sm text-gray-700 leading-relaxed">{ai.messaging.strategie_uctu}</p>
               ) : (
                 <p className="font-semibold text-gray-900 text-sm leading-snug">„{ai.messaging.hlavni_claim}"</p>
               )}
               {ai.messaging.tema_komunikace && (
+                <p className="text-xs text-gray-500 italic border-l-2 pl-2.5 leading-relaxed" style={{ borderColor: `${color}55` }}>
+                  {ai.messaging.tema_komunikace}
+                </p>
+              )}
+              <div className="flex flex-wrap gap-1.5">
+                <MetaTag label="Emoce" value={apeLabel(ai.messaging.dominantni_emocni_apel)} />
+                <MetaTag label="Funnel" value={funnelLabel(ai.messaging.funnel_faze)} />
+                <MetaTag label="Oslovení" value={oslovaniLabel(ai.messaging.osloveni)} />
+              </div>
+              {soc.length > 0 && (
                 <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Téma: </span>
-                  <span className="text-xs text-gray-500 italic">{ai.messaging.tema_komunikace}</span>
+                  <span className="text-[9px] uppercase tracking-wide text-gray-400 block mb-1.5">Sociální důkaz</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {soc.map((s, i) => (
+                      <span key={i} className="text-[11px] bg-white text-gray-700 rounded-lg px-2 py-1 border border-gray-100">{s}</span>
+                    ))}
+                  </div>
                 </div>
               )}
-              <div className="space-y-1.5 text-xs text-gray-500">
-                <div className="flex justify-between gap-2">
-                  <span>Emoce</span><span className="font-medium text-gray-700 text-right">{apeLabel(ai.messaging.dominantni_emocni_apel)}</span>
-                </div>
-                <div className="flex justify-between gap-2">
-                  <span>Funnel</span><span className="font-medium text-gray-700 text-right">{funnelLabel(ai.messaging.funnel_faze)}</span>
-                </div>
-                <div className="flex justify-between gap-2">
-                  <span>Oslovení</span><span className="font-medium text-gray-700 text-right">{oslovaniLabel(ai.messaging.osloveni)}</span>
-                </div>
-                {ai.messaging.socialni_dukaz?.length > 0 && (
-                  <div className="flex justify-between gap-2">
-                    <span>Soc. důkaz</span><span className="font-medium text-gray-700 text-right">{ai.messaging.socialni_dukaz.join(", ")}</span>
-                  </div>
-                )}
-              </div>
             </div>
 
-            <div className="bg-gray-50 rounded-2xl p-4 space-y-3">
+            {/* KREATIVA — vizuální formátový pruh + chipy */}
+            <div className="bg-gray-50 rounded-2xl p-5 space-y-4">
               <div className="flex items-center gap-2">
                 <Layers className="h-3.5 w-3.5" style={{ color }} />
                 <span className="text-xs font-bold uppercase tracking-wide text-gray-500">Kreativa</span>
               </div>
-              {formatStr && (
-                <p className="text-sm font-semibold text-gray-800">{formatStr}</p>
-              )}
-              <div className="space-y-1.5 text-xs text-gray-500">
-                <div className="flex justify-between gap-2">
-                  <span>Hook</span><span className="font-medium text-gray-700 text-right">{hookLabel(ai.kreativni_vzorce.nejcastejsi_hook)}</span>
-                </div>
-                <div className="flex justify-between gap-2">
-                  <span>Délka textu</span><span className="font-medium text-gray-700 text-right">{textLengthLabel(ai.kreativni_vzorce.prumerna_delka_textu)}</span>
-                </div>
+              {fmeta && <FormatBar meta={fmeta} color={color} />}
+              <div className="flex flex-wrap gap-1.5">
+                <MetaTag label="Hook" value={hookLabel(ai.kreativni_vzorce.nejcastejsi_hook)} />
+                <MetaTag label="Délka" value={textLengthLabel(ai.kreativni_vzorce.prumerna_delka_textu)} />
                 {ai.landing_pages?.pouziva_slevy && (
-                  <div className="flex justify-between gap-2">
-                    <span>Slevy</span><span className="font-medium text-[#4f11ff]">Ano</span>
-                  </div>
+                  <span className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold" style={{ background: `${color}18`, color }}>
+                    Slevy v copy
+                  </span>
                 )}
               </div>
             </div>
 
-            <div className="bg-gray-50 rounded-2xl p-4 space-y-3">
+            {/* AKTIVITA — dvě silná čísla + frekvence */}
+            <div className="bg-gray-50 rounded-2xl p-5 space-y-4">
               <div className="flex items-center gap-2">
                 <Activity className="h-3.5 w-3.5" style={{ color }} />
                 <span className="text-xs font-bold uppercase tracking-wide text-gray-500">Aktivita</span>
               </div>
-              <div>
-                <div className="font-[family-name:var(--font-heading)] text-3xl font-bold leading-none" style={{ color }}>
-                  {ai.aktivita.pocet_aktivnich_reklam}
+              <div className="flex gap-6">
+                <div>
+                  <div className="font-[family-name:var(--font-heading)] text-3xl font-bold leading-none" style={{ color }}>
+                    {ai.aktivita.pocet_aktivnich_reklam}
+                  </div>
+                  <div className="text-[11px] text-gray-500 mt-1 leading-tight">aktivních<br />reklam</div>
                 </div>
-                <div className="text-xs text-gray-500 mt-0.5">aktivních reklam</div>
+                {ai.aktivita.prumerna_delka_behu_dni > 0 && (
+                  <div>
+                    <div className="font-[family-name:var(--font-heading)] text-3xl font-bold leading-none" style={{ color }}>
+                      {ai.aktivita.prumerna_delka_behu_dni}
+                    </div>
+                    <div className="text-[11px] text-gray-500 mt-1 leading-tight">dní prům.<br />délka běhu</div>
+                  </div>
+                )}
               </div>
-              <div className="space-y-1.5 text-xs text-gray-500">
-                <div className="flex justify-between gap-2">
-                  <span>Prům. délka</span>
-                  <span className="font-medium text-gray-700">{ai.aktivita.prumerna_delka_behu_dni > 0 ? `${ai.aktivita.prumerna_delka_behu_dni} dní` : "—"}</span>
-                </div>
-                <div className="flex justify-between gap-2">
-                  <span>Frekvence</span><span className="font-medium text-gray-700">{freqLabel(ai.aktivita.frekvence_novych_reklam)}</span>
-                </div>
+              <div className="flex flex-wrap gap-1.5">
+                <MetaTag label="Frekvence nových" value={freqLabel(ai.aktivita.frekvence_novych_reklam)} />
               </div>
             </div>
           </div>
-        )}
+          );
+        })()}
 
         {/* Top reklama */}
         {showTopReklama && (
@@ -1158,10 +1202,6 @@ export default function ResultsPage() {
               ) : (
                 <ComparisonChart competitors={mixPlayers} />
               )}
-              <p className="text-xs text-gray-400 mt-4 flex items-center gap-1.5">
-                <AlertCircle className="h-3 w-3 shrink-0" />
-                Google Ads analýza bude dostupná brzy.
-              </p>
             </section>
           );
         })()}
