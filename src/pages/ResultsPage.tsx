@@ -305,16 +305,16 @@ function FormatBar({ meta, color }: { meta: { single_image: number; video: numbe
   if (!total) return null;
   const opac = [1, 0.6, 0.38, 0.22];
   return (
-    <div className="space-y-2.5">
-      <div className="flex h-2.5 rounded-full overflow-hidden bg-gray-200">
+    <div className="space-y-3">
+      <div className="flex h-3 rounded-full overflow-hidden bg-gray-200">
         {items.map((it, i) => (
           <div key={it.label} style={{ width: `${(it.v / total) * 100}%`, background: color, opacity: opac[i] ?? 0.22 }} />
         ))}
       </div>
-      <div className="flex flex-wrap gap-x-3 gap-y-1">
+      <div className="flex flex-wrap gap-x-4 gap-y-1.5">
         {items.map((it, i) => (
-          <span key={it.label} className="inline-flex items-center gap-1.5 text-xs text-gray-500">
-            <span className="w-2 h-2 rounded-sm shrink-0" style={{ background: color, opacity: opac[i] ?? 0.22 }} />
+          <span key={it.label} className="inline-flex items-center gap-1.5 text-sm text-gray-500">
+            <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: color, opacity: opac[i] ?? 0.22 }} />
             <span className="font-bold text-gray-800">{it.v}</span> {it.label}
           </span>
         ))}
@@ -329,6 +329,28 @@ function MetaTag({ label, value }: { label: string; value: string }) {
     <span className="inline-flex items-center gap-1.5 bg-white rounded-lg px-2 py-1 text-[11px] border border-gray-100">
       <span className="text-gray-400">{label}</span>
       <span className="font-semibold text-gray-800">{value}</span>
+    </span>
+  );
+}
+
+// Svislý stat-blok (label nad hodnotou) — pro Kreativa kartu, víc váhy než MetaTag chip.
+function StatBlock({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="bg-white rounded-xl p-2.5 border border-gray-100">
+      <div className="text-[10px] uppercase tracking-wide text-gray-400">{label}</div>
+      <div className="text-sm font-semibold text-gray-800 mt-0.5">{value}</div>
+    </div>
+  );
+}
+
+// Frekvence nových reklam jako vizuální 3-stupňový indikátor v barvě hráče.
+function FreqDots({ level, color }: { level: string; color: string }) {
+  const n = level === "vysoka" ? 3 : level === "nizka" ? 1 : 2;
+  return (
+    <span className="inline-flex items-center gap-1">
+      {[0, 1, 2].map(i => (
+        <span key={i} className="w-2.5 h-2.5 rounded-full" style={{ background: color, opacity: i < n ? 1 : 0.18 }} />
+      ))}
     </span>
   );
 }
@@ -853,48 +875,54 @@ function CompetitorSection({ competitor, index, isEshop }: { competitor: Competi
               )}
             </div>
 
-            {/* KREATIVA — vizuální formátový pruh + chipy */}
-            <div className="bg-gray-50 rounded-2xl p-5 space-y-4">
+            {/* KREATIVA — výraznější formátový pruh + stat-bloky */}
+            <div className="bg-gray-50 rounded-2xl p-5 flex flex-col gap-5">
               <div className="flex items-center gap-2">
                 <Layers className="h-3.5 w-3.5" style={{ color }} />
                 <span className="text-xs font-bold uppercase tracking-wide text-gray-500">Kreativa</span>
               </div>
-              {fmeta && <FormatBar meta={fmeta} color={color} />}
-              <div className="flex flex-wrap gap-1.5">
-                <MetaTag label="Hook" value={hookLabel(ai.kreativni_vzorce.nejcastejsi_hook)} />
-                <MetaTag label="Délka" value={textLengthLabel(ai.kreativni_vzorce.prumerna_delka_textu)} />
-                {ai.landing_pages?.pouziva_slevy && (
-                  <span className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold" style={{ background: `${color}18`, color }}>
-                    Slevy v copy
-                  </span>
-                )}
+              <div className="flex-1 flex flex-col justify-center gap-5">
+                {fmeta && <FormatBar meta={fmeta} color={color} />}
+                <div className="grid grid-cols-2 gap-2">
+                  <StatBlock label="Hook" value={hookLabel(ai.kreativni_vzorce.nejcastejsi_hook)} />
+                  <StatBlock label="Délka textu" value={textLengthLabel(ai.kreativni_vzorce.prumerna_delka_textu)} />
+                </div>
               </div>
+              {ai.landing_pages?.pouziva_slevy && (
+                <span className="w-full flex items-center justify-center rounded-xl py-2 text-xs font-semibold" style={{ background: `${color}18`, color }}>
+                  Slevy v copy
+                </span>
+              )}
             </div>
 
-            {/* AKTIVITA — dvě silná čísla + frekvence */}
-            <div className="bg-gray-50 rounded-2xl p-5 space-y-4">
+            {/* AKTIVITA — tři velké metriky vertikálně */}
+            <div className="bg-gray-50 rounded-2xl p-5 flex flex-col gap-2">
               <div className="flex items-center gap-2">
                 <Activity className="h-3.5 w-3.5" style={{ color }} />
                 <span className="text-xs font-bold uppercase tracking-wide text-gray-500">Aktivita</span>
               </div>
-              <div className="flex gap-6">
-                <div>
-                  <div className="font-[family-name:var(--font-heading)] text-3xl font-bold leading-none" style={{ color }}>
+              <div className="flex-1 flex flex-col justify-center">
+                <div className="py-3">
+                  <div className="font-[family-name:var(--font-heading)] text-5xl font-bold leading-none" style={{ color }}>
                     {ai.aktivita.pocet_aktivnich_reklam}
                   </div>
-                  <div className="text-[11px] text-gray-500 mt-1 leading-tight">aktivních<br />reklam</div>
+                  <div className="text-xs text-gray-500 mt-1.5">aktivních reklam</div>
                 </div>
                 {ai.aktivita.prumerna_delka_behu_dni > 0 && (
-                  <div>
-                    <div className="font-[family-name:var(--font-heading)] text-3xl font-bold leading-none" style={{ color }}>
-                      {ai.aktivita.prumerna_delka_behu_dni}
+                  <div className="py-3 border-t" style={{ borderColor: `${color}1f` }}>
+                    <div className="font-[family-name:var(--font-heading)] text-5xl font-bold leading-none" style={{ color }}>
+                      {ai.aktivita.prumerna_delka_behu_dni}<span className="text-2xl"> dní</span>
                     </div>
-                    <div className="text-[11px] text-gray-500 mt-1 leading-tight">dní prům.<br />délka běhu</div>
+                    <div className="text-xs text-gray-500 mt-1.5">prům. délka běhu</div>
                   </div>
                 )}
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                <MetaTag label="Frekvence nových" value={freqLabel(ai.aktivita.frekvence_novych_reklam)} />
+                <div className="py-3 border-t flex items-center justify-between" style={{ borderColor: `${color}1f` }}>
+                  <span className="text-xs text-gray-500">Frekvence nových</span>
+                  <span className="flex items-center gap-2">
+                    <FreqDots level={ai.aktivita.frekvence_novych_reklam} color={color} />
+                    <span className="text-sm font-semibold text-gray-800">{freqLabel(ai.aktivita.frekvence_novych_reklam)}</span>
+                  </span>
+                </div>
               </div>
             </div>
           </div>
