@@ -445,12 +445,28 @@ export default function AnalyzePage() {
 
     const normalizedEshop = norm(eshop.url);
     const analyzedDomain = (() => { try { return new URL(normalizedEshop).hostname.replace(/^www\./, ""); } catch { return normalizedEshop; } })();
+
+    // Dual-fire form_submitted → Meta InitiateCheckout (sdílené event_id pro dedup):
+    // browser Pixel přes GTM (dataLayer key form_submitted_event_id) + server CAPI přes
+    // track-capi. Email tu ještě nemáme (před gate) → match jen přes fbp/fbc/ip/ua.
+    const formEventId = crypto.randomUUID();
+    const getCookie = (n: string) =>
+      document.cookie.match("(?:^|; )" + n.replace(/([.$?*|{}()[\]\\/+^])/g, "\\$1") + "=([^;]*)")?.[1];
+    const fbp = getCookie("_fbp");
+    const fbc = getCookie("_fbc");
+
     trackEvent({
       event: "form_submitted",
+      form_submitted_event_id: formEventId,
       analyzed_domain: analyzedDomain,
       competitors_count: competitor2.url.trim() ? 2 : 1,
       ...(getUtmData() ?? {}),
     });
+
+    // Server fire — fire-and-forget, NESMÍ blokovat navigaci na email gate.
+    supabase.functions.invoke("track-capi", {
+      body: { event_name: "InitiateCheckout", event_id: formEventId, fbp, fbc, event_source_url: window.location.href },
+    }).catch(() => {});
 
     const data: UrlFormData = {
       eshop:       { url: norm(eshop.url),       meta: eshop.meta.trim(),       fbSlug: eshop.fbSlug || undefined },
