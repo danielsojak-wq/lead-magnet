@@ -105,7 +105,9 @@ export default function LandingPage() {
     <div className="min-h-screen bg-white text-gray-900 font-[family-name:var(--font-body)]">
 
       {/* ── Navbar ─────────────────────────────────────────────────────────── */}
-      <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-100">
+      {/* Na mobilu skrytý celý — obsahuje jen logo (badge i CTA jsou hidden sm:),
+          takže skrytí jen loga by nechalo prázdný bílý pruh. Uvolní první viewport. */}
+      <nav className="hidden md:block sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-100">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img src={performindLogo} alt="Performind Marketing" className="h-5 object-contain" />
@@ -123,7 +125,7 @@ export default function LandingPage() {
       </nav>
 
       {/* ── Hero ───────────────────────────────────────────────────────────── */}
-      <section className="relative pt-16 pb-10 overflow-hidden bg-gray-950">
+      <section className="relative pt-8 sm:pt-16 pb-10 overflow-hidden bg-gray-950">
         {/* Floating decorative icons — ambient background, z-index 0 */}
         <FloatingIcons />
         {/* Background blobs */}
@@ -135,7 +137,7 @@ export default function LandingPage() {
 
         <div className="relative max-w-4xl mx-auto px-4 sm:px-6 text-center">
           {/* ICP eyebrow */}
-          <div className="inline-flex items-center gap-2 bg-white/6 border border-white/10 rounded-full px-4 py-2 text-sm text-white/60 mb-10">
+          <div className="inline-flex items-center gap-2 bg-white/6 border border-white/10 rounded-full px-4 py-2 text-sm text-white/60 mb-5 sm:mb-10">
             <span className="w-2 h-2 rounded-full bg-[#b0f221] animate-pulse shrink-0" />
             Pro CZ a SK e-shopy s obratem 5–50 M Kč
           </div>
@@ -192,10 +194,9 @@ export default function LandingPage() {
       {/* ── Demo video (produktový hook pod hero) — portrait 4:5 pro mobil ──── */}
       <section className="bg-gray-950 pt-4 pb-16 sm:pb-24">
         <div className="max-w-[440px] mx-auto px-4 sm:px-0">
-          <button
-            onClick={() => navigate("/analyze")}
-            aria-label="Spustit analýzu — ukázka hotové analýzy"
-            className="group block w-full rounded-2xl overflow-hidden shadow-2xl ring-1 ring-white/10 hover:ring-[#b0f221]/40 transition-all cursor-pointer"
+          {/* Čistě dekorativní — žádný klik/navigace; scroll přes video funguje (žádný handler). */}
+          <div
+            className="block w-full rounded-2xl overflow-hidden shadow-2xl ring-1 ring-white/10"
             style={{ aspectRatio: "4 / 5" }}
           >
             <video
@@ -206,9 +207,10 @@ export default function LandingPage() {
               loop
               playsInline
               preload="metadata"
-              className="w-full h-full object-cover"
+              tabIndex={-1}
+              className="w-full h-full object-cover pointer-events-none"
             />
-          </button>
+          </div>
         </div>
       </section>
 
