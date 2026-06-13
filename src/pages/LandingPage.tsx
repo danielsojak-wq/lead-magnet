@@ -189,14 +189,14 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Demo video (produktový hook pod hero) ──────────────────────────── */}
+      {/* ── Demo video (produktový hook pod hero) — portrait 4:5 pro mobil ──── */}
       <section className="bg-gray-950 pt-4 pb-16 sm:pb-24">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6">
+        <div className="max-w-[440px] mx-auto px-4 sm:px-0">
           <button
             onClick={() => navigate("/analyze")}
             aria-label="Spustit analýzu — ukázka hotové analýzy"
             className="group block w-full rounded-2xl overflow-hidden shadow-2xl ring-1 ring-white/10 hover:ring-[#b0f221]/40 transition-all cursor-pointer"
-            style={{ aspectRatio: "16 / 9" }}
+            style={{ aspectRatio: "4 / 5" }}
           >
             <video
               src="/demo-analyza.mp4"
