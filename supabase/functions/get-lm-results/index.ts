@@ -58,29 +58,55 @@ type DemoConfig = {
 const DEMO_SESSIONS: Record<string, DemoConfig> = {
   // Klára Rott (zadavatel) vs deNatura vs Saloos → plně anonymizováno
   "3f4368f5-ce62-41ce-a966-06b71b499f54": {
-    eshopLabel: "Váš e-shop",
+    eshopLabel: "Analyzovaný e-shop",
     competitorLabels: { 1: "Konkurence 1", 2: "Konkurence 2" },
+    // \p{L} (unicode písmeno) + /u kvůli českému skloňování a diakritice:
+    // "deNatury/deNaturu", "Kláře". \w (ASCII) by tvary jako "deNatury" propustil.
+    // "Klára"/"Rott" se v datech vyskytují VÝHRADNĚ jako dvouslovné "Klara Rott",
+    // proto matchujeme jen ten tvar (žádná false-positive na křestní jméno Klára).
     replacements: [
-      { re: /kl[aá]r\w*[\s-]*rott\w*|klararott(\.cz)?/gi, to: "Váš e-shop" },
-      { re: /de[\s-]*natura(\.cz)?/gi, to: "Konkurence 1" },
-      { re: /saloos(\s+naturcosmetic)?(\.cz)?/gi, to: "Konkurence 2" },
+      { re: /kl[aá]r\p{L}*[\s-]*rott\p{L}*(\.cz)?/giu, to: "Analyzovaný e-shop" },
+      { re: /de[\s-]*natur\p{L}*(\.cz)?/giu, to: "Konkurence 1" },
+      { re: /saloos\p{L}*(\.cz)?/giu, to: "Konkurence 2" },
     ],
   },
 };
 
-function scrubText(v: unknown, reps: DemoReplacement[]): string | null {
-  if (typeof v !== "string") return null;
-  let out = v;
+// Odkazy a @handle z textů reklam prozrazují brand (i třetí osoby — influenceři).
+// Z PLAIN textu se odstraní úplně. Char class [^\s)"] končí i na uvozovce, aby se
+// regex nikdy nerozjel přes hranici (bezpečnostní pojistka, i když plain text žádné
+// uvozovky nemá).
+const DEMO_URL_RE = /(?:https?:\/\/)?www\.[^\s)"]+/gi; // odkazy s www
+const DEMO_BARE_URL_RE = /https?:\/\/[^\s)"]+/gi;       // http(s) bez www
+const DEMO_HANDLE_RE = /@[\w.]+/g;                       // @handle (brand i cizí)
+
+function applyReplacements(s: string, reps: DemoReplacement[]): string {
+  let out = s;
   for (const { re, to } of reps) out = out.replace(re, to);
   return out;
 }
 
-// Anonymizace JSON sloupců (ai_analysis, ai_cross_analysis) — stringify →
-// replace → parse. Labely nemají speciální znaky, takže re-parse je bezpečný.
+// Plný scrub pro PLAIN text (texty reklam, summary, cross_summary): odkazy a
+// @handle pryč úplně, pak brand→label, pak úklid zbylých mezer a mezer před
+// interpunkcí po odstranění.
+function scrubText(v: unknown, reps: DemoReplacement[]): string | null {
+  if (typeof v !== "string") return null;
+  let out = v
+    .replace(DEMO_URL_RE, "")
+    .replace(DEMO_BARE_URL_RE, "")
+    .replace(DEMO_HANDLE_RE, "");
+  out = applyReplacements(out, reps);
+  return out.replace(/[ \t]{2,}/g, " ").replace(/\s+([,.!?:;])/g, "$1").trim();
+}
+
+// JSON sloupce (ai_analysis, ai_cross_analysis): POUZE brand→label na stringifiedu.
+// Záměrně BEZ URL/handle stripu — greedy URL regex by mohl sežrat uvozovku a rozbít
+// JSON (parse fail → tichý návrat originálu = leak). JSON pole navíc odkazy ani
+// handle neobsahují (ověřeno proti reálným datům). Labely nemají speciální znaky.
 function scrubJson<T>(obj: T, reps: DemoReplacement[]): T {
   if (obj == null) return obj;
   try {
-    return JSON.parse(scrubText(JSON.stringify(obj), reps) ?? "null") as T;
+    return JSON.parse(applyReplacements(JSON.stringify(obj), reps)) as T;
   } catch {
     return obj;
   }
