@@ -42,6 +42,76 @@ function sanitizeAdText(v: unknown): { text: string | null; hadPlaceholder: bool
   return { text: /[\p{L}\p{N}]/u.test(cleaned) ? cleaned : null, hadPlaceholder };
 }
 
+// ── Veřejné demo / case study ────────────────────────────────────────────────
+// Reálná scrapovaná data v DB zůstávají NEDOTČENÁ. Anonymizace se aplikuje jen
+// tady při čtení (nedestruktivní, vratné) a VÝHRADNĚ pro sessions vyjmenované
+// níže — jakákoli jiná session prochází beze změny. Pro veřejnou ukázku se
+// nahrazují: zobrazená jména hráčů, odkazy (vypnuté), reálné domény v AI próze
+// i v textech reklam. Kreativy (obrázky/videa) zakrývá blur až ve frontendu.
+type DemoReplacement = { re: RegExp; to: string };
+type DemoConfig = {
+  eshopLabel: string;
+  competitorLabels: Record<number, string>;
+  replacements: DemoReplacement[];
+};
+
+const DEMO_SESSIONS: Record<string, DemoConfig> = {
+  // Klára Rott (zadavatel) vs deNatura vs Saloos → plně anonymizováno
+  "3f4368f5-ce62-41ce-a966-06b71b499f54": {
+    eshopLabel: "Analyzovaný e-shop",
+    competitorLabels: { 1: "Konkurence 1", 2: "Konkurence 2" },
+    // \p{L} (unicode písmeno) + /u kvůli českému skloňování a diakritice:
+    // "deNatury/deNaturu", "Kláře". \w (ASCII) by tvary jako "deNatury" propustil.
+    // "Klára"/"Rott" se v datech vyskytují VÝHRADNĚ jako dvouslovné "Klara Rott",
+    // proto matchujeme jen ten tvar (žádná false-positive na křestní jméno Klára).
+    replacements: [
+      { re: /kl[aá]r\p{L}*[\s-]*rott\p{L}*(\.cz)?/giu, to: "Analyzovaný e-shop" },
+      { re: /de[\s-]*natur\p{L}*(\.cz)?/giu, to: "Konkurence 1" },
+      { re: /saloos\p{L}*(\.cz)?/giu, to: "Konkurence 2" },
+    ],
+  },
+};
+
+// Odkazy a @handle z textů reklam prozrazují brand (i třetí osoby — influenceři).
+// Z PLAIN textu se odstraní úplně. Char class [^\s)"] končí i na uvozovce, aby se
+// regex nikdy nerozjel přes hranici (bezpečnostní pojistka, i když plain text žádné
+// uvozovky nemá).
+const DEMO_URL_RE = /(?:https?:\/\/)?www\.[^\s)"]+/gi; // odkazy s www
+const DEMO_BARE_URL_RE = /https?:\/\/[^\s)"]+/gi;       // http(s) bez www
+const DEMO_HANDLE_RE = /@[\w.]+/g;                       // @handle (brand i cizí)
+
+function applyReplacements(s: string, reps: DemoReplacement[]): string {
+  let out = s;
+  for (const { re, to } of reps) out = out.replace(re, to);
+  return out;
+}
+
+// Plný scrub pro PLAIN text (texty reklam, summary, cross_summary): odkazy a
+// @handle pryč úplně, pak brand→label, pak úklid zbylých mezer a mezer před
+// interpunkcí po odstranění.
+function scrubText(v: unknown, reps: DemoReplacement[]): string | null {
+  if (typeof v !== "string") return null;
+  let out = v
+    .replace(DEMO_URL_RE, "")
+    .replace(DEMO_BARE_URL_RE, "")
+    .replace(DEMO_HANDLE_RE, "");
+  out = applyReplacements(out, reps);
+  return out.replace(/[ \t]{2,}/g, " ").replace(/\s+([,.!?:;])/g, "$1").trim();
+}
+
+// JSON sloupce (ai_analysis, ai_cross_analysis): POUZE brand→label na stringifiedu.
+// Záměrně BEZ URL/handle stripu — greedy URL regex by mohl sežrat uvozovku a rozbít
+// JSON (parse fail → tichý návrat originálu = leak). JSON pole navíc odkazy ani
+// handle neobsahují (ověřeno proti reálným datům). Labely nemají speciální znaky.
+function scrubJson<T>(obj: T, reps: DemoReplacement[]): T {
+  if (obj == null) return obj;
+  try {
+    return JSON.parse(applyReplacements(JSON.stringify(obj), reps)) as T;
+  } catch {
+    return obj;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -49,6 +119,8 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const sessionId = body.session_id as string | undefined;
     if (!sessionId) return err("session_id required");
+
+    const demo = DEMO_SESSIONS[sessionId];
 
     const supa = admin();
 
@@ -98,12 +170,15 @@ Deno.serve(async (req) => {
     }
 
     function mapCompetitor(c: any) {
+      const displayName = demo
+        ? (c.position === 0 ? demo.eshopLabel : (demo.competitorLabels[c.position] ?? domainName(c.url)))
+        : domainName(c.url);
       return {
         id: c.id,
-        name: domainName(c.url),
-        website_url: c.url,
-        summary: c.summary ?? null,
-        ai_analysis: c.ai_analysis ?? null,
+        name: displayName,
+        website_url: demo ? null : c.url,
+        summary: demo ? scrubText(c.summary, demo.replacements) : (c.summary ?? null),
+        ai_analysis: demo ? scrubJson(c.ai_analysis, demo.replacements) : (c.ai_analysis ?? null),
         status: c.status as "ready" | "processing" | "failed" | "empty" | "scrape_failed",
         ads_count: c.ads_count,
         ad_mix: c.ad_mix ?? { brand: 0, sales: 0, retargeting: 0 },
@@ -113,7 +188,7 @@ Deno.serve(async (req) => {
             id: a.id,
             image_url: a.image_url ?? null,
             video_url: a.video_url ?? null,
-            primary_text: text,
+            primary_text: demo ? scrubText(text, demo.replacements) : text,
             is_catalog: hadPlaceholder,
             ad_type: a.ad_type ?? null,
             ad_source: a.ad_source as "meta" | "google",
@@ -131,11 +206,12 @@ Deno.serve(async (req) => {
 
     return ok({
       status: session.status as string,
-      eshop_name: domainName(session.eshop_url ?? "") || "Váš e-shop",
+      eshop_name: demo ? demo.eshopLabel : (domainName(session.eshop_url ?? "") || "Váš e-shop"),
       eshop_competitor: eshopCompetitor,
       competitors: mappedCompetitors,
-      cross_summary: session.cross_summary ?? null,
-      ai_cross_analysis: session.ai_cross_analysis ?? null,
+      cross_summary: demo ? scrubText(session.cross_summary, demo.replacements) : (session.cross_summary ?? null),
+      ai_cross_analysis: demo ? scrubJson(session.ai_cross_analysis, demo.replacements) : (session.ai_cross_analysis ?? null),
+      demo: !!demo,
     });
   } catch (e) {
     console.error(e);
