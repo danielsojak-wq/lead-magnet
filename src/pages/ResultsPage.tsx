@@ -109,7 +109,7 @@ interface AnalysisResults {
 // Blur přes kreativy v anonymizovaném demu — jemný (4px), aby zůstala vizuální
 // bohatost (kompozice, barvy), ale logo/text se rozostřil. scale-105 zakryje
 // průhledné rohy po blur filtru u object-cover. Sílu lze ladit (blur-sm…blur-md).
-const DEMO_CREATIVE_BLUR = "blur-sm scale-105";
+const DEMO_CREATIVE_BLUR = "blur-[3px] scale-105";
 
 // ─── Mock data ────────────────────────────────────────────────────────────────
 
