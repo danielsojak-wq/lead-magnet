@@ -314,6 +314,10 @@ export default function LandingPage() {
             </div>
           </div>
 
+          <div className="mt-12 flex justify-center">
+            <CtaButton size="sm" label="Spustit analýzu zdarma" subText="1 analýza zdarma" />
+          </div>
+
         </div>
       </section>
 
