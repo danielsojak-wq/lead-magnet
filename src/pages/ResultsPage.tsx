@@ -99,9 +99,11 @@ interface AnalysisResults {
   competitors: CompetitorResult[];
   cross_summary: string | null;
   ai_cross_analysis: AiCrossAnalysis | null;
-  // Veřejné demo / case study: jména + texty anonymizuje už get-lm-results,
-  // tady navíc rozmažeme kreativy (značku prozrazují vizuálně). Viz DEMO_CREATIVE_BLUR.
+  // Veřejné demo / case study: jména + texty anonymizuje už get-lm-results.
+  // `demo` = anonymizovaná session; `blur` = rozmazat kreativy (řídí variantu
+  // s blur / bez blur — viz DEMO_CREATIVE_BLUR). Obojí dodává edge funkce.
   demo?: boolean;
+  blur?: boolean;
 }
 
 // Blur přes kreativy v anonymizovaném demu — jemný (4px), aby zůstala vizuální
@@ -726,7 +728,7 @@ function PositioningSection({ cross, eshopName, eshopCompetitor, competitors }: 
 }
 
 
-function AdModal({ ads, index, onClose, onNavigate, demo }: { ads: AdItem[]; index: number; onClose: () => void; onNavigate: (i: number) => void; demo?: boolean }) {
+function AdModal({ ads, index, onClose, onNavigate, blur }: { ads: AdItem[]; index: number; onClose: () => void; onNavigate: (i: number) => void; blur?: boolean }) {
   const ad = ads[index];
   const hasPrev = index > 0;
   const hasNext = index < ads.length - 1;
@@ -749,9 +751,9 @@ function AdModal({ ads, index, onClose, onNavigate, demo }: { ads: AdItem[]; ind
         <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-2xl z-50 w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in-0 zoom-in-95 max-h-[92vh] flex flex-col">
           <div className="relative bg-black flex items-center justify-center" style={{ maxHeight: "60vh" }}>
             {ad.video_url
-              ? <video key={ad.id} src={ad.video_url} poster={ad.image_url || undefined} controls autoPlay className={`w-full max-h-[60vh] object-contain ${demo ? DEMO_CREATIVE_BLUR : ""}`} />
+              ? <video key={ad.id} src={ad.video_url} poster={ad.image_url || undefined} controls autoPlay className={`w-full max-h-[60vh] object-contain ${blur ? DEMO_CREATIVE_BLUR : ""}`} />
               : ad.image_url
-                ? <img src={ad.image_url} alt="" className={`w-full max-h-[60vh] object-contain ${demo ? DEMO_CREATIVE_BLUR : ""}`} />
+                ? <img src={ad.image_url} alt="" className={`w-full max-h-[60vh] object-contain ${blur ? DEMO_CREATIVE_BLUR : ""}`} />
                 : <div className="w-full h-48 flex items-center justify-center bg-gray-800"><ImageIcon className="h-12 w-12 text-gray-500" /></div>}
             <button onClick={onClose} className="absolute top-3 right-3 w-8 h-8 bg-black/60 hover:bg-black/80 rounded-full flex items-center justify-center transition-colors z-10">
               <X className="h-4 w-4 text-white" />
@@ -788,7 +790,7 @@ function AdModal({ ads, index, onClose, onNavigate, demo }: { ads: AdItem[]; ind
   );
 }
 
-function CompetitorSection({ competitor, index, isEshop, demo }: { competitor: CompetitorResult; index: number; isEshop?: boolean; demo?: boolean }) {
+function CompetitorSection({ competitor, index, isEshop, blur }: { competitor: CompetitorResult; index: number; isEshop?: boolean; blur?: boolean }) {
   const [selectedAdIdx, setSelectedAdIdx] = useState<number | null>(null);
   const color = playerColor(!!isEshop, index);
   const label = isEshop ? "Vy" : String(index + 1);
@@ -981,8 +983,8 @@ function CompetitorSection({ competitor, index, isEshop, demo }: { competitor: C
                   className="shrink-0 w-[100px] h-[100px] rounded-xl overflow-hidden bg-gray-200 border border-gray-200 hover:border-[#4f11ff]/40 hover:shadow-md transition-all"
                 >
                   {topAd.video_url
-                    ? <video src={topAd.video_url} poster={topAd.image_url || undefined} muted playsInline preload="metadata" className={`w-full h-full object-cover ${demo ? DEMO_CREATIVE_BLUR : ""}`} />
-                    : <img src={topAd.image_url!} alt="" className={`w-full h-full object-cover ${demo ? DEMO_CREATIVE_BLUR : ""}`} loading="lazy" />
+                    ? <video src={topAd.video_url} poster={topAd.image_url || undefined} muted playsInline preload="metadata" className={`w-full h-full object-cover ${blur ? DEMO_CREATIVE_BLUR : ""}`} />
+                    : <img src={topAd.image_url!} alt="" className={`w-full h-full object-cover ${blur ? DEMO_CREATIVE_BLUR : ""}`} loading="lazy" />
                   }
                 </button>
               ) : (
@@ -1047,9 +1049,9 @@ function CompetitorSection({ competitor, index, isEshop, demo }: { competitor: C
                   className="group relative rounded-xl overflow-hidden bg-gray-100 aspect-square border border-gray-200 hover:border-[#4f11ff]/40 hover:shadow-md transition-all text-left"
                 >
                   {ad.video_url
-                    ? <video src={ad.video_url} poster={ad.image_url || undefined} muted playsInline preload="metadata" className={`w-full h-full object-cover ${demo ? DEMO_CREATIVE_BLUR : ""}`} />
+                    ? <video src={ad.video_url} poster={ad.image_url || undefined} muted playsInline preload="metadata" className={`w-full h-full object-cover ${blur ? DEMO_CREATIVE_BLUR : ""}`} />
                     : ad.image_url
-                      ? <img src={ad.image_url} alt="" className={`w-full h-full object-cover ${demo ? DEMO_CREATIVE_BLUR : ""}`} loading="lazy" />
+                      ? <img src={ad.image_url} alt="" className={`w-full h-full object-cover ${blur ? DEMO_CREATIVE_BLUR : ""}`} loading="lazy" />
                       : <div className="w-full h-full flex items-center justify-center"><ImageIcon className="h-5 w-5 text-gray-300" /></div>}
                   {ad.video_url && (
                     <div className="absolute bottom-1.5 right-1.5 bg-black/60 rounded-full p-0.5">
@@ -1077,7 +1079,7 @@ function CompetitorSection({ competitor, index, isEshop, demo }: { competitor: C
       </div>
 
       {selectedAdIdx !== null && competitor.ads[selectedAdIdx] && (
-        <AdModal ads={competitor.ads} index={selectedAdIdx} onClose={() => setSelectedAdIdx(null)} onNavigate={setSelectedAdIdx} demo={demo} />
+        <AdModal ads={competitor.ads} index={selectedAdIdx} onClose={() => setSelectedAdIdx(null)} onNavigate={setSelectedAdIdx} blur={blur} />
       )}
     </section>
   );
@@ -1276,12 +1278,12 @@ export default function ResultsPage() {
 
         {/* Eshop (Váš e-shop) — zobraz i s 0 reklamami (graceful hláška, ne tichý skryt) */}
         {results.eshop_competitor && (
-          <CompetitorSection competitor={{ ...results.eshop_competitor, name: results.eshop_name }} index={0} isEshop demo={results.demo} />
+          <CompetitorSection competitor={{ ...results.eshop_competitor, name: results.eshop_name }} index={0} isEshop blur={results.blur} />
         )}
 
         {/* Per-competitor */}
         {results.competitors.map((competitor, i) => (
-          <CompetitorSection key={competitor.id} competitor={competitor} index={i} demo={results.demo} />
+          <CompetitorSection key={competitor.id} competitor={competitor} index={i} blur={results.blur} />
         ))}
 
         {/* CTA — booking call (statický lime podkres, těsně přilehlý) */}

@@ -53,23 +53,33 @@ type DemoConfig = {
   eshopLabel: string;
   competitorLabels: Record<number, string>;
   replacements: DemoReplacement[];
+  blur: boolean;       // rozmazat kreativy ve frontendu? (řídí frontend přes results.blur)
+  source?: string;     // alias: číst data z jiné (reálné) session, ne ze session v URL
 };
 
+// Klára Rott (zadavatel) vs deNatura vs Saloos → plně anonymizováno.
+// \p{L} (unicode písmeno) + /u kvůli českému skloňování a diakritice:
+// "deNatury/deNaturu", "Kláře". \w (ASCII) by tvary jako "deNatury" propustil.
+// "Klára"/"Rott" se v datech vyskytují VÝHRADNĚ jako dvouslovné "Klara Rott",
+// proto matchujeme jen ten tvar (žádná false-positive na křestní jméno Klára).
+const KLARA_DEMO = {
+  eshopLabel: "Analyzovaný e-shop",
+  competitorLabels: { 1: "Konkurence 1", 2: "Konkurence 2" },
+  replacements: [
+    { re: /kl[aá]r\p{L}*[\s-]*rott\p{L}*(\.cz)?/giu, to: "Analyzovaný e-shop" },
+    { re: /de[\s-]*natur\p{L}*(\.cz)?/giu, to: "Konkurence 1" },
+    { re: /saloos\p{L}*(\.cz)?/giu, to: "Konkurence 2" },
+  ],
+} as const;
+
+const KLARA_REAL_ID = "3f4368f5-ce62-41ce-a966-06b71b499f54";
+
+// Dvě URL nad STEJNÝMI anonymizovanými daty: s blur (kontrolovaná ukázka) a bez
+// blur (plná). No-blur varianta je virtuální session (nemá řádek v DB) a přes
+// `source` čte data z reálné Klára Rott session.
 const DEMO_SESSIONS: Record<string, DemoConfig> = {
-  // Klára Rott (zadavatel) vs deNatura vs Saloos → plně anonymizováno
-  "3f4368f5-ce62-41ce-a966-06b71b499f54": {
-    eshopLabel: "Analyzovaný e-shop",
-    competitorLabels: { 1: "Konkurence 1", 2: "Konkurence 2" },
-    // \p{L} (unicode písmeno) + /u kvůli českému skloňování a diakritice:
-    // "deNatury/deNaturu", "Kláře". \w (ASCII) by tvary jako "deNatury" propustil.
-    // "Klára"/"Rott" se v datech vyskytují VÝHRADNĚ jako dvouslovné "Klara Rott",
-    // proto matchujeme jen ten tvar (žádná false-positive na křestní jméno Klára).
-    replacements: [
-      { re: /kl[aá]r\p{L}*[\s-]*rott\p{L}*(\.cz)?/giu, to: "Analyzovaný e-shop" },
-      { re: /de[\s-]*natur\p{L}*(\.cz)?/giu, to: "Konkurence 1" },
-      { re: /saloos\p{L}*(\.cz)?/giu, to: "Konkurence 2" },
-    ],
-  },
+  [KLARA_REAL_ID]: { ...KLARA_DEMO, blur: true },
+  "f9f1fb89-0915-45a1-8278-2db5ba7091f5": { ...KLARA_DEMO, blur: false, source: KLARA_REAL_ID },
 };
 
 // Odkazy a @handle z textů reklam prozrazují brand (i třetí osoby — influenceři).
@@ -121,13 +131,15 @@ Deno.serve(async (req) => {
     if (!sessionId) return err("session_id required");
 
     const demo = DEMO_SESSIONS[sessionId];
+    // Virtuální demo session (např. no-blur varianta) čte data z reálné session.
+    const dataSessionId = demo?.source ?? sessionId;
 
     const supa = admin();
 
     const { data: session, error: sessionErr } = await supa
       .from("lm_sessions")
       .select("*")
-      .eq("id", sessionId)
+      .eq("id", dataSessionId)
       .maybeSingle();
 
     if (sessionErr) throw sessionErr;
@@ -146,7 +158,7 @@ Deno.serve(async (req) => {
     const { data: competitors, error: compErr } = await supa
       .from("lm_session_competitors")
       .select("*")
-      .eq("session_id", sessionId)
+      .eq("session_id", dataSessionId)
       .order("position");
 
     if (compErr) throw compErr;
@@ -212,6 +224,7 @@ Deno.serve(async (req) => {
       cross_summary: demo ? scrubText(session.cross_summary, demo.replacements) : (session.cross_summary ?? null),
       ai_cross_analysis: demo ? scrubJson(session.ai_cross_analysis, demo.replacements) : (session.ai_cross_analysis ?? null),
       demo: !!demo,
+      blur: demo?.blur ?? false,
     });
   } catch (e) {
     console.error(e);
