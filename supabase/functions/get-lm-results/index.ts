@@ -69,6 +69,9 @@ const KLARA_DEMO = {
     { re: /kl[aá]r\p{L}*[\s-]*rott\p{L}*(\.cz)?/giu, to: "Analyzovaný e-shop" },
     { re: /de[\s-]*natur\p{L}*(\.cz)?/giu, to: "Konkurence 1" },
     { re: /saloos\p{L}*(\.cz)?/giu, to: "Konkurence 2" },
+    // Cizí osoba (vizážistka z UGC reklam) — @handle řeší DEMO_HANDLE_RE v plain
+    // textu, ale AI próza ji zmiňuje jménem bez zavináče → odstranit i ten tvar.
+    { re: /asya\s*meytuv[\p{L}_]*\s*/giu, to: "" },
   ],
 } as const;
 
