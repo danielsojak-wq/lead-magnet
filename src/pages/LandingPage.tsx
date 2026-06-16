@@ -124,7 +124,7 @@ export default function LandingPage() {
       </nav>
 
       {/* ── Hero ───────────────────────────────────────────────────────────── */}
-      <section className="relative pt-8 sm:pt-16 pb-10 overflow-hidden bg-gray-950">
+      <section className="relative pt-8 sm:pt-16 pb-6 sm:pb-10 overflow-hidden bg-gray-950">
         {/* Floating decorative icons — ambient background, z-index 0 */}
         <FloatingIcons />
         {/* Background blobs */}
@@ -149,23 +149,23 @@ export default function LandingPage() {
             onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); navigate("/analyze"); } }}
             className="group cursor-pointer"
           >
-          <h1 className="font-[family-name:var(--font-heading)] text-4xl sm:text-5xl lg:text-[3.25rem] font-bold leading-[1.12] tracking-tight mb-10 text-white">
+          <h1 className="font-[family-name:var(--font-heading)] text-4xl sm:text-5xl lg:text-[3.25rem] font-bold leading-[1.12] tracking-tight mb-4 sm:mb-10 text-white">
             Proč vás konkurence v reklamě 
             <br />
             na Metě předbíhá?
           </h1>
 
-          <p className="font-[family-name:var(--font-heading)] text-2xl sm:text-3xl font-semibold text-white/70 group-hover:text-white/90 transition-colors mb-8 leading-snug">
+          <p className="font-[family-name:var(--font-heading)] text-xl sm:text-3xl font-semibold text-white/70 group-hover:text-white/90 transition-colors mb-4 sm:mb-8 leading-snug">
             Odhalte jejich strategii za 5 minut
           </p>
           </div>
 
-          <p className="text-white/50 text-lg max-w-xl mx-auto mb-10 leading-relaxed">
+          <p className="text-white/50 text-base sm:text-lg max-w-xl mx-auto mb-6 sm:mb-10 leading-relaxed">
             Proskenujeme každou aktivní reklamu vašich 2 hlavních konkurentů, vyhodnotíme strategii a najdeme mezery, které můžete využít.
           </p>
 
           {/* CTA */}
-          <div ref={ctaRef} className="flex justify-center mb-14">
+          <div ref={ctaRef} className="flex justify-center mb-7 sm:mb-14">
             <CtaButton size="lg" label="Spustit analýzu" subText="1 analýza zdarma" />
           </div>
 
