@@ -21,6 +21,14 @@ function buildPageUrl(pageId: string): string {
     `&is_targeted_country=false&media_type=all&search_type=page&view_all_page_id=${pageId}`;
 }
 
+// q= page-name search (brand fallback). Marker lm_fallback=1 se ukládá jen do DB
+// meta_library_url (NE do Apify vstupu) → completion pak ví, že má použít strict
+// validaci (brand_exact only, bez containmentu).
+function buildQueryUrl(q: string): string {
+  return `https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=CZ` +
+    `&is_targeted_country=false&media_type=all&search_type=page&q=${encodeURIComponent(q)}`;
+}
+
 function extractDomain(url: string): string | null {
   try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return null; }
 }
@@ -28,6 +36,12 @@ function extractDomain(url: string): string | null {
 function pageIdFromMetaUrl(metaUrl: string | null | undefined): string | null {
   if (!metaUrl) return null;
   try { return new URL(metaUrl).searchParams.get("view_all_page_id"); } catch { return null; }
+}
+
+// Běh vznikl z brand-fallbacku (řeší špatný page_id z discovery shortcutu).
+function isFallbackMeta(metaUrl: string | null | undefined): boolean {
+  if (!metaUrl) return false;
+  try { return new URL(metaUrl).searchParams.has("lm_fallback"); } catch { return false; }
 }
 
 function normalizeFbSlug(slug: string): string {
@@ -105,6 +119,7 @@ function pickDominantPage(
   items: any[],
   brandName: string | null,
   fbSlug: string | null,
+  opts: { strict?: boolean } = {},
 ): { filtered: any[]; pageId: string; pageName: string; matchPath: MatchPath } | null {
   const groups: Record<string, { name: string; vanity: string | null; items: any[] }> = {};
   for (const it of items) {
@@ -157,6 +172,10 @@ function pickDominantPage(
     .filter(pid => normStr(groups[pid].name) === normBrand);
   if (exactHits.length === 1) return pick(exactHits[0], "brand_exact");
   if (exactHits.length > 1)  return null;
+
+  // strict režim (brand fallback): containment vynech — u keyword searche by
+  // substring shoda mohla protlačit cizí stránku. Radši nula než špatná stránka.
+  if (opts.strict) return null;
 
   // Kolo 3: CONTAINMENT (min délka 4, právě 1 kandidát)
   const containHits = Object.keys(groups).filter(pid => {
@@ -355,7 +374,7 @@ Deno.serve(async (req) => {
 
     // Fast-path: check session status
     const { data: session } = await supa
-      .from("lm_sessions").select("status, error_message").eq("id", session_id).single();
+      .from("lm_sessions").select("status, error_message, eshop_name").eq("id", session_id).single();
 
     if (session?.status === "ready" || session?.status === "completed") {
       // L1 self-heal: hráč nascrapován (ads>0), ale L1 selhala (status=failed)
@@ -434,7 +453,7 @@ Deno.serve(async (req) => {
     // Load all competitors
     const { data: competitors } = await supa
       .from("lm_session_competitors")
-      .select("id, url, apify_run_id, apify_google_run_id, status, meta_library_url, fb_slug, scrape_retried")
+      .select("id, position, url, apify_run_id, apify_google_run_id, status, meta_library_url, fb_slug, scrape_retried")
       .eq("session_id", session_id);
 
     const comps = competitors ?? [];
@@ -475,7 +494,8 @@ Deno.serve(async (req) => {
           if (items.length) {
             const brandName = brandFromUrl(comp.meta_library_url ?? null);
             const fbSlug    = comp.fb_slug ?? null;
-            const match = pickDominantPage(items, brandName, fbSlug);
+            const strict    = isFallbackMeta(comp.meta_library_url);
+            const match = pickDominantPage(items, brandName, fbSlug, { strict });
 
             if (!match) {
               console.log(JSON.stringify({ level: "warn", message: "page_validation_no_match",
@@ -521,25 +541,61 @@ Deno.serve(async (req) => {
       // běh bez cache; když mezitím máme page_id, retry přes canonical URL).
       if (totalAds === 0 && !comp.scrape_retried) {
         const domain = extractDomain(comp.url);
-        let pageId: string | null = pageIdFromMetaUrl(comp.meta_library_url);
-        if (!pageId && domain) {
+        const metaPageId = pageIdFromMetaUrl(comp.meta_library_url);
+
+        // Je page_id už ověřený (prošel pickDominantPage → je v cache)? Pak mu věříme:
+        // 0 reklam = stránka reálně neinzeruje, brand fallback NEděláme.
+        let cachedPageId: string | null = null;
+        if (domain) {
           const { data: cache } = await supa.from("lm_page_id_cache").select("page_id").eq("domain", domain).maybeSingle();
-          pageId = (cache?.page_id as string | undefined) ?? null;
+          cachedPageId = (cache?.page_id as string | undefined) ?? null;
         }
-        const target = retryTargetUrl(pageId, comp.fb_slug ?? null, comp.meta_library_url ?? null);
-        if (target) {
+
+        // Brand pro fallback: q= z meta_url, jinak eshop_name (jen pozice 0 — u
+        // konkurentů spolehlivý název nemáme, fallback se nespustí).
+        const retryBrand = brandFromUrl(comp.meta_library_url ?? null)
+          ?? (comp.position === 0 ? (session?.eshop_name ?? null) : null);
+
+        // NEOVĚŘENÝ page_id (z discovery shortcutu profile.php?id, není v cache)
+        // + 0 reklam + máme brand → ten page_id je nejspíš špatná FB stránka (web
+        // odkazuje jinou page než tu, co inzeruje). Zahoď page_id, hledej podle
+        // názvu a nech pickDominantPage (strict) rozhodnout.
+        let retried = false;
+        if (metaPageId && !cachedPageId && retryBrand) {
+          const qUrl = buildQueryUrl(retryBrand);
           const retryRun = await startApifyRun(APIFY_TOKEN, APIFY_META_ACTOR, {
-            urls: [{ url: target }], limitPerSource: 50, "scrapePageAds.activeStatus": "active",
+            urls: [{ url: qUrl }], limitPerSource: 50, "scrapePageAds.activeStatus": "active",
           });
           if (retryRun) {
+            // meta_library_url přepíšeme na q= URL (+ marker lm_fallback) → completion
+            // má brand pro pickDominantPage a ví, že má validovat strict.
             await supa.from("lm_session_competitors")
-              .update({ apify_run_id: retryRun, status: "scraping", scrape_retried: true })
+              .update({ apify_run_id: retryRun, status: "scraping", scrape_retried: true,
+                        meta_library_url: `${qUrl}&lm_fallback=1` })
               .eq("id", comp.id);
             console.log(JSON.stringify({ level: "info", message: "scrape_retry",
-              session_id, competitor_id: comp.id, via: pageId ? "page_id" : (comp.fb_slug ? "vanity" : "q") }));
-            continue; // další poll cyklus zpracuje retry run
+              session_id, competitor_id: comp.id, via: "brand_fallback", dropped_page_id: metaPageId }));
+            retried = true;
+          }
+        } else {
+          // Původní chování: page_id (cache/meta) > vanity > q=, retry na stejný cíl.
+          const pageId = metaPageId ?? cachedPageId;
+          const target = retryTargetUrl(pageId, comp.fb_slug ?? null, comp.meta_library_url ?? null);
+          if (target) {
+            const retryRun = await startApifyRun(APIFY_TOKEN, APIFY_META_ACTOR, {
+              urls: [{ url: target }], limitPerSource: 50, "scrapePageAds.activeStatus": "active",
+            });
+            if (retryRun) {
+              await supa.from("lm_session_competitors")
+                .update({ apify_run_id: retryRun, status: "scraping", scrape_retried: true })
+                .eq("id", comp.id);
+              console.log(JSON.stringify({ level: "info", message: "scrape_retry",
+                session_id, competitor_id: comp.id, via: pageId ? "page_id" : (comp.fb_slug ? "vanity" : "q") }));
+              retried = true;
+            }
           }
         }
+        if (retried) continue; // další poll cyklus zpracuje retry run
         // retry se nepodařilo nastartovat → spadni do terminálního 0 (s scrape_retried=true ať neloopuje)
         await supa.from("lm_session_competitors").update({ scrape_retried: true }).eq("id", comp.id);
       }
