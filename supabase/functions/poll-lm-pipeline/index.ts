@@ -280,11 +280,21 @@ function mapMetaItem(it: any, sessionId: string, competitorId: string) {
   const cardWithImg = cards.find((c: any) =>
     c.original_image_url || c.originalImageUrl || c.resized_image_url || c.resizedImageUrl
   );
+  // Náhled videa (poster) — video reklamy nemají images[], ale snapshot.videos[]
+  // nese video_preview_image_url. Použijeme ho jako image_url, ať má i video poster
+  // (jinak by zůstal null → po expiraci fbcdn prázdná dlaždice; viz persist-ad-media).
+  const videoPoster =
+    videos[0]?.video_preview_image_url || videos[0]?.videoPreviewImageUrl ||
+    cards.find((c: any) => c.video_preview_image_url || c.videoPreviewImageUrl)?.video_preview_image_url ||
+    cards.find((c: any) => c.video_preview_image_url || c.videoPreviewImageUrl)?.videoPreviewImageUrl || null;
+  // Preferuj resized (náhled stačí pro dlaždice i lightbox; ~10× menší než originál
+  // → levnější Storage). Originál jako fallback, pak poster videa.
   const firstImg =
-    images[0]?.originalImageUrl || images[0]?.original_image_url ||
     images[0]?.resizedImageUrl  || images[0]?.resized_image_url  ||
+    images[0]?.originalImageUrl || images[0]?.original_image_url ||
+    cardWithImg?.resized_image_url  || cardWithImg?.resizedImageUrl  ||
     cardWithImg?.original_image_url || cardWithImg?.originalImageUrl ||
-    cardWithImg?.resized_image_url  || cardWithImg?.resizedImageUrl  || null;
+    videoPoster || null;
   const cardWithVid = cards.find((c: any) =>
     c.video_hd_url || c.videoHdUrl || c.video_sd_url || c.videoSdUrl
   );
@@ -637,12 +647,16 @@ Deno.serve(async (req) => {
 
     if (freshSession?.status === "processing") {
       await supa.from("lm_sessions").update({ status: "analyzing", analyzing_started_at: new Date().toISOString() }).eq("id", session_id);
-      const analyzeUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/analyze-lm-session`;
-      await fetch(analyzeUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` },
-        body: JSON.stringify({ session_id }),
+      const fnBase = `${Deno.env.get("SUPABASE_URL")}/functions/v1`;
+      const auth = { "Content-Type": "application/json", Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` };
+      await fetch(`${fnBase}/analyze-lm-session`, {
+        method: "POST", headers: auth, body: JSON.stringify({ session_id }),
       }).catch(e => console.error("analyze-lm-session trigger failed:", e));
+      // Fire-and-forget: trvalé uložení náhledů reklam do Storage. Mimo kritickou
+      // cestu analýzy (ta čte jen text/format), proto nezdržuje a běží paralelně.
+      fetch(`${fnBase}/persist-ad-media`, {
+        method: "POST", headers: auth, body: JSON.stringify({ session_id }),
+      }).catch(e => console.error("persist-ad-media trigger failed:", e));
     }
 
     return ok({ status: "analyzing" });
