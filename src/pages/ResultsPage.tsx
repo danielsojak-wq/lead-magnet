@@ -175,7 +175,7 @@ const MOCK: AnalysisResults = {
         reklamni_mix: { meta: { single_image: 20, carousel: 45, video: 30, catalog: 5 }, google: { search: 40, display: 40, video: 15, pmax: 5 } },
         aktivita: { pocet_aktivnich_reklam: 19, prumerna_delka_behu_dni: 62, frekvence_novych_reklam: "nizka" },
         messaging: { hlavni_claim: "Konečně produkt, který opravdu funguje", dominantni_emocni_apel: "touha", funnel_faze: "awareness", osloveni: "tykani", pouziva_emoji: false, socialni_dukaz: ["ugc", "recenze"] },
-        kreativni_vzorce: { nejcastejsi_hook: "otazka", prumerna_delka_textu: "dlouhy", top_reklama: { popis: "UGC video 'Den se zákaznicí'", proc_funguje: "Autentičnost překonává produkci v brand kampani. Běží 89 dní." } },
+        kreativni_vzorce: { nejcastejsi_hook: "otazka", prumerna_delka_textu: "dlouhy", top_reklama: { popis: "Video od zákaznice 'Den se zákaznicí'", proc_funguje: "Opravdovost působí líp než vyladěná produkce při budování značky. Běží 89 dní." } },
         landing_pages: { pouziva_slevy: true },
       },
       ads: [
@@ -193,7 +193,7 @@ const MOCK: AnalysisResults = {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const TYPE_COLORS = { brand: "#4f11ff", sales: "#b0f221", retargeting: "#f59e0b" } as const;
-const TYPE_LABELS = { brand: "Brand", sales: "Akvizice", retargeting: "Retargeting" };
+const TYPE_LABELS = { brand: "Značka", sales: "Prodej", retargeting: "Připomínání" };
 function typeColor(t: string | null) {
   if (t === "brand") return TYPE_COLORS.brand;
   if (t === "sales") return TYPE_COLORS.sales;
@@ -279,7 +279,7 @@ function extractDomain(url: string): string {
 // Enum → český label s diakritikou. AI vrací lowercase hodnoty bez diakritiky
 // (ukotvené v L1 promptu); fallback `?? a` kryje neočekávané hodnoty.
 const apeLabel = (a: string) => (({ strach: "Strach", touha: "Touha", logika: "Logika", humor: "Humor", komunita: "Komunita", duvera: "Důvěra" } as Record<string, string>)[a] ?? a);
-const funnelLabel = (f: string) => (({ awareness: "Awareness", consideration: "Consideration", conversion: "Conversion", mix: "Celý funnel" } as Record<string, string>)[f] ?? f);
+const funnelLabel = (f: string) => (({ awareness: "Povědomí", consideration: "Zvažování", conversion: "Nákup", mix: "Celá nákupní cesta" } as Record<string, string>)[f] ?? f);
 const textLengthLabel = (t: string) => (({ kratky: "Krátký", stredni: "Střední", dlouhy: "Dlouhý" } as Record<string, string>)[t] ?? t);
 const freqLabel = (f: string) => (({ vysoka: "Vysoká", stredni: "Střední", nizka: "Nízká" } as Record<string, string>)[f] ?? f);
 const oslovaniLabel = (o: string) => (({ tykani: "Tykání", vykani: "Vykání" } as Record<string, string>)[o] ?? o);
@@ -287,7 +287,7 @@ const hookLabel = (h: string) => (({ otazka: "Otázka", statistika: "Statistika"
 // Sociální důkaz: AI vrací nekonzistentně (slug klíče i citace z reklam). Slugy
 // lokalizuj, citace zachovej a zkrať. Voláno přes formatSocialProof (max 2).
 const SOC_DUKAZ_MAP: Record<string, string> = {
-  cisla: "Konkrétní čísla", recenze: "Recenze zákazníků", ugc: "UGC obsah",
+  cisla: "Konkrétní čísla", recenze: "Recenze zákazníků", ugc: "Obsah od zákazníků",
   expert_endorsement: "Doporučení experta", "expert endorsement": "Doporučení experta",
   popularita_produktu: "Popularita produktu", klinicke_studie: "Klinické studie",
   vedecke_studie: "Vědecké studie", "vědecké studie": "Vědecké studie",
@@ -376,9 +376,9 @@ function ComparisonChart({ competitors }: { competitors: CompetitorResult[] }) {
     const total = c.ad_mix.brand + c.ad_mix.sales + c.ad_mix.retargeting;
     return {
       name: c.name,
-      Brand: total ? Math.round((c.ad_mix.brand / total) * 100) : 0,
-      Akvizice: total ? Math.round((c.ad_mix.sales / total) * 100) : 0,
-      Retargeting: total ? Math.round((c.ad_mix.retargeting / total) * 100) : 0,
+      [TYPE_LABELS.brand]: total ? Math.round((c.ad_mix.brand / total) * 100) : 0,
+      [TYPE_LABELS.sales]: total ? Math.round((c.ad_mix.sales / total) * 100) : 0,
+      [TYPE_LABELS.retargeting]: total ? Math.round((c.ad_mix.retargeting / total) * 100) : 0,
     };
   });
   return (
@@ -388,17 +388,17 @@ function ComparisonChart({ competitors }: { competitors: CompetitorResult[] }) {
           <XAxis type="number" domain={[0, 100]} tickFormatter={v => `${v}%`} tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
           <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: "#374151", fontWeight: 500 }} axisLine={false} tickLine={false} width={150} interval={0} />
           <Tooltip formatter={(v: number, name: string) => [`${v}%`, name]} contentStyle={{ borderRadius: 10, border: "1px solid #e5e7eb", fontSize: 12 }} />
-          <Bar dataKey="Brand" stackId="a" fill={TYPE_COLORS.brand} />
-          <Bar dataKey="Akvizice" stackId="a" fill={TYPE_COLORS.sales} />
-          <Bar dataKey="Retargeting" stackId="a" fill={TYPE_COLORS.retargeting} radius={[0, 4, 4, 0]} />
+          <Bar dataKey={TYPE_LABELS.brand} stackId="a" fill={TYPE_COLORS.brand} />
+          <Bar dataKey={TYPE_LABELS.sales} stackId="a" fill={TYPE_COLORS.sales} />
+          <Bar dataKey={TYPE_LABELS.retargeting} stackId="a" fill={TYPE_COLORS.retargeting} radius={[0, 4, 4, 0]} />
         </BarChart>
       </ResponsiveContainer>
       {/* Legenda — tečka má STEJNOU barvu jako segment v liště (stejný TYPE_COLORS) */}
       <div className="flex items-center justify-center gap-4 sm:gap-6 mt-2 flex-wrap">
-        {([["brand", "Brand"], ["sales", "Akvizice"], ["retargeting", "Retargeting"]] as const).map(([k, lbl]) => (
+        {(["brand", "sales", "retargeting"] as const).map((k) => (
           <span key={k} className="inline-flex items-center gap-1.5 text-xs text-gray-500">
             <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: TYPE_COLORS[k] }} />
-            {lbl}
+            {TYPE_LABELS[k]}
           </span>
         ))}
       </div>
@@ -406,7 +406,7 @@ function ComparisonChart({ competitors }: { competitors: CompetitorResult[] }) {
   );
 }
 
-const RADAR_AXES = ["Objem", "Kreativa", "Funnel", "Akvizice", "Brand", "Remarketing"] as const;
+const RADAR_AXES = ["Objem", "Kreativa", "Nákupní cesta", "Prodej", "Značka", "Připomínání"] as const;
 const RADAR_KEYS = ["objem", "kreativa", "funnel", "akvizice", "brand", "remarketing"] as const;
 type RadarKey = typeof RADAR_KEYS[number];
 const PLAYER_COLORS = ["#6B46C1", "#3B82F6", "#F97316"] as const;
@@ -706,7 +706,7 @@ function PositioningSection({ cross, eshopName, eshopCompetitor, competitors }: 
         <div>
           <div className="flex items-center gap-2 mb-4">
             <Zap className="h-4 w-4 text-[#4f11ff]" />
-            <h3 className="font-[family-name:var(--font-heading)] font-bold text-gray-900">Quick wins</h3>
+            <h3 className="font-[family-name:var(--font-heading)] font-bold text-gray-900">Rychlá vylepšení</h3>
           </div>
           <div className="space-y-3">
             {wins.map((w, i) => (
@@ -900,7 +900,7 @@ function CompetitorSection({ competitor, index, isEshop, blur }: { competitor: C
               )}
               <div className="flex flex-wrap gap-1.5">
                 <MetaTag label="Emoce" value={apeLabel(ai.messaging.dominantni_emocni_apel)} />
-                <MetaTag label="Funnel" value={funnelLabel(ai.messaging.funnel_faze)} />
+                <MetaTag label="Fáze nákupu" value={funnelLabel(ai.messaging.funnel_faze)} />
                 <MetaTag label="Oslovení" value={oslovaniLabel(ai.messaging.osloveni)} />
               </div>
               {soc.length > 0 && (
@@ -924,7 +924,7 @@ function CompetitorSection({ competitor, index, isEshop, blur }: { competitor: C
               <div className="flex-1 flex flex-col justify-center gap-5">
                 {fmeta && <FormatBar meta={fmeta} color={color} />}
                 <div className="grid grid-cols-2 gap-2">
-                  <StatBlock label="Hook" value={hookLabel(ai.kreativni_vzorce.nejcastejsi_hook)} />
+                  <StatBlock label="Úvodní háček" value={hookLabel(ai.kreativni_vzorce.nejcastejsi_hook)} />
                   <StatBlock label="Délka textu" value={textLengthLabel(ai.kreativni_vzorce.prumerna_delka_textu)} />
                 </div>
               </div>
@@ -996,7 +996,7 @@ function CompetitorSection({ competitor, index, isEshop, blur }: { competitor: C
                 <div className="flex gap-1.5 flex-wrap">
                   {topAd?.format && (
                     <span className="inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: `${color}20`, color }}>
-                      {topAd.format === "single_image" ? "Single image" : topAd.format === "video" ? "Video" : topAd.format === "carousel" ? "Carousel" : topAd.format}
+                      {formatLabel(topAd.format)}
                     </span>
                   )}
                   {daysInRotation !== null && (
@@ -1009,7 +1009,7 @@ function CompetitorSection({ competitor, index, isEshop, blur }: { competitor: C
                 <p className="text-xs text-gray-500 leading-relaxed">{ai!.kreativni_vzorce.top_reklama.proc_funguje}</p>
                 <div className="flex gap-2 flex-wrap">
                   <span className="text-[10px] px-2 py-0.5 rounded-full font-medium" style={{ background: `${color}15`, color }}>
-                    Hook: {hookLabel(ai!.kreativni_vzorce.nejcastejsi_hook)}
+                    Háček: {hookLabel(ai!.kreativni_vzorce.nejcastejsi_hook)}
                   </span>
                   <span className="text-[10px] bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full">
                     Text: {textLengthLabel(ai!.kreativni_vzorce.prumerna_delka_textu)}

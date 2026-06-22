@@ -295,6 +295,20 @@ const DATA_GUARDRAILS = `ZAKÁZANÁ TVRZENÍ — pro tato data NEMÁME zdroj, je
 - GOOGLE ADS: nikdy (analyzujeme výhradně Meta).
 - POZOROVÁNÍ, NE SOUD O STRATEGII: piš o tom, co je VIDĚT v aktivních reklamách, ne o domněnkách o celkové strategii. "V aktivních reklamách jsme nezachytili retargetingové sdělení" ANO; "konkurent nedělá retargeting" NE — nemusí být v Ads Library vidět.`;
 
+const PLAIN_LANGUAGE = `SROZUMITELNOST (platí JEN pro lidsky čtená textová pole — strategie_uctu, hlavni_claim, tema_komunikace, top_reklama.popis/proc_funguje, category_truths, co_funguje_vsem, mezery_prilezitosti, silne_stranky, slabe_stranky, quick_wins.akce/proc):
+- Píšeš majiteli českého e-shopu BEZ marketingového vzdělání. Používej běžnou, srozumitelnou češtinu, jako bys to vysvětloval kamarádovi podnikateli.
+- Vyhýbej se zbytečným anglicismům a marketingovému žargonu. Tam, kde to není nutné, použij český ekvivalent:
+  • funnel → "nákupní cesta" / "fáze nákupu"
+  • retargeting / remarketing → "připomínání návštěvníkům"
+  • hook → "úvodní háček" / "čím reklama začíná"
+  • UGC → "obsah od zákazníků"
+  • awareness → "budování povědomí", consideration → "zvažování", conversion → "nákup"
+  • akvizice / performance → "získávání zákazníků" / "prodejní reklamy"
+  • claim → "hlavní sdělení", copy → "text reklamy"
+- Termíny, které majitel e-shopu běžně zná, NEPŘEKLÁDEJ a nech je být (Meta, e-shop, sleva, video, reklama, značka, banner, karusel, katalog).
+- Pokud je odborný termín opravdu nutný, krátce ho vysvětli vlastními slovy. Vždy radši jednoduše a konkrétně než chytře.
+- Tohle pravidlo NEMĚNÍ JSON: klíče polí ani hodnoty enum polí zůstávají přesně dle schématu (lowercase bez diakritiky). Týká se výhradně lidsky čteného volného textu.`;
+
 const L1_SYSTEM = `Jsi senior marketingový stratég specializující se na digitální reklamu.
 Analyzuj reklamní data a vrať POUZE validní JSON bez markdown bloků ani backtickú.
 
@@ -306,7 +320,7 @@ PRAVIDLA:
 - Analyzuj VÝHRADNĚ Meta reklamy — máme data pouze z Meta Ads Library. V poli reklamni_mix.google vyplň všechna čísla nulami.
 - reklamni_mix.meta: POČÍTEJ PŘESNĚ z pole "format" každé reklamy v datech. "video" → přičti k video, "carousel" → přičti k carousel, "single_image" → přičti k single_image, "catalog" → přičti k catalog. Nikdy neodhaduj ani nedoplňuj formát, který v datech není. Čísla jsou absolutní počty reklam, ne procenta.
 - messaging.tema_komunikace: Jedno krátké téma komunikace v max. 10 slovech (např. "Outdoorové vybavení pro náročné turisty"), vycházej výhradně z reklam a landing page dat
-- messaging.strategie_uctu: PŘESNĚ 2-3 věty (maximálně 55 slov), které INTERPRETUJÍ, ne popisují. Nestačí převyprávět čísla ("hodně videí, krátká rotace") — řekni, na co hráč sází, kde má sílu NEBO slabinu/nevyužitý prostor, a co z toho plyne. Ukotvi konkrétními čísly z dat (počty formátů, poměr typů sdělení, doba běhu, slevová mechanika). Buď úsporný — vyber to nejdůležitější, ne výčet všeho. Příklady správné délky: "Denatura sází na výkonnostní akvizici přes UGC video (16 z 30) a slevové kódy; tenká brand vrstva (jen 10 % reklam) otevírá prostor pro odlišení budováním značky." / "Saloos staví skoro výhradně na videu (21 z 30) — silný ve storytellingu, ale bez bannerů a s minimem katalogu mu chybí rychlé prodejní sdělení." NESMÍ citovat doslovně copy z reklam ani fabulovat. Drž tvrdá pravidla (žádný placement, rozpočet, cílení, výsledky).
+- messaging.strategie_uctu: PŘESNĚ 2-3 věty (maximálně 55 slov), které INTERPRETUJÍ, ne popisují. Nestačí převyprávět čísla ("hodně videí, krátká rotace") — řekni, na co hráč sází, kde má sílu NEBO slabinu/nevyužitý prostor, a co z toho plyne. Ukotvi konkrétními čísly z dat (počty formátů, poměr typů sdělení, doba běhu, slevová mechanika). Buď úsporný — vyber to nejdůležitější, ne výčet všeho. Piš běžnou češtinou bez žargonu (viz pravidla SROZUMITELNOST). Příklady správné délky a tónu: "Denatura získává zákazníky hlavně přes krátká videa od zákazníků (16 z 30) a slevové kódy; vlastní značku skoro nebuduje (jen 10 % reklam), což je prostor, jak se odlišit." / "Saloos staví skoro výhradně na videu (21 z 30) — umí vyprávět příběh, ale chybí mu bannery a katalog, takže nemá rychlé prodejní sdělení." NESMÍ citovat doslovně text z reklam ani fabulovat. Drž tvrdá pravidla (žádný placement, rozpočet, cílení, výsledky).
 - messaging.socialni_dukaz: max 3 KRÁTKÉ čitelné české fráze (2-4 slova) popisující TYP sociálního důkazu, který hráč v reklamách používá. NE slug klíče ("popularita_produktu"), NE dlouhé doslovné citace z reklam ("73 % prodloužení řas už za 90 dnů…"). Příklady správného tvaru: "Klinické studie", "Recenze zákazníků", "Doporučení expertů", "Konkrétní čísla výsledků", "Příběhy zákaznic". Pokud žádný sociální důkaz v reklamách není, vrať prázdné pole.
 - Nikdy nevymýšlej strategie, claimy ani vzorce bez datové opory
 - ENUM POLE — používej VÝHRADNĚ tyto hodnoty (přesně tyto řetězce, lowercase bez diakritiky):
@@ -317,7 +331,9 @@ PRAVIDLA:
   • prumerna_delka_textu: kratky | stredni | dlouhy
   • frekvence_novych_reklam: vysoka | stredni | nizka
 
-${DATA_GUARDRAILS}`;
+${DATA_GUARDRAILS}
+
+${PLAIN_LANGUAGE}`;
 
 function l1User(playerName: string, playerUrl: string, ads: any[], websiteContent = ""): string {
   const adRows = ads.slice(0, 30).map(a => ({
@@ -388,7 +404,9 @@ PRAVIDLA PRO KVALITU INSIGHTŮ:
 - POČTY REKLAM MUSÍ BÝT JEDNOZNAČNÉ: každý počet vždy ukotvi k typu/formátu a k celku — např. "14 z 50 reklam je carousel". NIKDY nepiš holý počet v závorce za jménem hráče (např. "vikio.cz (14 reklam)") — čtenář by si ho spletl s celkovým počtem reklam hráče, který je uveden v jeho sekci. Číslo za jménem hráče smí být jen celkový počet z hodnoty "X reklam" v jeho HRÁČ_ řádku, nic jiného.
 - quick_wins.obtiznost musí být správně klasifikována: "jednoduche" = lze udělat do 1 týdne bez velkých zdrojů; "stredni" = vyžaduje 1–2 týdny a koordinaci; "komplexni" = strategická změna vyžadující měsíc+. POVINNĚ musí být zastoupena aspoň 1 "jednoduche" a 1 "komplexni" obtiznost
 
-${DATA_GUARDRAILS}`;
+${DATA_GUARDRAILS}
+
+${PLAIN_LANGUAGE}`;
 
 function domainName(url: string): string {
   try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return url; }
