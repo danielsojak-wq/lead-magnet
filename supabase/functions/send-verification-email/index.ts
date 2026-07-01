@@ -112,6 +112,19 @@ Deno.serve(async (req) => {
     const fbp: string | null = (body.fbp as string | undefined) ?? null;
     const fbc: string | null = (body.fbc as string | undefined) ?? null;
     const event_source_url: string | undefined = body.event_source_url;
+
+    // ── Meta ad attribution — UTM z landing page (utm_term={{ad.name}} apod.) ──
+    const utm = (body.utm ?? {}) as Record<string, unknown>;
+    const utmStr = (k: string): string | null =>
+      typeof utm[k] === "string" && (utm[k] as string).length > 0 ? (utm[k] as string) : null;
+    const utmFields = {
+      utm_source: utmStr("utm_source"),
+      utm_medium: utmStr("utm_medium"),
+      utm_campaign: utmStr("utm_campaign"),
+      utm_content: utmStr("utm_content"),
+      utm_term: utmStr("utm_term"),
+    };
+
     // IP/UA UŽIVATELE (z jeho requestu na tuhle fn), ne ze server-to-server CAPI callu.
     const client_ip: string | null = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
     const client_user_agent: string | null = req.headers.get("user-agent") ?? null;
@@ -141,7 +154,7 @@ Deno.serve(async (req) => {
 
     const { data: existing } = await supa
       .from("lm_sessions")
-      .select("id, status, lead_event_id")
+      .select("id, status, lead_event_id, utm_source, utm_medium, utm_campaign, utm_content, utm_term")
       .eq("email", email)
       .maybeSingle();
 
@@ -153,6 +166,18 @@ Deno.serve(async (req) => {
     const captureLead = lead_event_id && !alreadyFiredLead
       ? { lead_event_id, fbp, fbc, client_ip, client_user_agent }
       : {};
+
+    // First-touch: UTM atribuci zapiš JEN do sloupce, který je zatím prázdný
+    // (null/""). Jednou zachycená reklama se už nikdy nepřepíše — a null z
+    // organického resubmitu nikdy nesmaže existující hodnotu.
+    const existingUtm = existing as Record<string, unknown> | null;
+    const utmUpdate = Object.fromEntries(
+      Object.entries(utmFields).filter(([k, v]) => {
+        if (v === null) return false;                       // příchozí prázdné → nesahat
+        const cur = existingUtm?.[k];
+        return cur === null || cur === undefined || cur === ""; // jen do prázdného = first-touch
+      }),
+    );
 
     const nonResettableStatuses = ["urls_pending", "processing", "ready", "failed"];
     if (existing && nonResettableStatuses.includes(existing.status) && !TEST_EMAILS.includes(email)) {
@@ -174,6 +199,7 @@ Deno.serve(async (req) => {
           eshop_meta_library_url: eshop_meta_url ?? null,
           eshop_fb_slug: eshop_fb_slug ?? null,
           ...captureLead,
+          ...utmUpdate,
         })
         .eq("id", existing.id);
       sessionId = existing.id;
@@ -189,6 +215,7 @@ Deno.serve(async (req) => {
           eshop_meta_library_url: eshop_meta_url ?? null,
           eshop_fb_slug: eshop_fb_slug ?? null,
           ...captureLead,
+          ...utmFields,
         })
         .select()
         .single();

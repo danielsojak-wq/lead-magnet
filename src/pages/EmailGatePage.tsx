@@ -297,6 +297,7 @@ export default function EmailGatePage() {
         fbp,
         fbc,
         event_source_url: window.location.href,
+        utm: getUtmData() ?? undefined,
       },
     });
 

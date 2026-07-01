@@ -497,6 +497,7 @@ async function syncToEcomail(
   email: string,
   eshopUrl: string,
   allComps: Array<{ position: number; url: string }>,
+  source: { campaign: string | null; adset: string | null; ad: string | null },
 ): Promise<void> {
   const apiKey = Deno.env.get("ECOMAIL_API_KEY");
   if (!apiKey) {
@@ -515,6 +516,9 @@ async function syncToEcomail(
         lm_analysis_results_url: `${SITE_URL}/results/${sessionId}`,
         lm_analysis_competitor_1: comp1 ? domainName(comp1.url) : "",
         lm_analysis_competitor_2: comp2 ? domainName(comp2.url) : "",
+        lm_analysis_source_campaign: source.campaign ?? "",
+        lm_analysis_source_adset: source.adset ?? "",
+        lm_analysis_source_ad: source.ad ?? "",
       },
       tags: ["lead-magnet-analyza", "nurtured"],
     },
@@ -712,7 +716,11 @@ export async function runAnalysis(sessionId: string, apiKey: string, finalize = 
   }).eq("id", sessionId);
 
   // Fire-and-forget — must never block or fail the pipeline
-  syncToEcomail(sessionId, session.email ?? "", session.eshop_url ?? "", allComps).catch((e: unknown) => {
+  syncToEcomail(sessionId, session.email ?? "", session.eshop_url ?? "", allComps, {
+    campaign: session.utm_campaign ?? null,
+    adset: session.utm_content ?? null,
+    ad: session.utm_term ?? null,
+  }).catch((e: unknown) => {
     console.log(JSON.stringify({ level: "error", message: "ecomail_sync_error", session_id: sessionId, error: String(e) }));
   });
 
