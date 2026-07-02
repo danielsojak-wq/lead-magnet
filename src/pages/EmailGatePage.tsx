@@ -4,7 +4,7 @@ import { ArrowRight, Mail, ShieldCheck, Check, BarChart3 } from "lucide-react";
 import performindLogo from "@/assets/performind-logo-dark.svg";
 import { supabase } from "@/integrations/supabase/client";
 import type { UrlFormData } from "./AnalyzePage";
-import { trackEvent, getUtmData } from "@/lib/analytics";
+import { trackEvent, getUtmData, getLandingUrl } from "@/lib/analytics";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -298,6 +298,7 @@ export default function EmailGatePage() {
         fbc,
         event_source_url: window.location.href,
         utm: getUtmData() ?? undefined,
+        landing_url: getLandingUrl() ?? undefined,
       },
     });
 

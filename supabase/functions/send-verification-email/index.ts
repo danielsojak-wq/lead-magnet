@@ -117,12 +117,15 @@ Deno.serve(async (req) => {
     const utm = (body.utm ?? {}) as Record<string, unknown>;
     const utmStr = (k: string): string | null =>
       typeof utm[k] === "string" && (utm[k] as string).length > 0 ? (utm[k] as string) : null;
+    const landingUrl = typeof body.landing_url === "string" && body.landing_url.length > 0
+      ? (body.landing_url as string) : null;
     const utmFields = {
       utm_source: utmStr("utm_source"),
       utm_medium: utmStr("utm_medium"),
       utm_campaign: utmStr("utm_campaign"),
       utm_content: utmStr("utm_content"),
       utm_term: utmStr("utm_term"),
+      landing_url: landingUrl,
     };
 
     // IP/UA UŽIVATELE (z jeho requestu na tuhle fn), ne ze server-to-server CAPI callu.
@@ -154,7 +157,7 @@ Deno.serve(async (req) => {
 
     const { data: existing } = await supa
       .from("lm_sessions")
-      .select("id, status, lead_event_id, utm_source, utm_medium, utm_campaign, utm_content, utm_term")
+      .select("id, status, lead_event_id, utm_source, utm_medium, utm_campaign, utm_content, utm_term, landing_url")
       .eq("email", email)
       .maybeSingle();
 
