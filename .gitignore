@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Supabase CLI lokální stav (generovaný linkem/CLI, nepatří do repa)
+supabase/.temp/
