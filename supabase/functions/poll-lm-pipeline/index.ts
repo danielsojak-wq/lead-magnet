@@ -74,6 +74,11 @@ async function startApifyRun(token: string, actor: string, input: unknown): Prom
 
 const APIFY_META_ACTOR = "curious_coder~facebook-ads-library-scraper";
 
+// Stuck-scraping timeout: Apify run visící v RUNNING déle než tohle → force
+// terminace, ať session neuvízne ve `scraping` navždy (case rihamich). Normální
+// run (i 73 reklam) doběhne do ~2 min; 4 min = bezpečný práh proti false-positive.
+const SCRAPE_STUCK_MS = 240_000;
+
 // Heuristic: page_name looks like a brand if short, no comma, max 3 words
 function looksLikeBrand(s: string | null): boolean {
   if (!s) return false;
@@ -463,7 +468,7 @@ Deno.serve(async (req) => {
     // Load all competitors
     const { data: competitors } = await supa
       .from("lm_session_competitors")
-      .select("id, position, url, apify_run_id, apify_google_run_id, status, meta_library_url, fb_slug, scrape_retried")
+      .select("id, position, url, apify_run_id, apify_google_run_id, status, meta_library_url, fb_slug, scrape_retried, scraping_started_at")
       .eq("session_id", session_id);
 
     const comps = competitors ?? [];
@@ -491,7 +496,21 @@ Deno.serve(async (req) => {
       // Check Meta run
       if (comp.apify_run_id) {
         const { done, succeeded, items, creditExhausted } = await checkAndProcessRun(APIFY_TOKEN, comp.apify_run_id);
-        if (!done) continue;
+        if (!done) {
+          // Hangnutý Apify run (RUNNING nad práh) → force terminace, ať session
+          // neuvízne ve `scraping` bez driveru. Bez timestampu (legacy řádek)
+          // se chová jako dřív (čeká dál).
+          const startedAt = comp.scraping_started_at ? Date.parse(comp.scraping_started_at) : NaN;
+          if (!isNaN(startedAt) && Date.now() - startedAt > SCRAPE_STUCK_MS) {
+            console.warn(JSON.stringify({ level: "warn", message: "scrape_stuck_force_terminate",
+              session_id, competitor_id: comp.id, run_id: comp.apify_run_id,
+              age_s: Math.round((Date.now() - startedAt) / 1000) }));
+            await supa.from("lm_session_competitors")
+              .update({ status: "scrape_failed", ads_count: 0, scrape_retried: true })
+              .eq("id", comp.id);
+          }
+          continue;
+        }
         if (creditExhausted) {
           console.error(`Competitor ${comp.id}: Apify credit exhausted`);
           await supa.from("lm_sessions").update({
@@ -581,6 +600,7 @@ Deno.serve(async (req) => {
             // má brand pro pickDominantPage a ví, že má validovat strict.
             await supa.from("lm_session_competitors")
               .update({ apify_run_id: retryRun, status: "scraping", scrape_retried: true,
+                        scraping_started_at: new Date().toISOString(),
                         meta_library_url: `${qUrl}&lm_fallback=1` })
               .eq("id", comp.id);
             console.log(JSON.stringify({ level: "info", message: "scrape_retry",
@@ -597,7 +617,8 @@ Deno.serve(async (req) => {
             });
             if (retryRun) {
               await supa.from("lm_session_competitors")
-                .update({ apify_run_id: retryRun, status: "scraping", scrape_retried: true })
+                .update({ apify_run_id: retryRun, status: "scraping", scrape_retried: true,
+                          scraping_started_at: new Date().toISOString() })
                 .eq("id", comp.id);
               console.log(JSON.stringify({ level: "info", message: "scrape_retry",
                 session_id, competitor_id: comp.id, via: pageId ? "page_id" : (comp.fb_slug ? "vanity" : "q") }));
