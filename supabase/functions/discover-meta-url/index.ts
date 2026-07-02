@@ -7,6 +7,44 @@ const BROWSER_HEADERS = {
   "Accept-Language": "cs,en-US;q=0.7,en;q=0.3",
 };
 
+// Deno fetch zamrzne na redirect chainech, které z HTTPS spadnou na HTTP
+// (downgrade hop) — viz yogies.cz → http://www.yoggies.cz → … → TimeoutError,
+// takže discovery přišla o brand i FB slug a spadla na holý slug domény.
+// Proto redirecty následujeme RUČNĚ (redirect:"manual") a každý `Location`
+// z http:// povýšíme na https://, čímž downgrade hop odstraníme.
+async function fetchHtmlFollowingRedirects(
+  startUrl: string,
+  maxHops = 5,
+): Promise<{ html: string; finalUrl: string } | null> {
+  let url = startUrl;
+  for (let hop = 0; hop < maxHops; hop++) {
+    let res: Response;
+    try {
+      res = await fetch(url, { headers: BROWSER_HEADERS, redirect: "manual", signal: AbortSignal.timeout(6000) });
+    } catch (e) {
+      console.log(JSON.stringify({ level: "warn", message: "discover_fetch_hop_failed", url, hop, error: String(e) }));
+      return null;
+    }
+
+    if (res.status >= 300 && res.status < 400) {
+      const loc = res.headers.get("location");
+      if (!loc) return null;
+      try { url = new URL(loc, url).toString().replace(/^http:\/\//i, "https://"); }
+      catch { return null; }
+      continue;
+    }
+
+    if (!res.ok) {
+      console.log(JSON.stringify({ level: "warn", message: "discover_fetch_not_ok", url, status: res.status }));
+      return null;
+    }
+
+    return { html: await res.text(), finalUrl: res.url || url };
+  }
+  console.log(JSON.stringify({ level: "warn", message: "discover_fetch_max_redirects", startUrl, maxHops }));
+  return null;
+}
+
 // ─── Facebook Graph API ────────────────────────────────────────────────────────
 
 // Lookup a single slug via Graph API → returns { pageId, pageName } or null
@@ -112,19 +150,21 @@ Deno.serve(async (req) => {
     let otherSlugs: string[] = [];
     let htmlNumericId: string | null = null;
 
-    try {
-      const res = await fetch(siteUrl, { headers: BROWSER_HEADERS, signal: AbortSignal.timeout(8000) });
-      if (res.ok) {
-        const html = await res.text();
-        const numericMatch = html.match(/facebook\.com\/profile\.php\?id=(\d{8,})/);
-        if (numericMatch) {
-          htmlNumericId = numericMatch[1];
-        } else {
-          brandName = extractBrandName(html);
-          ({ sameAsSlugs, otherSlugs } = extractFbSlugs(html));
-        }
+    const fetched = await fetchHtmlFollowingRedirects(siteUrl);
+    if (fetched) {
+      const html = fetched.html;
+      const numericMatch = html.match(/facebook\.com\/profile\.php\?id=(\d{8,})/);
+      if (numericMatch) {
+        htmlNumericId = numericMatch[1];
+      } else {
+        brandName = extractBrandName(html);
+        ({ sameAsSlugs, otherSlugs } = extractFbSlugs(html));
       }
-    } catch { /* proceed with guesses */ }
+    } else {
+      // Fetch selhal/nevrátil HTML → brandName i slugy zůstanou prázdné a flow
+      // spadne na holý slug domény (q=). Logujeme, ať je to v Supabase logu vidět.
+      console.log(JSON.stringify({ level: "warn", message: "discover_fetch_failed", url: siteUrl }));
+    }
 
     // Shortcut: numeric profile ID found in HTML
     if (htmlNumericId) {
