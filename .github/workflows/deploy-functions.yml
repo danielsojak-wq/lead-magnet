@@ -6,6 +6,7 @@ on:
     paths:
       - "supabase/functions/**"
       - "supabase/migrations/**"
+      - ".github/workflows/deploy-functions.yml"
 
 jobs:
   deploy:
@@ -15,7 +16,10 @@ jobs:
 
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          # Připnutá verze místo "latest" — latest si tahá přes GitHub API,
+          # které dostávalo rate limit ("Failed to resolve latest Supabase
+          # CLI release: rate limit exceeded") a shazovalo celý deploy.
+          version: 2.109.0
 
       - name: Link project
         run: supabase link --project-ref pxhpmgzeduqazgfzllyo
