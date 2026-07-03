@@ -118,13 +118,13 @@ function vanityFromUri(pageProfileUri: string | null | undefined): string | null
   }
 }
 
-type MatchPath = "vanity_exact" | "brand_exact" | "containment";
+type MatchPath = "page_id_exact" | "vanity_exact" | "single_page" | "brand_exact" | "containment";
 
 function pickDominantPage(
   items: any[],
   brandName: string | null,
   fbSlug: string | null,
-  opts: { strict?: boolean } = {},
+  opts: { strict?: boolean; targetPageId?: string | null } = {},
 ): { filtered: any[]; pageId: string; pageName: string; matchPath: MatchPath } | null {
   const groups: Record<string, { name: string; vanity: string | null; items: any[] }> = {};
   for (const it of items) {
@@ -142,6 +142,14 @@ function pickDominantPage(
     pageName: groups[pid].name,
     matchPath,
   });
+
+  // Kolo 0: EXACT PAGE_ID — scrapovali jsme přes view_all_page_id (ověřený cíl),
+  // takže té stránce věř BEZ podmínek. Řeší flaky nulování validních přesných
+  // page_id scrapů (brandName=null → validace dřív stála jen na order-flaky vanity
+  // shodě z page_profile_uri → validní stránka náhodně padala na 0).
+  if (opts.targetPageId && groups[opts.targetPageId]) {
+    return pick(opts.targetPageId, "page_id_exact");
+  }
 
   // Kolo 1: VANITY EXACT — fb_slug ze sameAs/HTML === slug z snapshot.page_profile_uri
   // Guard: vanity_exact wins jen pokud je jediná page ve výsledcích NEBO page_name
@@ -167,6 +175,14 @@ function pickDominantPage(
       // Vanity hit, ale nepotvrzeno brand matchem — propadni do kola 2/3
     }
     if (vanityHits.length > 1) return null;
+  }
+
+  // Kolo 1.5: SINGLE PAGE u vanity scrapu — scrapovali jsme přes facebook.com/<slug>
+  // (fbSlug je set) a výsledky obsahují právě JEDNU stránku → věř jí, i když se
+  // vanity string netrefil přesně (page_profile_uri střídá číselný/vanity tvar,
+  // order-flaky). Gate na fbSlug + !strict → nespustí se u čistého keyword searche.
+  if (fbSlug && !opts.strict && Object.keys(groups).length === 1) {
+    return pick(Object.keys(groups)[0], "single_page");
   }
 
   if (!brandName) return null;
@@ -524,7 +540,9 @@ Deno.serve(async (req) => {
             const brandName = brandFromUrl(comp.meta_library_url ?? null);
             const fbSlug    = comp.fb_slug ?? null;
             const strict    = isFallbackMeta(comp.meta_library_url);
-            const match = pickDominantPage(items, brandName, fbSlug, { strict });
+            // Přesné page_id z uložené meta URL (view_all_page_id) → Kolo 0 mu věří.
+            const targetPageId = pageIdFromMetaUrl(comp.meta_library_url ?? null);
+            const match = pickDominantPage(items, brandName, fbSlug, { strict, targetPageId });
 
             if (!match) {
               console.log(JSON.stringify({ level: "warn", message: "page_validation_no_match",
