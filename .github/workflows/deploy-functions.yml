@@ -30,7 +30,7 @@ jobs:
         run: |
           for fn in start-lm-analysis poll-lm-pipeline analyze-lm-session \
                     verify-lm-token send-verification-email get-lm-results \
-                    send-lm-report lm-pipeline-watchdog; do
+                    send-lm-report lm-pipeline-watchdog discover-meta-url; do
             supabase functions deploy $fn --no-verify-jwt
           done
         env:
