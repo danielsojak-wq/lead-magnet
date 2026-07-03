@@ -94,6 +94,29 @@ function extractBrandName(html: string): string | null {
   return null;
 }
 
+// Číselné FB page_id z HTML — víc vzorů než původní jen profile.php?id=:
+//   facebook.com/profile.php?id=<id>, facebook.com/<id> (číselná vanity),
+//   JSON-LD sameAs s číselným FB URL. Číselné page_id = přesný lookup (nejspolehlivější,
+//   obchází nespolehlivý keyword search). Vrací první nalezené (>= 8 číslic).
+function extractFbPageId(html: string): string | null {
+  const direct = html.match(/facebook\.com\/profile\.php\?id=(\d{8,})/i)
+    ?? html.match(/facebook\.com\/(\d{8,})(?=[/?#"'\s<&\\]|$)/i);
+  if (direct) return direct[1];
+
+  for (const block of html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)) {
+    try {
+      const obj = JSON.parse(block[1]);
+      const sameAs: unknown[] = Array.isArray(obj?.sameAs) ? obj.sameAs
+        : typeof obj?.sameAs === "string" ? [obj.sameAs] : [];
+      for (const u of sameAs) {
+        const m = String(u).match(/facebook\.com\/(?:profile\.php\?id=)?(\d{8,})/i);
+        if (m) return m[1];
+      }
+    } catch { /* skip */ }
+  }
+  return null;
+}
+
 
 function slugCandidates(siteUrl: string, htmlSlugs: string[], brandName: string | null): string[] {
   const seen = new Set<string>();
@@ -144,26 +167,41 @@ Deno.serve(async (req) => {
     const FB_APP_SECRET = Deno.env.get("FB_APP_SECRET");
     const fbToken = FB_APP_ID && FB_APP_SECRET ? `${FB_APP_ID}|${FB_APP_SECRET}` : null;
 
-    // ── Step 1: Fetch website HTML ─────────────────────────────────────────────
+    // ── Step 1: Fetch website HTML (+ homepage fallback) ───────────────────────
     let brandName: string | null = null;
     let sameAsSlugs: string[] = [];
     let otherSlugs: string[] = [];
     let htmlNumericId: string | null = null;
 
+    // Vytěž z HTML všechny FB signály (page_id > slugy) + brand. Voláno i na homepage
+    // fallbacku — bereme první neprázdný výsledek (nepřepisujeme už nalezené).
+    const parseHtml = (html: string) => {
+      if (!htmlNumericId) htmlNumericId = extractFbPageId(html);
+      if (!brandName)     brandName = extractBrandName(html);
+      const s = extractFbSlugs(html);
+      if (!sameAsSlugs.length) sameAsSlugs = s.sameAsSlugs;
+      if (!otherSlugs.length)  otherSlugs  = s.otherSlugs;
+    };
+
     const fetched = await fetchHtmlFollowingRedirects(siteUrl);
-    if (fetched) {
-      const html = fetched.html;
-      const numericMatch = html.match(/facebook\.com\/profile\.php\?id=(\d{8,})/);
-      if (numericMatch) {
-        htmlNumericId = numericMatch[1];
-      } else {
-        brandName = extractBrandName(html);
-        ({ sameAsSlugs, otherSlugs } = extractFbSlugs(html));
-      }
-    } else {
-      // Fetch selhal/nevrátil HTML → brandName i slugy zůstanou prázdné a flow
-      // spadne na holý slug domény (q=). Logujeme, ať je to v Supabase logu vidět.
-      console.log(JSON.stringify({ level: "warn", message: "discover_fetch_failed", url: siteUrl }));
+    if (fetched) parseHtml(fetched.html);
+    else console.log(JSON.stringify({ level: "warn", message: "discover_fetch_failed", url: siteUrl }));
+
+    // Homepage fallback: zadaná URL byla podstránka a nenašli jsme ŽÁDNÝ FB signál
+    // (page_id ani slug) → FB odkaz bývá jen v patičce homepage, ne na landing
+    // podstránce (viz petstogo.eu/klidna-prochazka). Zkus root domény.
+    if (!htmlNumericId && !sameAsSlugs.length && !otherSlugs.length) {
+      try {
+        const u = new URL(siteUrl);
+        if (u.pathname && u.pathname !== "/") {
+          const home = await fetchHtmlFollowingRedirects(`${u.protocol}//${u.host}/`);
+          if (home) {
+            parseHtml(home.html);
+            console.log(JSON.stringify({ level: "info", message: "discover_homepage_fallback",
+              url: siteUrl, found_page_id: !!htmlNumericId, found_slugs: sameAsSlugs.length + otherSlugs.length }));
+          }
+        }
+      } catch { /* ignore */ }
     }
 
     // Shortcut: numeric profile ID found in HTML
