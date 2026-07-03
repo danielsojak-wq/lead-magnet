@@ -880,6 +880,11 @@ function CompetitorSection({ competitor, index, isEshop, blur }: { competitor: C
         {/* 3-block grid: Strategie / Kreativa / Aktivita */}
         {ai && (() => {
           const soc = formatSocialProof(ai.messaging.socialni_dukaz ?? []);
+          // 0 aktivních reklam → nemáme z čeho odvodit kreativní/strategické atributy.
+          // L1 sice povinné enum pole (hook, funnel, oslovení…) vyplní defaulty, ale
+          // zobrazovat je = tvářit se, že analyzujeme reklamy, které neexistují. Skryj
+          // dohady, nech jen poctivé „Nedostatek dat" + faktickou Aktivitu (0 reklam).
+          const noAds = competitor.ads_count === 0;
           return (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {/* STRATEGIE — interpretace nahoře, metadata jako chipy */}
@@ -898,11 +903,13 @@ function CompetitorSection({ competitor, index, isEshop, blur }: { competitor: C
                   {ai.messaging.tema_komunikace}
                 </p>
               )}
-              <div className="flex flex-wrap gap-1.5">
-                <MetaTag label="Emoce" value={apeLabel(ai.messaging.dominantni_emocni_apel)} />
-                <MetaTag label="Fáze nákupu" value={funnelLabel(ai.messaging.funnel_faze)} />
-                <MetaTag label="Oslovení" value={oslovaniLabel(ai.messaging.osloveni)} />
-              </div>
+              {!noAds && (
+                <div className="flex flex-wrap gap-1.5">
+                  <MetaTag label="Emoce" value={apeLabel(ai.messaging.dominantni_emocni_apel)} />
+                  <MetaTag label="Fáze nákupu" value={funnelLabel(ai.messaging.funnel_faze)} />
+                  <MetaTag label="Oslovení" value={oslovaniLabel(ai.messaging.osloveni)} />
+                </div>
+              )}
               {soc.length > 0 && (
                 <div>
                   <span className="text-[9px] uppercase tracking-wide text-gray-400 block mb-1.5">Sociální důkaz</span>
@@ -922,13 +929,19 @@ function CompetitorSection({ competitor, index, isEshop, blur }: { competitor: C
                 <span className="text-xs font-bold uppercase tracking-wide text-gray-500">Kreativa</span>
               </div>
               <div className="flex-1 flex flex-col justify-center gap-5">
-                {fmeta && <FormatBar meta={fmeta} color={color} />}
-                <div className="grid grid-cols-2 gap-2">
-                  <StatBlock label="Úvodní háček" value={hookLabel(ai.kreativni_vzorce.nejcastejsi_hook)} />
-                  <StatBlock label="Délka textu" value={textLengthLabel(ai.kreativni_vzorce.prumerna_delka_textu)} />
-                </div>
+                {noAds ? (
+                  <p className="text-sm text-gray-400 italic text-center py-4">Bez aktivních reklam</p>
+                ) : (
+                  <>
+                    {fmeta && <FormatBar meta={fmeta} color={color} />}
+                    <div className="grid grid-cols-2 gap-2">
+                      <StatBlock label="Úvodní háček" value={hookLabel(ai.kreativni_vzorce.nejcastejsi_hook)} />
+                      <StatBlock label="Délka textu" value={textLengthLabel(ai.kreativni_vzorce.prumerna_delka_textu)} />
+                    </div>
+                  </>
+                )}
               </div>
-              {ai.landing_pages?.pouziva_slevy && (
+              {!noAds && ai.landing_pages?.pouziva_slevy && (
                 <span className="w-full flex items-center justify-center rounded-xl py-2 text-xs font-semibold" style={{ background: `${color}18`, color }}>
                   Slevy v copy
                 </span>
