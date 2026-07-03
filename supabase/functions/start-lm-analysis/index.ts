@@ -59,6 +59,56 @@ function apifyTargetUrl(pageId: string | null | undefined, fbSlug: string | null
   return fallbackMetaUrl;
 }
 
+// Lehká detekce názvu e-shopu z <title> (konzistentní s extractShopName v
+// analyze-lm-session, ale bez importu — jiná funkce). Potřeba UŽ při scrapu:
+// retry-on-empty brand fallback pro zadavatele (pozice 0) bere brand z eshop_name.
+// Když je null, špatný/neověřený page_id se neopraví (viz poll-lm-pipeline retry).
+async function deriveEshopName(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; Performind-Bot/1.0)" },
+      signal: AbortSignal.timeout(6000),
+    });
+    if (!res.ok) return null;
+    const html = await res.text();
+    const rawTitle = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1]?.replace(/<[^>]+>/g, "").trim() ?? "";
+    if (!rawTitle) return null;
+    const name = rawTitle.split(/[\|\–\-—]/)[0].trim();
+    return name.length >= 2 && name.length <= 40 ? name : null;
+  } catch {
+    return null;
+  }
+}
+
+// Self-driving poll — pipeline NESMÍ záviset na otevřeném frontend tabu. Po startu
+// scrapu žene poll-lm-pipeline na pozadí (EdgeRuntime.waitUntil) dokud session
+// nedojede do terminálního stavu, nebo nevyprší ~140s budget (< 150s task limit).
+// Frontend WaitingPage polluje paralelně — poll-lm-pipeline je idempotentní
+// (atomické claimy), takže dvojí driver nevadí. Tohle je záruka pro zavřený tab.
+async function drivePipeline(sessionId: string): Promise<void> {
+  const base = Deno.env.get("SUPABASE_URL");
+  const key  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!base || !key) return;
+  const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+  const deadline = Date.now() + 140_000;
+  await sleep(6000); // dej Apify runům čas nastartovat, ať první poll nevrací jen "scraping"
+  while (Date.now() < deadline) {
+    try {
+      const res = await fetch(`${base}/functions/v1/poll-lm-pipeline`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}`, apikey: key },
+        body: JSON.stringify({ session_id: sessionId }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (d?.status === "ready" || d?.status === "failed" || d?.status === "completed") return;
+    } catch (e) {
+      console.error("drivePipeline poll error:", e);
+    }
+    await sleep(8000);
+  }
+  console.warn(JSON.stringify({ level: "warn", message: "drive_budget_exhausted", session_id: sessionId }));
+}
+
 async function startApifyRun(token: string, actor: string, input: unknown): Promise<{ runId: string | null; error?: string }> {
   const res = await fetch(
     `https://api.apify.com/v2/acts/${actor}/runs?token=${token}`,
@@ -138,6 +188,21 @@ Deno.serve(async (req) => {
       status: "processing",
     }).eq("id", session_id);
 
+    // Zajisti eshop_name UŽ teď (paralelně se scrapem) — retry-on-empty brand
+    // fallback v poll-lm-pipeline ho potřebuje k opravě špatného/neověřeného
+    // page_id zadavatele. analyze-lm-session ho detekuje taky, ale až PO scrapu
+    // → pro retry pozdě. Await až před returnem, ať je v DB dřív než první poll.
+    const ensureEshopName = (async () => {
+      const { data: nameRow } = await supa
+        .from("lm_sessions").select("eshop_name").eq("id", session_id).single();
+      if (nameRow?.eshop_name || !eshop_url) return;
+      const detected = await deriveEshopName(eshop_url);
+      if (detected) {
+        await supa.from("lm_sessions").update({ eshop_name: detected }).eq("id", session_id);
+        console.log(JSON.stringify({ level: "info", message: "eshop_name_early_detected", session_id, eshop_name: detected }));
+      }
+    })();
+
     // Clear previous run data (handles resubmit edge cases)
     await supa.from("lm_session_competitors").delete().eq("session_id", session_id);
     await supa.from("lm_session_ads").delete().eq("session_id", session_id);
@@ -172,7 +237,7 @@ Deno.serve(async (req) => {
         });
         const mode = eshopPageId ? "page_id" : eshopSlug ? "vanity" : "q";
         if (runId) {
-          await supa.from("lm_session_competitors").update({ apify_run_id: runId, status: "scraping" }).eq("id", eshopRow.id);
+          await supa.from("lm_session_competitors").update({ apify_run_id: runId, status: "scraping", scraping_started_at: new Date().toISOString() }).eq("id", eshopRow.id);
           eshopLog.push(`eshop_meta[${mode}]=${runId}`);
         } else {
           await supa.from("lm_session_competitors").update({ status: "scraped", ads_count: 0 }).eq("id", eshopRow.id);
@@ -226,6 +291,7 @@ Deno.serve(async (req) => {
 
       if (updates.apify_run_id) {
         updates.status = "scraping";
+        updates.scraping_started_at = new Date().toISOString();
       } else {
         updates.status = "scraped";
         updates.ads_count = 0;
@@ -240,6 +306,12 @@ Deno.serve(async (req) => {
       .from("lm_session_competitors")
       .select("url, status, apify_run_id, apify_google_run_id")
       .eq("session_id", session_id);
+
+    // eshop_name musí být v DB dřív, než jakýkoli poll spustí retry-on-empty.
+    await ensureEshopName;
+
+    // Self-driving poll — pipeline dojede i když uživatel zavře tab (case rihamich).
+    (globalThis as any).EdgeRuntime?.waitUntil?.(drivePipeline(session_id));
 
     return ok({ ok: true, session_id, runLogs, competitors: savedComps });
   } catch (e) {
