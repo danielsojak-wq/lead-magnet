@@ -281,6 +281,21 @@ async function classifyAds(apiKey: string, supa: ReturnType<typeof admin>, sessi
   for (let i = 0; i < batches.length; i += CONCURRENCY) {
     await Promise.all(batches.slice(i, i + CONCURRENCY).map(classifyBatch));
   }
+
+  // Přepočítej ad_mix každého hráče z FINÁLNÍCH (AI-refined) ad_type → graf „Reklamní
+  // mix" sedí přesně na štítky jednotlivých reklam. saveL1 nastavil jen heuristický
+  // baseline; tady ho po refine passu srovnáme. Best-effort (celý classify je za ready).
+  const { data: finalAds } = await supa
+    .from("lm_session_ads").select("competitor_id, ad_type").eq("session_id", sessionId);
+  const byComp = new Map<string, any[]>();
+  for (const a of finalAds ?? []) {
+    const list = byComp.get(a.competitor_id) ?? [];
+    list.push(a);
+    byComp.set(a.competitor_id, list);
+  }
+  await Promise.all([...byComp.entries()].map(([cid, list]) =>
+    supa.from("lm_session_competitors").update({ ad_mix: adMixFromAds(list) }).eq("id", cid)));
+
   console.log(`classifyAds: done`);
 }
 
@@ -619,10 +634,12 @@ export async function runAnalysis(sessionId: string, apiKey: string, finalize = 
   }
 
   const saveL1 = async (id: string, analysis: unknown, ads: any[], errorMsg?: string) => {
-    const l1AdMix = (analysis as any)?.ad_mix_pct;
-    const adMix = (l1AdMix && typeof l1AdMix.brand === "number")
-      ? { brand: l1AdMix.brand, sales: l1AdMix.sales, retargeting: l1AdMix.retargeting }
-      : adMixFromAds(ads);
+    // ad_mix (graf „Reklamní mix") VŽDY z reálně klasifikovaných reklam (ad_type),
+    // NE z L1 freeform odhadu ad_mix_pct — ten halucinuje proti datům (petstogo: L1
+    // odhadla 83% brand, přitom všech 6 reklam je sales). Graf tak čerpá ze STEJNÉHO
+    // zdroje jako per-ad štítky → konzistence. classifyAds ad_mix ještě přepočítá
+    // z AI-refined ad_type (přesná shoda se štítky, tady je jen heuristický baseline).
+    const adMix = adMixFromAds(ads);
     if (errorMsg) console.error(`saveL1 error for ${id}: ${errorMsg}`);
     if (analysis && (analysis as any).aktivita) {
       (analysis as any).aktivita.prumerna_delka_behu_dni = computeAvgDuration(ads);
