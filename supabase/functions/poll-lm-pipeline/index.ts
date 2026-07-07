@@ -608,7 +608,29 @@ Deno.serve(async (req) => {
         // odkazuje jinou page než tu, co inzeruje). Zahoď page_id, hledej podle
         // názvu a nech pickDominantPage (strict) rozhodnout.
         let retried = false;
-        if (metaPageId && !cachedPageId && retryBrand) {
+        // Fix C — VANITY FALLBACK: neověřený page_id (z webu, není v cache) vrátil 0
+        // + máme vanity slug → web nejspíš linkuje ŠPATNÉ/profilové page_id (viz
+        // relyefpottery: profile.php id → 0 reklam, reálná page přes vanity → reklamy).
+        // Vanity je cílený lookup (spolehlivý) → zkus PŘED keyword brand fallbackem
+        // (ten vrací globální smetí). Zahoď špatné page_id (meta_library_url=null),
+        // pickDominantPage vanity/single_page (Fix B) jednostránkový výsledek přijme.
+        if (metaPageId && !cachedPageId && comp.fb_slug) {
+          const vanityUrl = `https://www.facebook.com/${normalizeFbSlug(comp.fb_slug)}`;
+          const retryRun = await startApifyRun(APIFY_TOKEN, APIFY_META_ACTOR, {
+            urls: [{ url: vanityUrl }], limitPerSource: 50, "scrapePageAds.activeStatus": "active",
+          });
+          if (retryRun) {
+            await supa.from("lm_session_competitors")
+              .update({ apify_run_id: retryRun, status: "scraping", scrape_retried: true,
+                        scraping_started_at: new Date().toISOString(),
+                        meta_library_url: null })
+              .eq("id", comp.id);
+            console.log(JSON.stringify({ level: "info", message: "scrape_retry",
+              session_id, competitor_id: comp.id, via: "vanity_fallback", dropped_page_id: metaPageId }));
+            retried = true;
+          }
+        }
+        if (!retried && metaPageId && !cachedPageId && retryBrand) {
           const qUrl = buildQueryUrl(retryBrand);
           const retryRun = await startApifyRun(APIFY_TOKEN, APIFY_META_ACTOR, {
             urls: [{ url: qUrl }], limitPerSource: 50, "scrapePageAds.activeStatus": "active",
@@ -625,7 +647,7 @@ Deno.serve(async (req) => {
               session_id, competitor_id: comp.id, via: "brand_fallback", dropped_page_id: metaPageId }));
             retried = true;
           }
-        } else {
+        } else if (!retried) {
           // Původní chování: page_id (cache/meta) > vanity > q=, retry na stejný cíl.
           const pageId = metaPageId ?? cachedPageId;
           const target = retryTargetUrl(pageId, comp.fb_slug ?? null, comp.meta_library_url ?? null);
