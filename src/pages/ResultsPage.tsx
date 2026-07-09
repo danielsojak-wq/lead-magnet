@@ -1184,6 +1184,15 @@ export default function ResultsPage() {
   const results = data ?? MOCK;
   const cross = results.ai_cross_analysis;
 
+  // V2 lead triage — fire-and-forget záznam prvního booking CTA kliku do Supabase.
+  // NAVÍC k dataLayer.push (trackEvent), ne náhrada. Neblokuje otevření odkazu
+  // (target=_blank → current stránka zůstává; navíc bez await). Jen reálné sessions.
+  const trackBookingCtaClick = () => {
+    if (sessionId && !results.demo) {
+      supabase.functions.invoke("lm-track-cta-click", { body: { session_id: sessionId } }).catch(() => {});
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 font-[family-name:var(--font-body)]">
 
@@ -1200,7 +1209,7 @@ export default function ResultsPage() {
               href="https://calendar.app.google/GDJZhgABwHo4i4qx6"
               target="_blank"
               rel="noopener noreferrer"
-              onClick={() => trackEvent({ event: "cta_clicked", cta_label: "booking_nav", context: "booking", session_id: sessionId ?? null })}
+              onClick={() => { trackEvent({ event: "cta_clicked", cta_label: "booking_nav", context: "booking", session_id: sessionId ?? null }); trackBookingCtaClick(); }}
               className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-900 bg-[#b0f221] hover:bg-[#a3e01e] px-3 py-2 rounded-lg transition-colors whitespace-nowrap shrink-0"
             >
               <CalendarCheck className="h-3.5 w-3.5 shrink-0" /> Rezervovat hovor
@@ -1350,7 +1359,7 @@ export default function ResultsPage() {
               href="https://calendar.app.google/GDJZhgABwHo4i4qx6"
               target="_blank"
               rel="noopener noreferrer"
-              onClick={() => trackEvent({ event: "cta_clicked", cta_label: "booking_results", context: "booking", session_id: sessionId ?? null })}
+              onClick={() => { trackEvent({ event: "cta_clicked", cta_label: "booking_results", context: "booking", session_id: sessionId ?? null }); trackBookingCtaClick(); }}
               className="inline-flex items-center justify-center gap-2 bg-[#b0f221] text-gray-900 font-semibold px-8 py-4 rounded-xl hover:bg-[#a3e01e] transition-colors text-base shadow-lg shadow-[#b0f221]/20"
             >
               Rezervovat bezplatný hovor <ArrowRight className="h-4 w-4" />
