@@ -158,6 +158,19 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ── Engagement tracking (V2 lead triage) — jen reálné sessions (ne public demo).
+    // last_viewed_at vždy; viewed_count JEN v terminálním stavu (ready/completed/failed),
+    // ať 5s refetch poll (refetchInterval během processing/analyzing) nenafoukne
+    // počet reálných otevření hotového dashboardu. 1 UPDATE, odpověď zásadně nezdrží.
+    if (!demo) {
+      const bump: Record<string, unknown> = { last_viewed_at: new Date().toISOString() };
+      if (["ready", "completed", "failed"].includes(session.status)) {
+        bump.viewed_count = ((session.viewed_count as number | null) ?? 0) + 1;
+      }
+      const { error: viewErr } = await supa.from("lm_sessions").update(bump).eq("id", dataSessionId);
+      if (viewErr) console.warn("view tracking failed:", viewErr.message);
+    }
+
     const { data: competitors, error: compErr } = await supa
       .from("lm_session_competitors")
       .select("*")
