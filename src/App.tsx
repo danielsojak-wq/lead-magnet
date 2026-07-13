@@ -13,6 +13,7 @@ import WaitingPage from "@/pages/WaitingPage";
 import ResultsPage from "@/pages/ResultsPage";
 import DevPage from "@/pages/DevPage";
 import DevSessionsPage from "@/pages/DevSessionsPage";
+import DevLeadTriagePage from "@/pages/DevLeadTriagePage";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -38,6 +39,7 @@ const App = () => (
           <Route path="/results/:sessionId" element={<ResultsPage />} />
           <Route path="/dev" element={<DevPage />} />
           <Route path="/dev/sessions" element={<DevSessionsPage />} />
+          <Route path="/dev/lead-triage" element={<DevLeadTriagePage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

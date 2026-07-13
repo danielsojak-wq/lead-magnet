@@ -31,7 +31,8 @@ jobs:
           for fn in start-lm-analysis poll-lm-pipeline analyze-lm-session \
                     verify-lm-token send-verification-email get-lm-results \
                     send-lm-report lm-pipeline-watchdog discover-meta-url \
-                    lm-track-cta-click; do
+                    lm-track-cta-click lm-ecomail-webhook lm-lead-triage-scan \
+                    lm-lead-triage-data lm-generate-draft lm-move-to-manual; do
             supabase functions deploy $fn --no-verify-jwt
           done
         env:
