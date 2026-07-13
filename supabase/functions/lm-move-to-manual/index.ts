@@ -63,7 +63,10 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json().catch(() => ({}));
-    if (body.password !== Deno.env.get("PERFORMIND_DEV_PASSWORD")) {
+    // FAIL-CLOSED: když env chybí, odmítni. (Naivní `body.password !== env` by při
+    // nenastavené proměnné propustilo request bez hesla → undefined !== undefined = false.)
+    const devPassword = Deno.env.get("PERFORMIND_DEV_PASSWORD");
+    if (!devPassword || typeof body.password !== "string" || body.password !== devPassword) {
       return json({ error: "Unauthorized" }, 401);
     }
     const triageId = body.id as string | undefined;

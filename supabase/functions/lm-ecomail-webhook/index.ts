@@ -14,8 +14,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 // POZOR: webhook URL je v Ecomailu GLOBÁLNÍ pro celý účet → chodí sem eventy ze
 // všech kampaní/automatizací, ne jen z lead magnetu. Ukládáme vše, filtr až ve scanu.
 //
-// verify_jwt=false — Ecomail neumí posílat JWT. Volitelná ochrana: když je nastavený
-// ECOMAIL_WEBHOOK_SECRET, vyžadujeme ?s=<secret> v URL (Daniel ho přidá při registraci).
+// verify_jwt=false — Ecomail neumí posílat JWT/auth hlavičky. Ochrana je proto přes
+// POVINNÝ sdílený secret v URL: ECOMAIL_WEBHOOK_SECRET (env) + ?s=<secret> v registrované
+// webhook URL. Bez nastaveného env funkce odmítá VŠECHNO (fail-closed) — viz níže.
 
 function admin() {
   return createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
@@ -43,11 +44,18 @@ function toIso(ts: unknown): string | null {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  // FAIL-CLOSED: secret je POVINNÝ, ne volitelný. Endpoint musí být veřejný (Ecomail
+  // neumí posílat auth hlavičky) a ukládá PII (emaily příjemců). Bez ověření by kdokoli
+  // mohl (a) číst nic, ale (b) INJECTOVAT falešné open eventy a zkreslit triage scoring
+  // — lead by se tvářil jako engaged a nikdy by se nedostal do manual outreach.
+  // Když env není nastavený, NEPŘIJÍMÁME nic (raději rozbitý webhook než otevřený zápis).
   const secret = Deno.env.get("ECOMAIL_WEBHOOK_SECRET");
-  if (secret) {
-    const provided = new URL(req.url).searchParams.get("s");
-    if (provided !== secret) return json({ error: "unauthorized" }, 401);
+  if (!secret) {
+    console.error("ECOMAIL_WEBHOOK_SECRET not configured — refusing all requests");
+    return json({ error: "webhook not configured" }, 503);
   }
+  const provided = new URL(req.url).searchParams.get("s");
+  if (provided !== secret) return json({ error: "unauthorized" }, 401);
 
   try {
     const body = await req.json().catch(() => null);
