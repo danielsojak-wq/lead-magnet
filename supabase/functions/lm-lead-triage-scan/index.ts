@@ -1,6 +1,6 @@
 import { corsHeaders } from "../_shared/cors.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { DAY_CHECKPOINT, OPEN_EVENT_TYPES, TRIAGE_STATUS } from "../_shared/lm-triage-config.ts";
+import { DAY_CHECKPOINT, EVENT_DATA_SINCE, OPEN_EVENT_TYPES, TRIAGE_STATUS } from "../_shared/lm-triage-config.ts";
 
 // Manuálně spouštěný scan (tlačítko v /dev/lead-triage, žádný cron).
 //
@@ -47,11 +47,15 @@ Deno.serve(async (req) => {
     const cutoff = new Date(Date.now() - DAY_CHECKPOINT * 86400_000).toISOString();
 
     // 1) Sessions, které vstoupily do sekvence před ≥ DAY_CHECKPOINT dny.
+    //    FLOOR: jen ty od EVENT_DATA_SINCE — pro starší leady nemáme open eventy
+    //    (Ecomail webhook neposílá historii), takže "0 otevření" by u nich bylo
+    //    falešné pozitivum. Viz komentář u EVENT_DATA_SINCE v configu.
     const { data: sessions, error: sErr } = await supa
       .from("lm_sessions")
       .select("id, email, eshop_url, completed_at")
       .not("completed_at", "is", null)
       .not("email", "is", null)
+      .gte("completed_at", EVENT_DATA_SINCE)
       .lte("completed_at", cutoff)
       .order("completed_at", { ascending: false });
     if (sErr) throw sErr;
@@ -111,6 +115,7 @@ Deno.serve(async (req) => {
     const result = {
       ok: true,
       day_checkpoint: DAY_CHECKPOINT,
+      event_data_since: EVENT_DATA_SINCE,
       scanned: emails.length,
       engaged: engaged.size,
       already_in_triage: already.size,
