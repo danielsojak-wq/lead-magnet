@@ -7,23 +7,18 @@
 export const DAY_CHECKPOINT = 7;
 
 /**
- * FLOOR DATE — odkdy vůbec MÁME data o otevřeních.
+ * ID Ecomail automatizace, kterou lead magnet posílá nurturing sekvenci.
+ * Zdroj pravdy o otevřeních: GET /pipelines/{id}/stats-detail vrací mapu
+ * { "<email>": { open, send, click, unsub, ... } } — KUMULATIVNĚ za celou dobu.
  *
- * Ecomail webhooky NEPOSÍLAJÍ historii, jen události od okamžiku registrace. Leady,
- * které vstoupily do sekvence dřív, tedy mají 0 open eventů ne proto, že by email
- * neotevřeli, ale proto, že jsme tehdy ještě neposlouchali. Scan by je označil jako
- * channel mismatch → falešná pozitiva.
+ * Proto scan NEPOTŘEBUJE floor date. Dřív tu byl EVENT_DATA_SINCE (2026-07-13) postavený
+ * na předpokladu, že historii otevření nejde zpětně získat (webhook posílá jen události
+ * od registrace). Ten předpoklad byl CHYBNÝ — stats-detail ji vrací celou. Floor byl
+ * zrušen; scan hodnotí všechny leady bez ohledu na stáří.
  *
- * Proto scan bere JEN leady s `completed_at >= EVENT_DATA_SINCE`. Backfill vědomě
- * NEDĚLÁME: z Ecomail API by šel získat leda agregát kampaně, který nejde spolehlivě
- * napárovat na konkrétní kontakt — a nespolehlivý per-lead údaj je horší než poctivé
- * "o téhle době nevíme".
- *
- * Nastaveno na den nasazení webhooku (2026-07-13). Dashboard tuhle hodnotu zobrazuje
- * ("data od …"), ať je i za měsíc jasné, proč se počty neshodují s celkovým počtem
- * leadů v sekvenci.
+ * lm_email_events (webhook) běží dál jako real-time audit trail, ale scan na něm nevisí.
  */
-export const EVENT_DATA_SINCE = "2026-07-13T00:00:00.000Z";
+export const ECOMAIL_PIPELINE_ID = 39721;   // "Lead Magnet Analýza | Nurturing flow"
 
 /** Tag, kterým Ecomail značí leady z lead magnetu (nastavuje syncToEcomail). */
 export const NURTURING_TAG = "lead-magnet-analyza";
