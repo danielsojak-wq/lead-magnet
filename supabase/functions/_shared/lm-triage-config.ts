@@ -31,6 +31,17 @@ export const NURTURING_TAG = "lead-magnet-analyza";
 /** Informativní tag přidaný při přesunu na manuální outreach. NESMÍ nahradit ostatní tagy. */
 export const MANUAL_OUTREACH_TAG = "lm-manual-outreach";
 
+/**
+ * Hodnota HubSpot property `acquisition_channel` (posílá se v Make payloadu pod TÍMTO názvem klíče).
+ *
+ * ⚠️ `acquisition_channel` je v HubSpotu ENUM (dropdown), ne volný text. Hodnota musí PŘESNĚ
+ * odpovídat jedné z povolených options, jinak HubSpot odmítne celý zápis (400 INVALID_OPTION)
+ * a s ním i navazující Create Task — lead do manual outreach vůbec nedorazí.
+ * Pozor na pomlčku: povolená option je "Lead Magnet - Manual Outreach", ne "Lead Magnet Manual Outreach".
+ * Když se option v HubSpotu přejmenuje, musí se přepsat i tady.
+ */
+export const MANUAL_OUTREACH_SOURCE = "Lead Magnet - Manual Outreach";
+
 /** Ecomail list, do kterého pipeline zapisuje (viz syncToEcomail v analyze-lm-session). */
 export const ECOMAIL_LIST_ID = 1;
 
