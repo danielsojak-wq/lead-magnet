@@ -103,7 +103,12 @@ Napiš LinkedIn zprávu pro ${eshopDomain}.`;
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model: AI_MODEL,
-        max_tokens: 600,
+        // POZOR: gemini-2.5-* je thinking model a přes OpenAI-compat se reasoning tokeny
+        // počítají do max_tokens. S max_tokens:600 spotřeboval thinking skoro celý budget
+        // a na text zbylo ~25 tokenů → draft se ukládal useknutý uprostřed slova
+        // (finish_reason:"length", ale tiše). Proto: thinking vypnout + velký strop.
+        reasoning_effort: "none",
+        max_tokens: 2000,
         temperature: 0.7,
         messages: [
           { role: "system", content: SYSTEM },
@@ -118,8 +123,14 @@ Napiš LinkedIn zprávu pro ${eshopDomain}.`;
       return json({ error: `AI HTTP ${res.status}` }, 502);
     }
     const d = await res.json();
-    const draft = String(d?.choices?.[0]?.message?.content ?? "").trim();
+    const choice = d?.choices?.[0];
+    const draft = String(choice?.message?.content ?? "").trim();
     if (!draft) return json({ error: "AI vrátila prázdný draft" }, 502);
+    // Useknutý draft NIKDY neukládej — radši hlasitá chyba než půlka věty odeslaná leadovi.
+    if (choice?.finish_reason === "length") {
+      console.error("Gemini truncated draft:", JSON.stringify({ usage: d?.usage, chars: draft.length }));
+      return json({ error: "AI odpověď byla useknutá (finish_reason=length) — draft neuložen" }, 502);
+    }
 
     const { error: uErr } = await supa
       .from("lm_lead_triage")
