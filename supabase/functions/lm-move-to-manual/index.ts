@@ -1,6 +1,6 @@
 import { corsHeaders } from "../_shared/cors.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { ECOMAIL_LIST_ID, MANUAL_OUTREACH_TAG, TRIAGE_STATUS } from "../_shared/lm-triage-config.ts";
+import { ECOMAIL_LIST_ID, MANUAL_OUTREACH_SOURCE, MANUAL_OUTREACH_TAG, TRIAGE_STATUS } from "../_shared/lm-triage-config.ts";
 
 // Přesun leada na manuální outreach. Volatelné JEN pro icp_fit = true.
 //
@@ -125,7 +125,11 @@ Deno.serve(async (req) => {
         competitor_2: competitorDomains[1] ?? null,
         analysis_url: analysisUrl,
         draft_message: lead.draft_message,
-        source: "Lead Magnet Manual Outreach",
+        // Název klíče musí sedět na HubSpot property `acquisition_channel` — Make mapuje
+        // podle názvu. Dřív se posílalo jen `source`, což se v HubSpotu nikam nenamapovalo
+        // a board filtr (acquisition_channel = "Lead Magnet Manual Outreach") vracel 0 kontaktů.
+        acquisition_channel: MANUAL_OUTREACH_SOURCE,
+        source: MANUAL_OUTREACH_SOURCE,   // ponecháno kvůli zpětné kompatibilitě scénáře
       };
       try {
         const r = await fetch(makeUrl, {
