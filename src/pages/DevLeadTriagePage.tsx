@@ -64,25 +64,31 @@ export default function DevLeadTriagePage() {
     document.head.appendChild(l);
   }, []);
 
-  const call = async (fn: string, body: Record<string, unknown>) => {
-    const { data: res, error: err } = await supabase.functions.invoke(fn, { body: { password: pw ?? password, ...body } });
+  // supabase.functions.invoke při non-2xx NEDÁ tělo do `data` — hodí FunctionsHttpError
+  // a odpověď schová do `err.context` (Response). Bez tohohle vytažení se každá serverová
+  // hláška ("Unauthorized", guard "icp_fit must be true…", "AI odpověď useknutá") zobrazí
+  // jako neužitečné "Edge Function returned a non-2xx status code".
+  const invoke = async (fn: string, body: Record<string, unknown>) => {
+    const { data: res, error: err } = await supabase.functions.invoke(fn, { body });
     if (err || (res as any)?.error) {
-      const msg = (res as any)?.error ?? err?.message ?? "Chyba";
+      let msg = (res as any)?.error ?? err?.message ?? "Chyba";
+      const ctx = (err as unknown as { context?: unknown })?.context;
+      if (ctx instanceof Response) {
+        const parsed = await ctx.clone().json().catch(() => null);
+        if (parsed?.error) msg = parsed.error;
+      }
       throw new Error(msg === "Unauthorized" ? "Špatné heslo" : String(msg));
     }
     return res as any;
   };
 
+  const call = (fn: string, body: Record<string, unknown>) =>
+    invoke(fn, { password: pw ?? password, ...body });
+
   const load = async (usePw?: string) => {
     setLoading(true); setError("");
     try {
-      const { data: res, error: err } = await supabase.functions.invoke("lm-lead-triage-data", {
-        body: { password: usePw ?? pw ?? password, action: "list" },
-      });
-      if (err || (res as any)?.error) {
-        const msg = (res as any)?.error ?? err?.message ?? "Chyba";
-        throw new Error(msg === "Unauthorized" ? "Špatné heslo" : String(msg));
-      }
+      const res = await invoke("lm-lead-triage-data", { password: usePw ?? pw ?? password, action: "list" });
       setPw(usePw ?? pw ?? password);
       setData(res as TriageData);
     } catch (e) {
