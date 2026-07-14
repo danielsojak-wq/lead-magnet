@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 // SINGLE SOURCE OF TRUTH — stejný soubor importuje i lm-lead-triage-scan.
 // Žádná z těchto hodnot nesmí být v UI hardcoded.
-import { DAY_CHECKPOINT, EVENT_DATA_SINCE, ICP_CRITERIA } from "../../supabase/functions/_shared/lm-triage-config";
+import { DAY_CHECKPOINT, ICP_CRITERIA } from "../../supabase/functions/_shared/lm-triage-config";
 
 // ── Design tokeny (varianta 6a) ──────────────────────────────────────────────
 const C = {
@@ -96,7 +96,11 @@ export default function DevLeadTriagePage() {
     setBusy("scan"); setNote(""); setError("");
     try {
       const r = await call("lm-lead-triage-scan", {});
-      setNote(`Scan: ${r.scanned} prošlo · ${r.engaged} engaged · ${r.already_in_triage} už v triage · ${r.created} nových`);
+      // `unknown` = není v Ecomail sekvenci → o otevřeních nevíme nic, vědomě nehodnotíme.
+      setNote(
+        `Scan: ${r.scanned} prošlo · ${r.engaged} otevřelo · ${r.unsubscribed} odhlášeno · ` +
+        `${r.unknown} mimo sekvenci (nehodnoceno) · ${r.already_in_triage} už v triage · ${r.created} nových`
+      );
       await load();
     } catch (e) { setError((e as Error).message); } finally { setBusy(null); }
   };
@@ -191,9 +195,9 @@ export default function DevLeadTriagePage() {
               <div style={{ font: `600 10px ${SANS}`, letterSpacing: ".04em", textTransform: "uppercase", color: C.muted3 }}>Checkpoint</div>
               {/* text z configu — žádná hardcoded hodnota */}
               <div style={{ marginTop: 6, font: `400 13px/1.4 ${SANS}`, color: C.ink2 }}>0 otevření ≥ {DAY_CHECKPOINT} dní od vstupu do sekvence</div>
-              {/* Ecomail webhook neposílá historii → starší leady vědomě netriage-ujeme. */}
+              {/* Zdroj = Ecomail stats-detail (kumulativně za celou dobu), ne webhook. */}
               <div style={{ marginTop: 4, font: `400 11.5px/1.4 ${SANS}`, color: C.muted2 }}>
-                data o otevřeních od {dateCz(EVENT_DATA_SINCE)} · starší leady se nehodnotí
+                zdroj: Ecomail · odhlášení a leady mimo sekvenci se nehodnotí
               </div>
             </div>
           </div>
@@ -246,7 +250,7 @@ export default function DevLeadTriagePage() {
                     </div>
                     <div style={{ textAlign: "right" }}>
                       <span style={{ display: "inline-flex", gap: 5, alignItems: "center", font: `600 11.5px ${SANS}`, color: C.blue, background: C.blueBg, padding: "5px 11px", borderRadius: 999 }}>
-                        0 otevření od {dateCz(L.checkpoint_reached_at)}
+                        0 otevření · checkpoint {dateCz(L.checkpoint_reached_at)}
                       </span>
                     </div>
                   </div>

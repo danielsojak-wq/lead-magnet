@@ -1,6 +1,6 @@
 import { corsHeaders } from "../_shared/cors.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { DAY_CHECKPOINT, EVENT_DATA_SINCE, ICP_CRITERIA, TRIAGE_STATUS } from "../_shared/lm-triage-config.ts";
+import { DAY_CHECKPOINT, ICP_CRITERIA, TRIAGE_STATUS } from "../_shared/lm-triage-config.ts";
 
 // Data vrstva pro /dev/lead-triage (heslem chráněná, stejný pattern jako list-dev-sessions).
 // Tabulky mají RLS bez policy → frontend na ně nesmí přímo, čte přes tuhle fn (service role).
@@ -105,7 +105,7 @@ Deno.serve(async (req) => {
     return json({
       ok: true,
       // config → frontend NIKDY nehardcoduje DAY_CHECKPOINT ani ICP text
-      config: { day_checkpoint: DAY_CHECKPOINT, icp_criteria: ICP_CRITERIA, event_data_since: EVENT_DATA_SINCE },
+      config: { day_checkpoint: DAY_CHECKPOINT, icp_criteria: ICP_CRITERIA },
       counts: { needs_review: needsReview ?? 0, moved_to_manual: movedToManual ?? 0 },
       leads: enriched,
     });
