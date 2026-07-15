@@ -102,11 +102,29 @@ Deno.serve(async (req) => {
         : null,
     }));
 
+    // ── Funnel: rychlá analytika stavu VŠECH leadů z magnetu ────────────────────
+    // Buckety dle reálných stavů lm_sessions. Priorita: no_ads_scraped předchází
+    // "analýza OK" i u status='ready' (5 leadů je ready+no_ads → bez reklam, ne plný nurturing).
+    const { data: allSessions } = await supa
+      .from("lm_sessions").select("status, error_message").not("email", "is", null);
+    const funnel = { total: 0, email_pending: 0, analyza_ok: 0, no_ads: 0, failed_other: 0, in_progress: 0 };
+    for (const s of allSessions ?? []) {
+      funnel.total++;
+      const st = String((s as any).status ?? "");
+      const err = (s as any).error_message as string | null;
+      if (st === "email_pending") funnel.email_pending++;
+      else if (err === "no_ads_scraped") funnel.no_ads++;
+      else if (st === "ready" && !err) funnel.analyza_ok++;
+      else if (st === "failed") funnel.failed_other++;
+      else funnel.in_progress++;   // scraping/analyzing/processing — přechodné
+    }
+
     return json({
       ok: true,
       // config → frontend NIKDY nehardcoduje DAY_CHECKPOINT ani ICP text
       config: { day_checkpoint: DAY_CHECKPOINT, icp_criteria: ICP_CRITERIA },
       counts: { needs_review: needsReview ?? 0, moved_to_manual: movedToManual ?? 0 },
+      funnel,
       leads: enriched,
     });
   } catch (e) {

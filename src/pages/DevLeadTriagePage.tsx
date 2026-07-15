@@ -33,9 +33,18 @@ interface Lead {
   competitors: string[];
   analysis_url: string | null;
 }
+interface Funnel {
+  total: number;
+  email_pending: number;
+  analyza_ok: number;
+  no_ads: number;
+  failed_other: number;
+  in_progress: number;
+}
 interface TriageData {
   config: { day_checkpoint: number; icp_criteria: string };
   counts: { needs_review: number; moved_to_manual: number };
+  funnel?: Funnel;
   leads: Lead[];
 }
 
@@ -191,6 +200,43 @@ export default function DevLeadTriagePage() {
           <p style={{ margin: "9px 0 0", font: `400 14px/1.6 ${SANS}`, color: C.muted, maxWidth: "60ch" }}>
             Ruční průchod leadů, kterým e-mail jako nurturing kanál nefunguje. Rozhodni o přesunu na manuální outreach.
           </p>
+
+          {data.funnel && (() => {
+            const f = data.funnel;
+            const tot = f.total || 1;
+            const seg = [
+              { key: "ok",    val: f.analyza_ok,   label: "Analýza OK",          sub: "plný nurturing",   color: C.green },
+              { key: "noads", val: f.no_ads,       label: "Bez reklam",          sub: "no-ads sekvence",  color: "#e8791a" },
+              { key: "pend",  val: f.email_pending,label: "Nepotvrzený e-mail",  sub: "není v Ecomailu",  color: "#dc2626" },
+              { key: "other", val: f.failed_other + f.in_progress, label: "Selhalo / rozpracováno", sub: "není v Ecomailu", color: C.grey },
+            ];
+            return (
+              <div style={{ marginTop: 18, background: C.white, borderRadius: 16, boxShadow: SHADOW_SUB, padding: "18px 20px" }}>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                  <span style={{ font: `700 15px ${SANS}`, color: C.ink }}>Leady z magnetu</span>
+                  <span style={{ font: `700 15px ${SANS}`, color: C.ink }}>{f.total}</span>
+                  <span style={{ marginLeft: "auto", font: `500 12px ${SANS}`, color: C.muted }}>
+                    {Math.round(((f.total - f.email_pending) / tot) * 100)} % potvrdilo e-mail
+                  </span>
+                </div>
+                <div style={{ display: "flex", height: 10, marginTop: 12, borderRadius: 20, overflow: "hidden", background: C.track }}>
+                  {seg.map(s => s.val > 0 && <div key={s.key} style={{ width: `${(s.val / tot) * 100}%`, background: s.color }} />)}
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginTop: 14 }}>
+                  {seg.map(s => (
+                    <div key={s.key}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ width: 8, height: 8, borderRadius: 2, background: s.color, display: "inline-block" }} />
+                        <span style={{ font: `700 19px ${SANS}`, color: C.ink }}>{s.val}</span>
+                      </div>
+                      <div style={{ font: `600 11.5px ${SANS}`, color: C.ink2, marginTop: 2 }}>{s.label}</div>
+                      <div style={{ font: `400 10.5px ${SANS}`, color: C.muted2 }}>{s.sub}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
 
           <div style={{ marginTop: 20, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <div style={{ background: C.white, borderRadius: 16, boxShadow: SHADOW_SUB, padding: "15px 18px" }}>
