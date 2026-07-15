@@ -51,6 +51,20 @@ Deno.serve(async (req) => {
       return json({ ok: true, lead: data });
     }
 
+    // ── skip ────────────────────────────────────────────────────────────────────
+    // Odmítnutí leada (není fit). status='skipped' → zmizí z boardu (list bere jen
+    // needs_review). Nevolá Ecomail ani Make — jen ho odklidí z fronty.
+    if (action === "skip") {
+      const id = body.id as string | undefined;
+      if (!id) return json({ error: "id required" }, 400);
+      const { error } = await supa
+        .from("lm_lead_triage")
+        .update({ status: TRIAGE_STATUS.SKIPPED, updated_at: new Date().toISOString() })
+        .eq("id", id);
+      if (error) throw error;
+      return json({ ok: true });
+    }
+
     // ── list ──────────────────────────────────────────────────────────────────
     const [{ count: needsReview }, { count: movedToManual }] = await Promise.all([
       supa.from("lm_lead_triage").select("id", { count: "exact", head: true })
