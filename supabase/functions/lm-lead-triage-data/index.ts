@@ -132,13 +132,23 @@ Deno.serve(async (req) => {
 
     const funnel = { total: 0, email_pending: 0, analyza_ok: 0, no_ads: 0, failed_other: 0, in_progress: 0 };
 
-    // Denní série: posledních 30 kalendářních dní (UTC), i s prázdnými dny → spojitá osa.
-    const DAYS = 30;
+    // Denní série pokrývá CELOU historii (od nejstaršího leadu po dnes, strop 365 dní).
+    // Frontend si z ní sám ořeže okno (7/30/90/vše) a agreguje na týdny — proto tu
+    // posíláme spojitou denní osu i s prázdnými dny, ne předpočítané okno.
     const today = new Date(); today.setUTCHours(0, 0, 0, 0);
+    const cap = new Date(today); cap.setUTCDate(today.getUTCDate() - 364);
+    let minMs = Infinity;
+    for (const s of allSessions ?? []) {
+      const t = Date.parse(String((s as any).created_at ?? ""));
+      if (isFinite(t) && t < minMs) minMs = t;
+    }
+    let start = isFinite(minMs) ? new Date(minMs) : new Date(today);
+    start.setUTCHours(0, 0, 0, 0);
+    if (start < cap) start = cap;
+
     type Day = { date: string; analyza_ok: number; no_ads: number; email_pending: number; other: number };
     const series = new Map<string, Day>();
-    for (let i = DAYS - 1; i >= 0; i--) {
-      const d = new Date(today); d.setUTCDate(today.getUTCDate() - i);
+    for (let d = new Date(start); d <= today; d.setUTCDate(d.getUTCDate() + 1)) {
       const key = d.toISOString().slice(0, 10);
       series.set(key, { date: key, analyza_ok: 0, no_ads: 0, email_pending: 0, other: 0 });
     }
@@ -151,7 +161,7 @@ Deno.serve(async (req) => {
       // funnel (all-time) — "other" rozpad na failed vs přechodné kvůli stávajícímu tvaru
       if (b === "other") { if (st === "failed") funnel.failed_other++; else funnel.in_progress++; }
       else funnel[b]++;
-      // denní série (jen posledních 30 dní)
+      // denní série
       const key = String((s as any).created_at ?? "").slice(0, 10);
       const day = series.get(key);
       if (day) day[b]++;
