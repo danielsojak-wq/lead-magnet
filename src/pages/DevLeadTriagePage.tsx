@@ -41,10 +41,18 @@ interface Funnel {
   failed_other: number;
   in_progress: number;
 }
+interface DayBucket {
+  date: string;
+  analyza_ok: number;
+  no_ads: number;
+  email_pending: number;
+  other: number;
+}
 interface TriageData {
   config: { day_checkpoint: number; icp_criteria: string };
   counts: { needs_review: number; moved_to_manual: number };
   funnel?: Funnel;
+  daily?: DayBucket[];
   leads: Lead[];
 }
 
@@ -239,7 +247,50 @@ export default function DevLeadTriagePage() {
             );
           })()}
 
-          <div style={{ marginTop: 20, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          {data.daily && data.daily.length > 0 && (() => {
+            const days = data.daily;
+            const totalOf = (d: DayBucket) => d.analyza_ok + d.no_ads + d.email_pending + d.other;
+            const max = Math.max(1, ...days.map(totalOf));
+            const sum = days.reduce((a, d) => a + totalOf(d), 0);
+            const keys = ["analyza_ok", "no_ads", "email_pending", "other"] as const;
+            const col: Record<typeof keys[number], string> = {
+              analyza_ok: C.green, no_ads: "#e8791a", email_pending: "#dc2626", other: C.grey,
+            };
+            const H = 96;
+            return (
+              <div style={{ marginTop: 12, background: C.white, borderRadius: 16, boxShadow: SHADOW_SUB, padding: "18px 20px" }}>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                  <span style={{ font: `700 15px ${SANS}`, color: C.ink }}>Leady po dnech</span>
+                  <span style={{ font: `500 12px ${SANS}`, color: C.muted2 }}>posledních 30 dní</span>
+                  <span style={{ marginLeft: "auto", font: `500 12px ${SANS}`, color: C.muted }}>{sum} celkem · barvy jako výše</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "flex-end", gap: 3, height: H, marginTop: 14 }}>
+                  {days.map(d => {
+                    const t = totalOf(d);
+                    return (
+                      <div key={d.date} title={`${d.date}: ${t} leadů`}
+                        style={{ flex: 1, height: "100%", display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
+                        <div style={{ display: "flex", flexDirection: "column-reverse", borderRadius: "3px 3px 0 0", overflow: "hidden" }}>
+                          {keys.map(k => d[k] > 0 && (
+                            <div key={k} style={{ height: `${(d[k] / max) * H}px`, background: col[k] }} />
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div style={{ display: "flex", gap: 3, marginTop: 6 }}>
+                  {days.map((d, i) => (
+                    <div key={d.date} style={{ flex: 1, textAlign: "center", font: `400 9px ${MONO}`, color: C.muted2 }}>
+                      {i % 5 === 0 ? d.date.slice(5).replace("-", "/") : ""}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+
+          <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <div style={{ background: C.white, borderRadius: 16, boxShadow: SHADOW_SUB, padding: "15px 18px" }}>
               <div style={{ font: `600 10px ${SANS}`, letterSpacing: ".04em", textTransform: "uppercase", color: C.muted3 }}>ICP kritérium</div>
               <div style={{ marginTop: 6, font: `400 13px/1.4 ${SANS}`, color: C.ink2 }}>{ICP_CRITERIA}</div>
