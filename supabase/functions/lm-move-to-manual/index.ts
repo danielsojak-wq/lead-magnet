@@ -76,15 +76,13 @@ Deno.serve(async (req) => {
 
     const { data: lead, error: lErr } = await supa
       .from("lm_lead_triage")
-      .select("id, email, domain, session_id, icp_fit, draft_message, status")
+      .select("id, email, domain, session_id, draft_message, status")
       .eq("id", triageId).maybeSingle();
     if (lErr) throw lErr;
     if (!lead) return json({ error: "lead not found" }, 404);
 
-    // GUARD — jen ICP fit.
-    if (lead.icp_fit !== true) {
-      return json({ error: "icp_fit must be true before moving to manual outreach" }, 409);
-    }
+    // Bez ICP guardu — rozhodnutí dělá člověk klikem (Přesunout / Odmítnout).
+    // Odmítnuté leady jdou přes action=skip a sem se nedostanou.
     if (lead.status === TRIAGE_STATUS.MOVED_TO_MANUAL) {
       return json({ ok: true, already_moved: true });
     }

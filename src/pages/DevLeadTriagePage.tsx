@@ -75,7 +75,7 @@ export default function DevLeadTriagePage() {
 
   // supabase.functions.invoke při non-2xx NEDÁ tělo do `data` — hodí FunctionsHttpError
   // a odpověď schová do `err.context` (Response). Bez tohohle vytažení se každá serverová
-  // hláška ("Unauthorized", guard "icp_fit must be true…", "AI odpověď useknutá") zobrazí
+  // hláška ("Unauthorized", "AI odpověď useknutá" apod.) zobrazí
   // jako neužitečné "Edge Function returned a non-2xx status code".
   const invoke = async (fn: string, body: Record<string, unknown>) => {
     const { data: res, error: err } = await supabase.functions.invoke(fn, { body });
@@ -129,11 +129,12 @@ export default function DevLeadTriagePage() {
     } catch (e) { setError((e as Error).message); } finally { setBusy(null); }
   };
 
-  const setIcp = async (id: string, val: boolean) => {
-    setBusy(`icp:${id}`); setError("");
+  const reject = async (id: string) => {
+    setBusy(`reject:${id}`); setNote(""); setError("");
     try {
-      await call("lm-lead-triage-data", { action: "update", id, icp_fit: val });
-      setData(d => d ? { ...d, leads: d.leads.map(l => l.id === id ? { ...l, icp_fit: val } : l) } : d);
+      await call("lm-lead-triage-data", { action: "skip", id });
+      setNote("Lead odmítnut — zmizel z dashboardu.");
+      await load();
     } catch (e) { setError((e as Error).message); } finally { setBusy(null); }
   };
 
@@ -289,7 +290,6 @@ export default function DevLeadTriagePage() {
             {leads.map(L => {
               const isOpen = open === L.id;
               const draft = drafts[L.id] ?? L.draft_message ?? "";
-              const canMove = L.icp_fit === true;
               return (
                 <div key={L.id} style={{ background: C.white, borderRadius: 16, boxShadow: SHADOW_SUB, overflow: "hidden" }}>
                   <div onClick={() => setOpen(isOpen ? null : L.id)}
@@ -349,29 +349,27 @@ export default function DevLeadTriagePage() {
                             style={{ border: "none", cursor: "pointer", background: C.track, color: C.ink2, font: `600 12px ${SANS}`, padding: "8px 13px", borderRadius: 999 }}>
                             {busy === `save:${L.id}` ? "Ukládám…" : "Uložit draft"}
                           </button>
-
-                          {/* ICP fit — manuální checkbox (auto-scoring je mimo scope) */}
-                          <label style={{ display: "inline-flex", alignItems: "center", gap: 7, font: `500 12.5px ${SANS}`, color: C.ink2, cursor: "pointer" }}>
-                            <input type="checkbox" checked={L.icp_fit === true} disabled={!!busy}
-                              onChange={e => setIcp(L.id, e.target.checked)} />
-                            ICP fit
-                          </label>
                         </div>
 
-                        <div style={{ marginTop: 12 }}>
-                          <button onClick={() => move(L.id)} disabled={!canMove || !!busy}
-                            title={canMove ? undefined : "Nejdřív potvrď ICP fit"}
+                        <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                          <button onClick={() => move(L.id)} disabled={!!busy}
                             style={{
-                              border: "none", cursor: canMove && !busy ? "pointer" : "not-allowed",
-                              background: canMove ? C.blue : C.grey, color: "#fff",
+                              border: "none", cursor: busy ? "not-allowed" : "pointer",
+                              background: C.blue, color: "#fff",
                               font: `600 13px ${SANS}`, padding: "11px 17px", borderRadius: 999,
-                              opacity: canMove ? 1 : .75,
+                              opacity: busy ? .6 : 1,
                             }}>
                             {busy === `move:${L.id}` ? "Přesouvám…" : "Přesunout na manual outreach →"}
                           </button>
-                          {!canMove && (
-                            <div style={{ marginTop: 7, font: `400 11.5px ${SANS}`, color: C.muted2 }}>Odemkne se po zaškrtnutí ICP fit.</div>
-                          )}
+                          <button onClick={() => reject(L.id)} disabled={!!busy}
+                            title="Není fit — odebrat z dashboardu"
+                            style={{
+                              border: `1px solid ${C.border}`, cursor: busy ? "not-allowed" : "pointer",
+                              background: "transparent", color: C.muted,
+                              font: `600 13px ${SANS}`, padding: "10px 16px", borderRadius: 999,
+                            }}>
+                            {busy === `reject:${L.id}` ? "Odmítám…" : "Odmítnout"}
+                          </button>
                         </div>
                       </div>
                     </div>
