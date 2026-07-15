@@ -536,7 +536,7 @@ async function syncToEcomail(
         lm_analysis_source_adset: source.adset ?? "",
         lm_analysis_source_ad: source.ad ?? "",
       },
-      tags: ["lead-magnet-analyza", "nurtured"],
+      tags: ["lead-magnet-analyza"],
     },
     trigger_autoresponders: true,
     update_existing: true,

@@ -149,7 +149,7 @@ Deno.serve(async (req) => {
             lm_analysis_source_adset: session.utm_content ?? "",
             lm_analysis_source_ad: session.utm_term ?? "",
           },
-          tags: ["lead-magnet-analyza", "nurtured"],
+          tags: ["lead-magnet-analyza"],
         },
         trigger_autoresponders: true,
         update_existing: true,
