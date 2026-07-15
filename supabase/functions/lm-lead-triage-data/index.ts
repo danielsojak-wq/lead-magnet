@@ -116,21 +116,45 @@ Deno.serve(async (req) => {
         : null,
     }));
 
-    // ── Funnel: rychlá analytika stavu VŠECH leadů z magnetu ────────────────────
-    // Buckety dle reálných stavů lm_sessions. Priorita: no_ads_scraped předchází
+    // ── Funnel + denní série: analytika stavu VŠECH leadů z magnetu ─────────────
+    // Bucket dle reálných stavů lm_sessions. Priorita: no_ads_scraped předchází
     // "analýza OK" i u status='ready' (5 leadů je ready+no_ads → bez reklam, ne plný nurturing).
+    // Kategorie "other" = failed (mimo no_ads) + přechodné (scraping/analyzing).
+    const bucketOf = (st: string, err: string | null): "email_pending" | "no_ads" | "analyza_ok" | "other" => {
+      if (st === "email_pending") return "email_pending";
+      if (err === "no_ads_scraped") return "no_ads";
+      if (st === "ready" && !err) return "analyza_ok";
+      return "other";
+    };
+
     const { data: allSessions } = await supa
-      .from("lm_sessions").select("status, error_message").not("email", "is", null);
+      .from("lm_sessions").select("status, error_message, created_at").not("email", "is", null);
+
     const funnel = { total: 0, email_pending: 0, analyza_ok: 0, no_ads: 0, failed_other: 0, in_progress: 0 };
+
+    // Denní série: posledních 30 kalendářních dní (UTC), i s prázdnými dny → spojitá osa.
+    const DAYS = 30;
+    const today = new Date(); today.setUTCHours(0, 0, 0, 0);
+    type Day = { date: string; analyza_ok: number; no_ads: number; email_pending: number; other: number };
+    const series = new Map<string, Day>();
+    for (let i = DAYS - 1; i >= 0; i--) {
+      const d = new Date(today); d.setUTCDate(today.getUTCDate() - i);
+      const key = d.toISOString().slice(0, 10);
+      series.set(key, { date: key, analyza_ok: 0, no_ads: 0, email_pending: 0, other: 0 });
+    }
+
     for (const s of allSessions ?? []) {
       funnel.total++;
       const st = String((s as any).status ?? "");
       const err = (s as any).error_message as string | null;
-      if (st === "email_pending") funnel.email_pending++;
-      else if (err === "no_ads_scraped") funnel.no_ads++;
-      else if (st === "ready" && !err) funnel.analyza_ok++;
-      else if (st === "failed") funnel.failed_other++;
-      else funnel.in_progress++;   // scraping/analyzing/processing — přechodné
+      const b = bucketOf(st, err);
+      // funnel (all-time) — "other" rozpad na failed vs přechodné kvůli stávajícímu tvaru
+      if (b === "other") { if (st === "failed") funnel.failed_other++; else funnel.in_progress++; }
+      else funnel[b]++;
+      // denní série (jen posledních 30 dní)
+      const key = String((s as any).created_at ?? "").slice(0, 10);
+      const day = series.get(key);
+      if (day) day[b]++;
     }
 
     return json({
@@ -139,6 +163,7 @@ Deno.serve(async (req) => {
       config: { day_checkpoint: DAY_CHECKPOINT, icp_criteria: ICP_CRITERIA },
       counts: { needs_review: needsReview ?? 0, moved_to_manual: movedToManual ?? 0 },
       funnel,
+      daily: [...series.values()],
       leads: enriched,
     });
   } catch (e) {
