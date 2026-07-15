@@ -4,10 +4,17 @@
 // neinzeruje), analýza se nespustí (není z čeho, jinak by AI halucinovala). Lead ale
 // dal ověřený e-mail → patří do nurturingu, jen NE do standardní sekvence.
 //
-// Standardní nurturing (pipeline 39721) se spouští TAGEM `lead-magnet-analyza`.
-// Proto tady vědomě přidáváme JINÝ tag (`lm-no-ads`) a NEspouštíme autorespondery —
-// standardní sekvence tím pádem nenaskočí. Daniel na tag `lm-no-ads` staví zkrácenou
-// automatizaci ("ve tvém segmentu na Metě nikdo neinzeruje").
+// Posíláme DVA tagy:
+//   • lead-magnet-analyza — obecný identifikátor leadu z magnetu (reporting/segmentace)
+//   • lm-no-ads           — trigger ZKRÁCENÉ no-ads sekvence, kterou staví Daniel
+//
+// ⚠️ ZÁVISLOST: lead-magnet-analyza je zároveň trigger PLNÉ nurturing sekvence (pipeline
+// 39721). Aby no-ads leadům plná sekvence NENASKOČILA, MUSÍ mít ta automatizace v Ecomailu
+// vstupní podmínku "kontakt NEMÁ tag lm-no-ads". Bez té podmínky by no-ads leady dostaly
+// obojí. Podmínku nastavuje Daniel v Ecomail UI — tenhle kód ji vynutit neumí.
+//
+// trigger_autoresponders:true — stejně jako úspěšná větev (syncToEcomail). Kdyby bylo false,
+// hrozí, že nenaskočí ani zkrácená sekvence; plnou odfiltruje vstupní podmínka, ne tenhle flag.
 //
 // Idempotence: update_existing:true + resubscribe:false → opakované volání nevytvoří
 // duplicitu ani nereaktivuje odhlášeného.
@@ -15,8 +22,10 @@
 // deno-lint-ignore no-explicit-any
 type Supa = any;
 
-/** Tag, na který se váže ZKRÁCENÁ no-ads sekvence. NESMÍ být lead-magnet-analyza. */
+/** Trigger ZKRÁCENÉ no-ads sekvence. */
 export const NO_ADS_TAG = "lm-no-ads";
+/** Obecný identifikátor leadu z magnetu (shodný s úspěšnou větví). */
+const LEAD_MAGNET_TAG = "lead-magnet-analyza";
 
 const ECOMAIL_LIST_ID = 1;
 
@@ -62,11 +71,11 @@ export async function syncNoAdsLeadToEcomail(supa: Supa, sessionId: string): Pro
           lm_analysis_competitor_1: comp1 ? domainName(comp1.url) : "",
           lm_analysis_competitor_2: comp2 ? domainName(comp2.url) : "",
         },
-        // JINÝ tag než standardní sekvence — ta se spouští tagem lead-magnet-analyza.
-        tags: [NO_ADS_TAG],
+        // Oba tagy: identifikátor + trigger zkrácené sekvence. Plnou sekvenci odfiltruje
+        // vstupní podmínka automatizace ("NEMÁ lm-no-ads") — viz komentář nahoře.
+        tags: [LEAD_MAGNET_TAG, NO_ADS_TAG],
       },
-      // NEspouštět standardní autorespondery. Zkrácená sekvence běží na tag-trigger.
-      trigger_autoresponders: false,
+      trigger_autoresponders: true,
       update_existing: true,
       resubscribe: false,
     };
