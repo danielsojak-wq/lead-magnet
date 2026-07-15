@@ -1,5 +1,6 @@
 import { corsHeaders } from "../_shared/cors.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { syncNoAdsLeadToEcomail } from "../_shared/lm-ecomail-noads.ts";
 
 const AI_URL    = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
 const AI_MODEL  = "gemini-2.5-flash";   // L1 (4 paralelní) + classify — rychlost, vejde se do 150s
@@ -617,6 +618,8 @@ export async function runAnalysis(sessionId: string, apiKey: string, finalize = 
       status: "failed",
       error_message: "no_ads_scraped",
     }).eq("id", sessionId);
+    // Lead dal e-mail → do zkrácené no-ads sekvence (jiný tag než standard).
+    await syncNoAdsLeadToEcomail(supa, sessionId);
     return;
   }
 
