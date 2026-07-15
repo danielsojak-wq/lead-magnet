@@ -1,5 +1,6 @@
 import { corsHeaders } from "../_shared/cors.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { syncNoAdsLeadToEcomail } from "../_shared/lm-ecomail-noads.ts";
 
 function admin() {
   return createClient(
@@ -699,6 +700,9 @@ Deno.serve(async (req) => {
         status: "failed",
         error_message: "no_ads_scraped",
       }).eq("id", session_id);
+      // Analýza neproběhne (není z čeho), ale lead dal e-mail → do zkrácené no-ads
+      // sekvence. Jiný tag než standard, ať mu nenaskočí plná sekvence.
+      await syncNoAdsLeadToEcomail(supa, session_id);
       return ok({ status: "failed", error_message: "no_ads_scraped" });
     }
 
