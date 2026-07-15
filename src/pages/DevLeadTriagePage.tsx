@@ -41,23 +41,57 @@ interface Funnel {
   failed_other: number;
   in_progress: number;
 }
-interface DayBucket {
-  date: string;
-  analyza_ok: number;
-  no_ads: number;
-  email_pending: number;
-  other: number;
-}
 interface TriageData {
   config: { day_checkpoint: number; icp_criteria: string };
   counts: { needs_review: number; moved_to_manual: number };
   funnel?: Funnel;
-  daily?: DayBucket[];
+  daily?: DayBucket[];   // DayBucket definován níže u graf-helperů
   leads: Lead[];
 }
 
 const dateCz = (iso: string | null) =>
   iso ? new Date(iso).toLocaleDateString("cs-CZ", { day: "numeric", month: "numeric", year: "numeric" }) : "—";
+
+// ── Graf helpers ─────────────────────────────────────────────────────────────
+const BUCKETS = ["analyza_ok", "no_ads", "email_pending", "other"] as const;
+type BucketKey = typeof BUCKETS[number];
+const BUCKET_META: Record<BucketKey, { color: string; label: string }> = {
+  analyza_ok:    { color: "#16a34a", label: "Analýza OK" },
+  no_ads:        { color: "#e8791a", label: "Bez reklam" },
+  email_pending: { color: "#dc2626", label: "Nepotvrzený e-mail" },
+  other:         { color: "#d1d5db", label: "Selhalo / rozpracováno" },
+};
+interface DayBucket { date: string; analyza_ok: number; no_ads: number; email_pending: number; other: number }
+const barTotal = (d: DayBucket) => d.analyza_ok + d.no_ads + d.email_pending + d.other;
+
+const mdCz = (iso: string) => { const [, m, d] = iso.split("-"); return `${+d}.${+m}.`; };
+
+// Pondělí ISO týdne pro dané datum (UTC).
+function mondayOf(iso: string): string {
+  const d = new Date(iso + "T00:00:00Z");
+  const dow = (d.getUTCDay() + 6) % 7;   // 0 = pondělí
+  d.setUTCDate(d.getUTCDate() - dow);
+  return d.toISOString().slice(0, 10);
+}
+// Agregace dnů na týdny (klíč = pondělí).
+function toWeeks(days: DayBucket[]): DayBucket[] {
+  const m = new Map<string, DayBucket>();
+  for (const d of days) {
+    const k = mondayOf(d.date);
+    const w = m.get(k) ?? { date: k, analyza_ok: 0, no_ads: 0, email_pending: 0, other: 0 };
+    w.analyza_ok += d.analyza_ok; w.no_ads += d.no_ads; w.email_pending += d.email_pending; w.other += d.other;
+    m.set(k, w);
+  }
+  return [...m.values()].sort((a, b) => a.date.localeCompare(b.date));
+}
+// "Hezký" strop osy Y + krok pro gridlines.
+function niceScale(max: number): { top: number; step: number } {
+  if (max <= 1) return { top: 1, step: 1 };
+  const rough = max / 4;
+  const mag = Math.pow(10, Math.floor(Math.log10(rough)));
+  const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => s >= rough) ?? mag * 10;
+  return { top: Math.ceil(max / step) * step, step };
+}
 
 export default function DevLeadTriagePage() {
   const [password, setPassword] = useState("");
@@ -69,6 +103,12 @@ export default function DevLeadTriagePage() {
   const [open, setOpen] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [note, setNote] = useState("");
+  // Graf: granularita, okno (dní; 0 = vlastní rozsah), vlastní od/do, hover index
+  const [gran, setGran] = useState<"day" | "week">("day");
+  const [win, setWin] = useState<number>(30);   // 7 | 30 | 90 | -1 (vše) | 0 (vlastní)
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [hover, setHover] = useState<number | null>(null);
 
   // Fonty z designu (IBM Plex) — načti jednou.
   useEffect(() => {
@@ -248,44 +288,131 @@ export default function DevLeadTriagePage() {
           })()}
 
           {data.daily && data.daily.length > 0 && (() => {
-            const days = data.daily;
-            const totalOf = (d: DayBucket) => d.analyza_ok + d.no_ads + d.email_pending + d.other;
-            const max = Math.max(1, ...days.map(totalOf));
-            const sum = days.reduce((a, d) => a + totalOf(d), 0);
-            const keys = ["analyza_ok", "no_ads", "email_pending", "other"] as const;
-            const col: Record<typeof keys[number], string> = {
-              analyza_ok: C.green, no_ads: "#e8791a", email_pending: "#dc2626", other: C.grey,
-            };
-            const H = 96;
+            const all = data.daily;
+            // Okno: win>0 = posledních N dní · -1 = vše · 0 = vlastní rozsah (from/to)
+            let windowed = all;
+            if (win === 0) windowed = all.filter(d => (!from || d.date >= from) && (!to || d.date <= to));
+            else if (win > 0) windowed = all.slice(-win);
+            const bars = gran === "week" ? toWeeks(windowed) : windowed;
+
+            const maxTotal = Math.max(1, ...bars.map(barTotal));
+            const { top, step } = niceScale(maxTotal);
+            const grid: number[] = [];
+            for (let v = 0; v <= top + 1e-9; v += step) grid.push(Math.round(v));
+            const sum = bars.reduce((a, d) => a + barTotal(d), 0);
+            const H = 150;                       // výška plochy grafu (px)
+            const labelEvery = Math.max(1, Math.ceil(bars.length / 8));
+
+            const Preset = ({ v, txt }: { v: number; txt: string }) => (
+              <button onClick={() => { setWin(v); setFrom(""); setTo(""); }}
+                style={{
+                  border: "none", cursor: "pointer", borderRadius: 999, padding: "5px 11px",
+                  font: `600 11.5px ${SANS}`,
+                  background: win === v ? C.blue : C.track, color: win === v ? "#fff" : C.ink2,
+                }}>{txt}</button>
+            );
+
             return (
               <div style={{ marginTop: 12, background: C.white, borderRadius: 16, boxShadow: SHADOW_SUB, padding: "18px 20px" }}>
-                <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-                  <span style={{ font: `700 15px ${SANS}`, color: C.ink }}>Leady po dnech</span>
-                  <span style={{ font: `500 12px ${SANS}`, color: C.muted2 }}>posledních 30 dní</span>
-                  <span style={{ marginLeft: "auto", font: `500 12px ${SANS}`, color: C.muted }}>{sum} celkem · barvy jako výše</span>
+                {/* Header + ovládání */}
+                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                  <span style={{ font: `700 15px ${SANS}`, color: C.ink }}>Leady po {gran === "week" ? "týdnech" : "dnech"}</span>
+                  <span style={{ font: `500 12px ${SANS}`, color: C.muted2 }}>{sum} v okně</span>
+                  <div style={{ marginLeft: "auto", display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                    {/* granularita */}
+                    <div style={{ display: "flex", background: C.track, borderRadius: 999, padding: 2 }}>
+                      {(["day", "week"] as const).map(g => (
+                        <button key={g} onClick={() => setGran(g)}
+                          style={{
+                            border: "none", cursor: "pointer", borderRadius: 999, padding: "5px 12px",
+                            font: `600 11.5px ${SANS}`,
+                            background: gran === g ? C.white : "transparent", color: gran === g ? C.ink : C.muted,
+                            boxShadow: gran === g ? SHADOW_SUB : "none",
+                          }}>{g === "day" ? "Dny" : "Týdny"}</button>
+                      ))}
+                    </div>
+                    {/* presety okna */}
+                    <div style={{ display: "flex", gap: 4 }}>
+                      <Preset v={7} txt="7 d" /><Preset v={30} txt="30 d" /><Preset v={90} txt="90 d" /><Preset v={-1} txt="Vše" />
+                    </div>
+                    {/* vlastní rozsah */}
+                    <div style={{ display: "flex", gap: 4, alignItems: "center", font: `500 11.5px ${SANS}`, color: C.muted }}>
+                      <input type="date" value={from} onChange={e => { setFrom(e.target.value); setWin(0); }}
+                        style={{ border: `1px solid ${C.border}`, borderRadius: 8, padding: "4px 7px", font: `500 11.5px ${SANS}`, color: C.ink2, outline: "none" }} />
+                      <span>–</span>
+                      <input type="date" value={to} onChange={e => { setTo(e.target.value); setWin(0); }}
+                        style={{ border: `1px solid ${C.border}`, borderRadius: 8, padding: "4px 7px", font: `500 11.5px ${SANS}`, color: C.ink2, outline: "none" }} />
+                    </div>
+                  </div>
                 </div>
-                <div style={{ display: "flex", alignItems: "flex-end", gap: 3, height: H, marginTop: 14 }}>
-                  {days.map(d => {
-                    const t = totalOf(d);
-                    return (
-                      <div key={d.date} title={`${d.date}: ${t} leadů`}
-                        style={{ flex: 1, height: "100%", display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
-                        <div style={{ display: "flex", flexDirection: "column-reverse", borderRadius: "3px 3px 0 0", overflow: "hidden" }}>
-                          {keys.map(k => d[k] > 0 && (
-                            <div key={k} style={{ height: `${(d[k] / max) * H}px`, background: col[k] }} />
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })}
+
+                {/* Graf: osa Y + plocha */}
+                <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+                  {/* Y popisky */}
+                  <div style={{ position: "relative", width: 22, height: H, flex: "none" }}>
+                    {grid.map(v => (
+                      <div key={v} style={{ position: "absolute", right: 0, top: `${(1 - v / top) * H - 6}px`, font: `400 9px ${MONO}`, color: C.muted2 }}>{v}</div>
+                    ))}
+                  </div>
+                  {/* plocha */}
+                  <div style={{ position: "relative", flex: 1, height: H }}>
+                    {/* gridlines */}
+                    {grid.map(v => (
+                      <div key={v} style={{ position: "absolute", left: 0, right: 0, top: `${(1 - v / top) * H}px`, height: 1, background: v === 0 ? C.border : C.track }} />
+                    ))}
+                    {/* bary */}
+                    <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "flex-end", gap: bars.length > 45 ? 1 : 3 }}>
+                      {bars.map((d, i) => {
+                        const t = barTotal(d);
+                        return (
+                          <div key={d.date}
+                            onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(h => h === i ? null : h)}
+                            style={{ position: "relative", flex: 1, height: "100%", display: "flex", flexDirection: "column", justifyContent: "flex-end", cursor: "default" }}>
+                            <div style={{ display: "flex", flexDirection: "column-reverse", borderRadius: "3px 3px 0 0", overflow: "hidden", opacity: hover === null || hover === i ? 1 : .45, transition: "opacity .1s" }}>
+                              {BUCKETS.map(k => d[k] > 0 && (
+                                <div key={k} style={{ height: `${(d[k] / top) * H}px`, background: BUCKET_META[k].color }} />
+                              ))}
+                            </div>
+                            {/* tooltip */}
+                            {hover === i && (
+                              <div style={{
+                                position: "absolute", bottom: `${(t / top) * H + 8}px`, left: "50%", transform: "translateX(-50%)",
+                                background: C.ink, color: "#fff", borderRadius: 10, padding: "9px 11px", zIndex: 5,
+                                boxShadow: "0 4px 14px rgba(16,24,40,.22)", whiteSpace: "nowrap", pointerEvents: "none",
+                              }}>
+                                <div style={{ font: `600 11px ${SANS}`, marginBottom: 5 }}>
+                                  {gran === "week" ? `Týden od ${mdCz(d.date)}` : dateCz(d.date)}
+                                </div>
+                                {BUCKETS.filter(k => d[k] > 0).map(k => (
+                                  <div key={k} style={{ display: "flex", alignItems: "center", gap: 6, font: `400 11px ${SANS}`, marginTop: 2 }}>
+                                    <span style={{ width: 7, height: 7, borderRadius: 2, background: BUCKET_META[k].color, display: "inline-block" }} />
+                                    <span style={{ color: "#cbd5e1" }}>{BUCKET_META[k].label}</span>
+                                    <span style={{ marginLeft: "auto", fontWeight: 700 }}>{d[k]}</span>
+                                  </div>
+                                ))}
+                                <div style={{ marginTop: 5, paddingTop: 5, borderTop: "1px solid #374151", font: `600 11px ${SANS}`, display: "flex", gap: 10 }}>
+                                  <span style={{ color: "#cbd5e1" }}>Celkem</span><span style={{ marginLeft: "auto" }}>{t}</span>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
-                <div style={{ display: "flex", gap: 3, marginTop: 6 }}>
-                  {days.map((d, i) => (
-                    <div key={d.date} style={{ flex: 1, textAlign: "center", font: `400 9px ${MONO}`, color: C.muted2 }}>
-                      {i % 5 === 0 ? d.date.slice(5).replace("-", "/") : ""}
+
+                {/* X popisky */}
+                <div style={{ display: "flex", gap: bars.length > 45 ? 1 : 3, marginTop: 6, marginLeft: 30 }}>
+                  {bars.map((d, i) => (
+                    <div key={d.date} style={{ flex: 1, textAlign: "center", font: `400 9px ${MONO}`, color: C.muted2, overflow: "hidden" }}>
+                      {i % labelEvery === 0 ? mdCz(d.date) : ""}
                     </div>
                   ))}
                 </div>
+                {bars.length === 0 && (
+                  <div style={{ font: `400 12px ${SANS}`, color: C.muted2, marginTop: 10 }}>Ve zvoleném rozsahu nejsou žádné leady.</div>
+                )}
               </div>
             );
           })()}
