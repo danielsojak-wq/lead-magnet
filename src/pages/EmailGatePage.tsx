@@ -283,8 +283,12 @@ export default function EmailGatePage() {
     const fbp = getCookie("_fbp");
     const fbc = getCookie("_fbc");
 
-    trackEvent({ event: "email_submitted", session_id: null, lead_event_id: leadEventId, ...(getUtmData() ?? {}) });
-
+    // POZOR na pořadí: `email_submitted` (→ dataLayer → GTM → browser Pixel `Lead`)
+    // se pushuje AŽ po úspěchu serveru, ne tady. Dřív se střílel hned při submitu,
+    // takže Pixel poslal Lead i pro e-maily, které server vzápětí odmítl (jednorázová
+    // schránka, rate limit) — Meta pak takový lead počítala a učila se shánět další.
+    // Server-side CAPI Lead stejně vzniká až uvnitř send-verification-email; dedup
+    // přes sdílené leadEventId funguje bez ohledu na pořadí.
     const { data, error: fnErr } = await supabase.functions.invoke("send-verification-email", {
       body: {
         email: trimmed,
@@ -320,6 +324,13 @@ export default function EmailGatePage() {
             setError(body.message ?? "Překročen limit analýz.");
             return;
           }
+          // Jednorázová schránka — konkrétní hláška, ne generické "zkuste znovu"
+          // (opakování by nepomohlo). Lead event se nestřílí, viz pořadí výše.
+          if (body?.error === "disposable_email") {
+            trackEvent({ event: "disposable_email_blocked", ...(getUtmData() ?? {}) });
+            setError(body.message ?? "Zadejte prosím firemní nebo osobní e-mail.");
+            return;
+          }
         }
       } catch {
         // context parse failed — fall through to generic error
@@ -332,6 +343,11 @@ export default function EmailGatePage() {
       setError("Nepodařilo se odeslat email. Zkuste to prosím znovu.");
       return;
     }
+
+    // Až tady — server e-mail přijal a založil session. Pixel Lead (přes GTM) se
+    // tím pádem střílí jen na reálně přijaté leady a dedupuje se se server-side
+    // CAPI Leadem přes stejné leadEventId.
+    trackEvent({ event: "email_submitted", session_id: data.session_id, lead_event_id: leadEventId, ...(getUtmData() ?? {}) });
 
     navigate(`/check-email?session=${data.session_id}&email=${encodeURIComponent(trimmed)}`);
   };
