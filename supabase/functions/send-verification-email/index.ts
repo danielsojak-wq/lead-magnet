@@ -8,6 +8,7 @@ import {
   buildRateLimitResponse,
   logRateEvent,
 } from "../_shared/rate-limits.ts";
+import { isDisposableEmail } from "../_shared/disposable-domains.ts";
 
 const SITE_URL = Deno.env.get("SITE_URL") ?? "https://analyza.performind.cz";
 const TEST_EMAILS = ["daniel.sojak@performind.cz"];
@@ -28,6 +29,17 @@ function rateLimited(message: string, retry_after_hours: number, limit_type: str
   return new Response(
     JSON.stringify({ error: "rate_limit", message, retry_after_hours, limit_type, period }),
     { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+  );
+}
+// Strukturovaný kód (ne generický err) — frontend podle něj pozná, že opakování nepomůže,
+// a zobrazí konkrétní hlášku místo "Zkuste to prosím znovu".
+function disposableEmail() {
+  return new Response(
+    JSON.stringify({
+      error: "disposable_email",
+      message: "Zadejte prosím firemní nebo osobní e-mail — jednorázové schránky nepodporujeme.",
+    }),
+    { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
   );
 }
 
@@ -96,6 +108,15 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const email = (body.email as string | undefined)?.trim().toLowerCase();
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return err("Neplatný email");
+
+    // Jednorázové schránky ven — ZÁMĚRNĚ hned tady, před založením session i před
+    // CAPI Lead eventem. Double opt-in je nechytí (temp mailbox odkaz přijme a klikne).
+    if (isDisposableEmail(email)) {
+      console.log(JSON.stringify({
+        level: "info", message: "disposable_email_blocked", domain: email.split("@")[1],
+      }));
+      return disposableEmail();
+    }
 
     // ── Honeypot — silent fake success so bots don't know they were detected ──
     if ((body.website as string | undefined)?.trim()) {
