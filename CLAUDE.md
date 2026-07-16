@@ -26,7 +26,7 @@ Pipeline order (edge functions):
 2. `analyze-lm-session` → spustí scraping přes Apify (background task, < 150s limit)
 3. L1 analýza paralelně pro 3 hráče (Promise.all)
 4. L2 syntéza výsledků
-5. `ecomail-sync` → push do Ecomail nurturing
+5. `syncToEcomail` (inline v `analyze-lm-session`) → push do Ecomail nurturing (samostatná funkce `ecomail-sync` neexistuje)
 
 **Critical timing constraint**: Supabase background task limit je 150 sekund. Současný runtime je ~90s. Nikdy nepřidávej sériové AI calls do pipeline.
 
@@ -55,6 +55,12 @@ Apify actor. Nikdy neobcházej anti-bot/captcha ochrany Mety (headless browser p
 challenge apod.) — riziko penalizace IP/Business Manageru. Pokud je potřeba ručně
 ověřit reklamu, vypiš ad_archive_id + deeplink a požádej Daniela o ruční kontrolu
 v prohlížeči.
+
+## Meta ad atribuce (UTM) — pravidla
+
+- `utm_term` nese `{{ad.name}}`, který Meta **zamrazí při prvním zveřejnění** reklamy. Workflow „duplikuj → publikuj → přejmenuj" vyrobí reklamu posílající navždy starý název. Proto **nikdy nepáruj leady na reklamy podle `utm_term`** — jediný spolehlivý klíč je `lm_sessions.meta_ad_id` (z URL parametru `utm_ad_id={{ad.id}}`; ID je immutable).
+- `hsa_*` parametry (HubSpot auto-tracking) jsou literály kopírované duplikací — `hsa_ad` NENÍ spolehlivé ad ID (ověřeno 7/2026: banner 5 i 6 sdílely stejné `hsa_ad`).
+- Leady z in-app browserů (Instagram/FB) často dorazí **bez query stringu** — `utm_* = null` + `landing_url = null` je normální ztráta atribuce, ne bug.
 
 ## Brand barvy hráčů (UI)
 

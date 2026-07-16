@@ -119,12 +119,21 @@ Deno.serve(async (req) => {
       typeof utm[k] === "string" && (utm[k] as string).length > 0 ? (utm[k] as string) : null;
     const landingUrl = typeof body.landing_url === "string" && body.landing_url.length > 0
       ? (body.landing_url as string) : null;
+    // Ad ID atribuce — utm_ad_id={{ad.id}} z URL parametrů reklamy. Immutable klíč
+    // DB ↔ Meta Ads Manager: utm_term nese {{ad.name}}, který Meta zamrazí při
+    // prvním zveřejnění, takže duplikovaná + přejmenovaná reklama posílá navždy
+    // starý název (hsa_ad je literál kopírovaný duplikací — taky nespolehlivý).
+    // Fallback z landing_url pokrývá starší build frontendu bez utm_ad_id capture.
+    const metaAdId = utmStr("utm_ad_id")
+      ?? landingUrl?.match(/[?&]utm_ad_id=([0-9]+)/)?.[1]
+      ?? null;
     const utmFields = {
       utm_source: utmStr("utm_source"),
       utm_medium: utmStr("utm_medium"),
       utm_campaign: utmStr("utm_campaign"),
       utm_content: utmStr("utm_content"),
       utm_term: utmStr("utm_term"),
+      meta_ad_id: metaAdId,
       landing_url: landingUrl,
     };
 
@@ -157,7 +166,7 @@ Deno.serve(async (req) => {
 
     const { data: existing } = await supa
       .from("lm_sessions")
-      .select("id, status, lead_event_id, utm_source, utm_medium, utm_campaign, utm_content, utm_term, landing_url")
+      .select("id, status, lead_event_id, utm_source, utm_medium, utm_campaign, utm_content, utm_term, meta_ad_id, landing_url")
       .eq("email", email)
       .maybeSingle();
 

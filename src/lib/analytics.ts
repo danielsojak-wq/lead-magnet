@@ -40,6 +40,11 @@ export function captureUtm(): void {
     utm_campaign: params.get("utm_campaign"),
     utm_content: params.get("utm_content"),
     utm_term: params.get("utm_term"),
+    // {{ad.name}} v utm_term Meta ZAMRAZÍ při prvním zveřejnění reklamy —
+    // duplikovaná a pak přejmenovaná reklama posílá navždy starý název.
+    // {{ad.id}} je immutable, proto jediný spolehlivý klíč pro párování
+    // leadů na reklamy v Ads Manageru (ukládá se do lm_sessions.meta_ad_id).
+    utm_ad_id: params.get("utm_ad_id"),
   };
   if (Object.values(utmData).some((v) => v !== null)) {
     sessionStorage.setItem("utm_data", JSON.stringify(utmData));

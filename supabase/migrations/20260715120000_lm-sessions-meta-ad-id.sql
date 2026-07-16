@@ -1,0 +1,14 @@
+-- Meta ad ID atribuce — spolehlivý join klíč DB ↔ Meta Ads Manager.
+--
+-- Proč: utm_term nese {{ad.name}}, který Meta ZAMRAZÍ při prvním zveřejnění
+-- reklamy. Workflow „duplikuj → publikuj → přejmenuj" pak vyrobí reklamu, která
+-- navždy posílá starý název (červenec 2026: „1/7/2026 - banner 5 + ai variace"
+-- posílala utm_term=„1/7/2026 - banner 4" → 12 leadů pod cizím názvem).
+-- hsa_ad (HubSpot tracking) je literál kopírovaný duplikací — banner 5 i 6
+-- sdílely stejné hsa_ad, takže taky nespolehlivé.
+-- Jediný stabilní klíč = {{ad.id}} makro: resolvuje se per-reklama při prvním
+-- zveřejnění a ID reklamy se nikdy nemění → zamrznutí nevadí.
+--
+-- Plní send-verification-email z URL parametru utm_ad_id={{ad.id}}
+-- (parametr je nutné přidat do URL parametrů reklam v Meta Ads Manageru).
+ALTER TABLE lm_sessions ADD COLUMN IF NOT EXISTS meta_ad_id text;
